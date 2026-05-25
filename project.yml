@@ -1,0 +1,74 @@
+name: Antiphon
+options:
+  bundleIdPrefix: com.kounex
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  defaultConfig: Debug
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    GENERATE_INFOPLIST_FILE: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "1.0.0"
+
+targets:
+  Antiphon:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Antiphon
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kounex.antiphon
+        INFOPLIST_KEY_CFBundleDisplayName: Antiphon
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSAppleMusicUsageDescription: "Antiphon needs access to your Apple Music library to sync playlists."
+        SWIFT_STRICT_CONCURRENCY: complete
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+        Release:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
+    entitlements:
+      path: Antiphon/Antiphon.entitlements
+    info:
+      path: Antiphon/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: "Spotify Callback"
+            CFBundleURLSchemes:
+              - antiphon
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.antiphon.playlistRefresh
+        UIBackgroundModes:
+          - fetch
+    attributes:
+      SystemCapabilities:
+        com.apple.BackgroundModes:
+          enabled: true
+        com.apple.developer.musickit:
+          enabled: true
+    dependencies: []
+
+schemes:
+  Antiphon:
+    build:
+      targets:
+        Antiphon: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    archive:
+      config: Release
