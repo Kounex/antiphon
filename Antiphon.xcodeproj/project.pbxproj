@@ -352,7 +352,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 5K53AARBF9;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};

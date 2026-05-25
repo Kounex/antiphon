@@ -11,7 +11,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: "5K53AARBF9"
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
     GENERATE_INFOPLIST_FILE: YES
     CURRENT_PROJECT_VERSION: 2
     MARKETING_VERSION: "1.1.0"
@@ -29,7 +29,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kounex.antiphon
-        DEVELOPMENT_TEAM: "5K53AARBF9"
+        DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: Antiphon
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

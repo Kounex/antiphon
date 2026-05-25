@@ -63,12 +63,19 @@ Antiphon is built as a native Swift application using modern Apple frameworks:
    brew install xcodegen
    ```
 
-2. **Generate the Xcode Project**:
+2. **Set your Developer Team environment variable**:
+   To enable automatic codesigning with your Apple Developer account, export your Development Team ID (you can check yours by running `security find-identity -p codesigning -v` in your terminal):
+   ```bash
+   export DEVELOPMENT_TEAM="YOUR_TEAM_ID"
+   ```
+   For example, you can add this line to your `~/.zshrc` file to persist it.
+
+3. **Generate the Xcode Project**:
    Run the project generator from the root directory:
    ```bash
    xcodegen generate
    ```
-   This reads `project.yml` and creates `Antiphon.xcodeproj` with all build phases, assets, and source directories correctly mapped.
+   This reads `project.yml`, resolves your `DEVELOPMENT_TEAM` environment variable, and creates `Antiphon.xcodeproj` with all build phases, assets, schemes, and signing parameters correctly mapped.
 
 3. **Open and Run**:
    ```bash
