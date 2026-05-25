@@ -231,9 +231,9 @@ struct SyncPairRow: View {
             }
         case .unmatched:
             HStack(spacing: 6) {
-                Text("Partially synced")
+                Text("Partially synced, missing songs")
                     .font(.appCaption)
-                    .foregroundStyle(Color.syncWarning)
+                    .foregroundStyle(Color.syncError)
                 if !tracks.isEmpty {
                     Text("•")
                         .font(.appCaption)

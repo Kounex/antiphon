@@ -1,7 +1,7 @@
-# 🎵 Antiphon
+# Antiphon
 
 <p align="center">
-  <img src="Antiphon/Resources/Assets.xcassets/AppLogo.imageset/Logo.png" alt="Antiphon Logo" width="128" height="128" onerror="this.src='https://img.icons8.com/color/128/music-library.png';this.onerror=null;" />
+  <img src="assets/logo.jpg" alt="Antiphon Logo" width="128" height="128" onerror="this.src='https://img.icons8.com/color/128/music-library.png';this.onerror=null;" />
 </p>
 
 > **Antiphon**: *A responsive playlist synchronization bridge between Spotify and Apple Music.*
