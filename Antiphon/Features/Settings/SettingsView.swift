@@ -13,6 +13,10 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @AppStorage("syncIntervalMinutes") private var syncIntervalMinutes = AppConstants.Sync.defaultSyncIntervalMinutes
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -83,7 +87,7 @@ struct SettingsView: View {
                 .font(.appTitle)
                 .foregroundStyle(Color.textPrimary)
 
-            Text("v1.0.0")
+            Text("v\(appVersion)")
                 .font(.appCaption)
                 .foregroundStyle(Color.textTertiary)
         }
@@ -199,7 +203,7 @@ struct SettingsView: View {
             SectionHeader(title: "About", icon: "info.circle")
 
             VStack(spacing: 0) {
-                AboutRow(label: "Version", value: "1.0.0")
+                AboutRow(label: "Version", value: appVersion)
                 Divider().background(Color.subtleBorder)
                 AboutRow(label: "iOS", value: UIDevice.current.systemVersion)
                 Divider().background(Color.subtleBorder)

@@ -58,7 +58,7 @@
 		24BF0F41B9859583635C70A7 /* InspectorTabViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorTabViews.swift; sourceTree = "<group>"; };
 		37F8FBF68C2E348E5EADCDE0 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		44FA160B1B3DA6A3592D01DC /* SyncPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPair.swift; sourceTree = "<group>"; };
-		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
 		5A4DA604959B36AE69F60434 /* AntiphonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiphonApp.swift; sourceTree = "<group>"; };
 		5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetPlaylistStep.swift; sourceTree = "<group>"; };
@@ -350,7 +350,6 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					EA8C6988C8C873B417A7B008 = {
-						DevelopmentTeam = 5K53AARBF9;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
@@ -445,7 +444,7 @@
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 5K53AARBF9;
+				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
@@ -473,7 +472,7 @@
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 5K53AARBF9;
+				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
