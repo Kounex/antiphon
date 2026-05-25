@@ -186,6 +186,7 @@ struct TargetPlaylistStep: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
         } else {
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -202,6 +203,7 @@ struct TargetPlaylistStep: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 

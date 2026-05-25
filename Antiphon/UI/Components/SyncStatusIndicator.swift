@@ -44,7 +44,7 @@ struct SyncStatusIndicator: View {
     private var statusIconName: String {
         switch status {
         case .success: return "checkmark.circle.fill"
-        case .partial: return "exclamationmark.triangle.fill"
+        case .partial: return "flag.fill"
         case .failed: return "exclamationmark.circle.fill"
         case .inProgress: return "arrow.triangle.2.circlepath"
         case nil: return "circle"

@@ -91,7 +91,7 @@ enum SyncResultStatus: String, Codable {
     var icon: String {
         switch self {
         case .success: return "checkmark.circle.fill"
-        case .partial: return "exclamationmark.triangle.fill"
+        case .partial: return "flag.fill"
         case .failed: return "xmark.circle.fill"
         case .inProgress: return "arrow.triangle.2.circlepath"
         }

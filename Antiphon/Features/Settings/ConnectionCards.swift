@@ -9,6 +9,8 @@ struct SpotifyConnectionCard: View {
 
     @State private var clientIdInput: String = ""
     @State private var isLoggingIn = false
+    @State private var isSecretVisible = false
+    @FocusState private var isFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 14) {
@@ -68,19 +70,42 @@ struct SpotifyConnectionCard: View {
                     }
 
                     HStack(spacing: 8) {
-                        TextField("Paste your Spotify Client ID", text: $clientIdInput)
-                            .font(.appMono)
-                            .foregroundStyle(Color.textPrimary)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .padding(10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.surfaceElevated)
-                            )
+                        HStack(spacing: 6) {
+                            if isSecretVisible {
+                                TextField("Paste your Spotify Client ID", text: $clientIdInput)
+                                    .font(.appMono)
+                                    .foregroundStyle(Color.textPrimary)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                    .focused($isFieldFocused)
+                            } else {
+                                Text(maskedClientId)
+                                    .font(.appMono)
+                                    .foregroundStyle(clientIdInput.isEmpty ? Color.textTertiary : Color.textSecondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(1)
+                            }
+                            
+                            Button {
+                                isSecretVisible.toggle()
+                                if isSecretVisible {
+                                    isFieldFocused = true
+                                }
+                            } label: {
+                                Image(systemName: isSecretVisible ? "eye.slash" : "eye")
+                                    .font(.appCaption)
+                                    .foregroundStyle(Color.textSecondary)
+                            }
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.surfaceElevated)
+                        )
 
                         Button {
                             spotifyAuth.clientId = clientIdInput
+                            isSecretVisible = false
                         } label: {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title3)
@@ -128,7 +153,17 @@ struct SpotifyConnectionCard: View {
         .glassCard()
         .onAppear {
             clientIdInput = spotifyAuth.clientId ?? ""
+            isSecretVisible = clientIdInput.isEmpty
         }
+    }
+
+    private var maskedClientId: String {
+        if clientIdInput.isEmpty {
+            return "Paste your Spotify Client ID"
+        }
+        let prefix = String(clientIdInput.prefix(3))
+        let mask = String(repeating: "•", count: max(0, clientIdInput.count - 3))
+        return prefix + mask
     }
 
     @MainActor

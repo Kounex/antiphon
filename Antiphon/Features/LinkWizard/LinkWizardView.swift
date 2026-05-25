@@ -160,12 +160,20 @@ final class LinkWizardViewModel {
 
     // MARK: - Navigation
 
+    private func dismissKeyboard() {
+        #if canImport(UIKit)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
+    }
+
     func advance() {
+        dismissKeyboard()
         guard let nextStep = LinkWizardStep(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = nextStep
     }
 
     func goBack() {
+        dismissKeyboard()
         guard let prevStep = LinkWizardStep(rawValue: currentStep.rawValue - 1) else { return }
         currentStep = prevStep
     }

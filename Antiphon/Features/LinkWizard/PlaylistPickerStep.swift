@@ -79,6 +79,7 @@ struct PlaylistPickerStep: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - Apple Music Playlist List
@@ -99,6 +100,7 @@ struct PlaylistPickerStep: View {
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - Loading

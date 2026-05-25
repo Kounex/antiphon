@@ -73,6 +73,7 @@ struct DeltaEngine {
             
             // Destination-only tracks (on Apple Music but not in cached)
             let cachedAppleIds = Set(cachedTracks.compactMap { $0.appleMusicTrackId })
+            var nextAddedAt = (cachedTracks.map { $0.addedAt }.max() ?? Date()).addingTimeInterval(1.0)
             for appleTrack in appleMusicTracks {
                 if !matchedAppleTrackIds.contains(appleTrack.id) && !cachedAppleIds.contains(appleTrack.id) {
                     let isrc = appleTrack.isrc ?? "local-\(appleTrack.id)"
@@ -94,6 +95,7 @@ struct DeltaEngine {
                     }
                     if alreadyCached { continue }
                     
+                    let isBidirectional = pair.syncDirection == .bidirectional
                     let cached = CachedTrack(
                         isrc: isrc,
                         title: appleTrack.title,
@@ -104,10 +106,14 @@ struct DeltaEngine {
                         spotifyTrackUri: nil,
                         appleMusicTrackId: appleTrack.id,
                         source: .appleMusic,
-                        syncState: .synced
+                        syncState: isBidirectional ? .pending : .synced
                     )
-                    cached.removalFlag = .extraOnDestination
-                    cached.removalFlaggedAt = Date()
+                    cached.addedAt = nextAddedAt
+                    nextAddedAt = nextAddedAt.addingTimeInterval(1.0)
+                    if !isBidirectional {
+                        cached.removalFlag = .extraOnDestination
+                        cached.removalFlaggedAt = Date()
+                    }
                     cached.syncPair = pair
                     context.insert(cached)
                 }
@@ -185,6 +191,7 @@ struct DeltaEngine {
             
             // Destination-only tracks (on Spotify but not in cached)
             let cachedSpotifyUris = Set(cachedTracks.compactMap { $0.spotifyTrackUri })
+            var nextAddedAt = (cachedTracks.map { $0.addedAt }.max() ?? Date()).addingTimeInterval(1.0)
             for item in spotifyTracks {
                 guard let sTrack = item.track else { continue }
                 if !matchedSpotifyURIs.contains(sTrack.uri) && !cachedSpotifyUris.contains(sTrack.uri) {
@@ -207,6 +214,7 @@ struct DeltaEngine {
                     }
                     if alreadyCached { continue }
                     
+                    let isBidirectional = pair.syncDirection == .bidirectional
                     let cached = CachedTrack(
                         isrc: isrc,
                         title: sTrack.name,
@@ -217,10 +225,14 @@ struct DeltaEngine {
                         spotifyTrackUri: sTrack.uri,
                         appleMusicTrackId: nil,
                         source: .spotify,
-                        syncState: .synced
+                        syncState: isBidirectional ? .pending : .synced
                     )
-                    cached.removalFlag = .extraOnDestination
-                    cached.removalFlaggedAt = Date()
+                    cached.addedAt = nextAddedAt
+                    nextAddedAt = nextAddedAt.addingTimeInterval(1.0)
+                    if !isBidirectional {
+                        cached.removalFlag = .extraOnDestination
+                        cached.removalFlaggedAt = Date()
+                    }
                     cached.syncPair = pair
                     context.insert(cached)
                 }

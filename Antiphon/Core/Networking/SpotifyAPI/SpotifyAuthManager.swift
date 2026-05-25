@@ -66,6 +66,7 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
     
     private var codeVerifier: String?
     private var authSession: ASWebAuthenticationSession?
+    private weak var presentingAnchor: ASPresentationAnchor?
     
     // MARK: - Init
     
@@ -101,6 +102,7 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
             throw SpotifyAuthError.noClientId
         }
         
+        self.presentingAnchor = anchor
         isAuthenticating = true
         authError = nil
         
@@ -248,7 +250,7 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             // Refresh failed — user needs to re-authenticate
-            isAuthenticated = false
+            logout()
             throw SpotifyAuthError.tokenRefreshFailed
         }
         
@@ -287,7 +289,15 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
 
 extension SpotifyAuthManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        ASPresentationAnchor()
+        if let presentingAnchor {
+            return presentingAnchor
+        }
+        // Fallback to active window
+        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let window = scene.windows.first(where: { $0.isKeyWindow }) {
+            return window
+        }
+        return UIWindow()
     }
 }
 

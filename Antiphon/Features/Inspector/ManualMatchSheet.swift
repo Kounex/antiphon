@@ -18,6 +18,7 @@ struct ManualMatchSheet: View {
     @State private var isLinking = false
     @State private var linkError: String?
     @State private var didLink = false
+    @State private var showDismissConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -110,6 +111,25 @@ struct ManualMatchSheet: View {
                     Button(didLink ? "Done" : "Cancel") { dismiss() }
                         .foregroundStyle(Color.textSecondary)
                 }
+                if !didLink {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Dismiss") {
+                            showDismissConfirmation = true
+                        }
+                        .foregroundStyle(Color.syncSuccess)
+                    }
+                }
+            }
+            .alert("Dismiss Mismatch?", isPresented: $showDismissConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Dismiss", role: .none) {
+                    track.unmatchedPlatform = nil
+                    track.syncState = .synced
+                    try? modelContext.save()
+                    dismiss()
+                }
+            } message: {
+                Text("This will mark the track as synced and ignore the missing match. This action can only be reversed by running a Full Rebuild.")
             }
         }
         .presentationBackground(Color.appBackground)

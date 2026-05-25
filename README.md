@@ -30,6 +30,14 @@ Streaming platforms are walled gardens. If you collaborate on a Spotify playlist
 
 ---
 
+## 📖 Developer Documentation
+
+For a deep dive into architecture and algorithm implementation details, refer to the following documents:
+* [Architecture Guide](docs/ARCHITECTURE.md): Concurrency model (Actors & @MainActor), project folder structure, and SwiftData database schema.
+* [Playlist Sync Engine Guide](docs/SYNC_ENGINE.md): Technical overview of the delta matching pipeline, fuzzy matching rules, override actions, and sync safety thresholds.
+
+---
+
 ## 🛠 How It Is Built
 
 Antiphon is built as a native Swift application using modern Apple frameworks:

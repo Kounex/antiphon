@@ -99,8 +99,10 @@ struct TracksListContainer: View {
 // MARK: - Track Row
 
 struct TrackRow: View {
+    @Environment(\.modelContext) private var modelContext
     let track: CachedTrack
     @State private var showManualMatch = false
+    @State private var showDismissConfirmation = false
 
     var body: some View {
         Button {
@@ -139,8 +141,8 @@ struct TrackRow: View {
                         Text(unmatched.description)
                             .font(.appMicro)
                             .foregroundStyle(Color.syncError)
-                    } else if let flag = track.removalFlag {
-                        Text(flag.description)
+                    } else if let removalDescription = track.removalDescription {
+                        Text(removalDescription)
                             .font(.appMicro)
                             .foregroundStyle(Color.syncWarning)
                     }
@@ -148,10 +150,26 @@ struct TrackRow: View {
 
                 Spacer()
 
-                // Source → Target sync status dots
-                HStack(spacing: 3) {
-                    StatusDot(status: track.sourceDotStatus)
-                    StatusDot(status: track.targetDotStatus)
+                // Source → Target sync status dots or Dismiss button
+                if track.unmatchedPlatform != nil {
+                    Button {
+                        showDismissConfirmation = true
+                    } label: {
+                        Text("Dismiss")
+                            .font(.appCaption)
+                            .bold()
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .background(Color.syncSuccess.opacity(0.12))
+                            .foregroundStyle(Color.syncSuccess)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    HStack(spacing: 3) {
+                        StatusDot(status: track.sourceDotStatus)
+                        StatusDot(status: track.targetDotStatus)
+                    }
                 }
 
                 // Chevron for tappable unmatched tracks
@@ -169,6 +187,18 @@ struct TrackRow: View {
             )
         }
         .buttonStyle(.plain)
+        .alert("Dismiss Mismatch?", isPresented: $showDismissConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Dismiss", role: .none) {
+                withAnimation {
+                    track.unmatchedPlatform = nil
+                    track.syncState = .synced
+                    try? modelContext.save()
+                }
+            }
+        } message: {
+            Text("This will mark the track as synced and ignore the missing match. This action can only be reversed by running a Full Rebuild.")
+        }
         .sheet(isPresented: $showManualMatch) {
             if let platform = track.unmatchedPlatform {
                 ManualMatchSheet(track: track, targetPlatform: platform)
@@ -354,18 +384,14 @@ struct FlaggedTabView: View {
                                     .fill(Color.syncWarning.opacity(0.08))
                             )
 
-                            ForEach(extraOnDestTracks) { track in
-                                FlaggedTrackRow(track: track) {
-                                    // Ignore: clear the flag, treat as in-sync
-                                    track.removalFlag = nil
-                                    track.removalFlaggedAt = nil
-                                    try? modelContext.save()
-                                } onRemove: {
-                                    // Remove from cache (user should manually remove from destination)
-                                    modelContext.delete(track)
-                                    try? modelContext.save()
-                                }
-                            }
+                             ForEach(extraOnDestTracks) { track in
+                                 FlaggedTrackRow(track: track) {
+                                     // Ignore: clear the flag, treat as in-sync
+                                     track.removalFlag = nil
+                                     track.removalFlaggedAt = nil
+                                     try? modelContext.save()
+                                 }
+                             }
                         }
 
                         // Removal flagged section
@@ -391,16 +417,13 @@ struct FlaggedTabView: View {
                                     .fill(Color.syncWarning.opacity(0.08))
                             )
 
-                            ForEach(removalFlaggedTracks) { track in
-                                FlaggedTrackRow(track: track) {
-                                    track.removalFlag = nil
-                                    track.removalFlaggedAt = nil
-                                    try? modelContext.save()
-                                } onRemove: {
-                                    modelContext.delete(track)
-                                    try? modelContext.save()
-                                }
-                            }
+                             ForEach(removalFlaggedTracks) { track in
+                                 FlaggedTrackRow(track: track) {
+                                     track.removalFlag = nil
+                                     track.removalFlaggedAt = nil
+                                     try? modelContext.save()
+                                 }
+                             }
                         }
                     }
                     .padding()
@@ -415,7 +438,8 @@ struct FlaggedTabView: View {
 struct FlaggedTrackRow: View {
     let track: CachedTrack
     let onDismiss: () -> Void
-    let onRemove: () -> Void
+    
+    @State private var showConfirmation = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -447,43 +471,32 @@ struct FlaggedTrackRow: View {
 
             Spacer()
 
-            HStack(spacing: 8) {
-                Button {
-                    withAnimation { onDismiss() }
-                } label: {
-                    Text("Keep")
-                        .font(.appCaption)
-                        .bold()
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 10)
-                        .background(Color.syncSuccess.opacity(0.12))
-                        .foregroundStyle(Color.syncSuccess)
-                        .cornerRadius(6)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    withAnimation { onRemove() }
-                } label: {
-                    Text("Remove")
-                        .font(.appCaption)
-                        .bold()
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 10)
-                        .background(Color.syncError.opacity(0.12))
-                        .foregroundStyle(Color.syncError)
-                        .cornerRadius(6)
-                }
-                .buttonStyle(.plain)
+            Button {
+                showConfirmation = true
+            } label: {
+                Text("Keep")
+                    .font(.appCaption)
+                    .bold()
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(Color.syncSuccess.opacity(0.12))
+                    .foregroundStyle(Color.syncSuccess)
+                    .cornerRadius(6)
             }
+            .buttonStyle(.plain)
         }
         .glassCard(padding: 12)
-        .contextMenu {
-            Button { onDismiss() } label: {
-                Label("Dismiss Flag", systemImage: "flag.slash")
+        .alert("Keep Track?", isPresented: $showConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Keep", role: .none) {
+                withAnimation { onDismiss() }
             }
-            Button(role: .destructive) { onRemove() } label: {
-                Label("Remove Track", systemImage: "trash")
+        } message: {
+            Text("This will clear the removal flag and mark the track as in-sync. This action can only be reversed by running a Full Rebuild.")
+        }
+        .contextMenu {
+            Button { showConfirmation = true } label: {
+                Label("Dismiss Flag", systemImage: "flag.slash")
             }
 
             Divider()

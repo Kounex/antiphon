@@ -243,11 +243,24 @@ struct PlaylistInspectorView: View {
                 )
             } else if let result = syncCoordinator.lastResults[syncPair.id] {
                 // Just-finished result banner
+                let (iconName, iconColor) = { () -> (String, Color) in
+                    switch result.status {
+                    case .success:
+                        return ("checkmark.circle.fill", Color.syncSuccess)
+                    case .partial:
+                        return ("flag.fill", Color.syncWarning)
+                    case .failed:
+                        return ("xmark.circle.fill", Color.syncError)
+                    case .inProgress:
+                        return ("arrow.triangle.2.circlepath", Color.syncProgress)
+                    }
+                }()
+                
                 HStack(spacing: 8) {
-                    Image(systemName: result.isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(result.isSuccess ? Color.syncSuccess : Color.syncError)
+                    Image(systemName: iconName)
+                        .foregroundStyle(iconColor)
 
-                    Text(result.message ?? (result.isSuccess ? "Sync complete" : "Sync failed"))
+                    Text(result.message ?? (result.status == .success ? "Sync complete" : "Sync failed"))
                         .font(.appCaption)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(2)
