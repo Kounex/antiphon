@@ -350,8 +350,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					EA8C6988C8C873B417A7B008 = {
-						DevelopmentTeam = "";
-						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
+						DevelopmentTeam = 5K53AARBF9;
+						ProvisioningStyle = Automatic;
+						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -443,6 +444,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5K53AARBF9;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
@@ -469,6 +472,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5K53AARBF9;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
@@ -522,10 +527,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5K53AARBF9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -589,10 +595,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5K53AARBF9;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

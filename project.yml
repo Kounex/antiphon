@@ -11,10 +11,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "5K53AARBF9"
     GENERATE_INFOPLIST_FILE: YES
     CURRENT_PROJECT_VERSION: 2
     MARKETING_VERSION: "1.1.0"
+    CODE_SIGN_STYLE: Automatic
 
 targets:
   Antiphon:
@@ -28,6 +29,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kounex.antiphon
+        DEVELOPMENT_TEAM: "5K53AARBF9"
+        CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: Antiphon
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
@@ -62,12 +65,23 @@ targets:
     dependencies: []
 
 schemes:
-  Antiphon:
+  Antiphon (Debug):
     build:
       targets:
         Antiphon: all
     run:
       config: Debug
+    profile:
+      config: Debug
+    archive:
+      config: Debug
+
+  Antiphon (Release):
+    build:
+      targets:
+        Antiphon: all
+    run:
+      config: Release
     profile:
       config: Release
     archive:
