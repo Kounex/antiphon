@@ -8,7 +8,6 @@ import MusicKit
 /// - Create a new playlist on the target platform (auto-populated with source name)
 struct TargetPlaylistStep: View {
     @Bindable var viewModel: LinkWizardViewModel
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
 
     private let appleMusicManager = AppleMusicManager()
 
@@ -265,7 +264,7 @@ struct TargetPlaylistStep: View {
         do {
             if viewModel.targetPlatform == .spotify {
                 if viewModel.targetSpotifyPlaylists.isEmpty {
-                    let client = SpotifyAPIClient(authManager: spotifyAuth)
+                    let client = SpotifyAPIClient()
                     viewModel.targetSpotifyPlaylists = try await client.getAllPlaylists()
                 }
             } else {

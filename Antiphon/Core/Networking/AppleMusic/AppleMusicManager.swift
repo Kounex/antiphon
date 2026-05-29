@@ -5,40 +5,64 @@ import UIKit
 
 /// Manages Apple Music authorization and library access via MusicKit.
 ///
-/// MusicKit handles all token management automatically — no manual JWT
-/// generation or refresh logic needed. The framework signs API calls
-/// behind the scenes once the user grants authorization.
+/// Fully `@MainActor`-isolated: observable auth state is UI-owned, and MusicKit
+/// network calls suspend off the main actor internally. The `nonisolated init()`
+/// allows Views to create instances as stored properties without requiring
+/// `@MainActor` context during struct initialization.
+@MainActor
 @Observable
-final class AppleMusicManager: @unchecked Sendable {
+final class AppleMusicManager {
     
     // MARK: - Published State
     
-    var authorizationStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
+    var authorizationStatus: MusicAuthorization.Status = .notDetermined
     var isAuthorized: Bool { authorizationStatus == .authorized }
+    
+    // MARK: - Init
+    
+    nonisolated init() {}
     
     // MARK: - Authorization
     
     /// Requests Apple Music authorization from the user.
     /// Presents a system prompt for library access.
-    @MainActor
     func requestAuthorization() async {
         let status = await MusicAuthorization.request()
         authorizationStatus = status
     }
     
     /// Refreshes the current authorization status without prompting.
-    @MainActor
+    /// Call after init or in `.onAppear` to pick up the live status.
     func refreshStatus() {
         authorizationStatus = MusicAuthorization.currentStatus
+    }
+    
+    // MARK: - Authorization Guard
+    
+    /// Validates Apple Music authorization, transparently re-requesting access
+    /// when the status is `.notDetermined` (analogous to Spotify's token refresh).
+    ///
+    /// `MusicAuthorization.request()` is idempotent: if the user has already
+    /// granted access it returns `.authorized` instantly without showing a
+    /// dialog. This makes it safe to call from any context.
+    private func ensureAuthorized() async throws {
+        var live = MusicAuthorization.currentStatus
+        
+        if live == .notDetermined {
+            live = await MusicAuthorization.request()
+        }
+        
+        authorizationStatus = live
+        guard live == .authorized else {
+            throw AppleMusicError.notAuthorized
+        }
     }
     
     // MARK: - Playlists
     
     /// Fetches all playlists from the user's Apple Music library.
     func fetchUserPlaylists() async throws -> [Playlist] {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         var request = MusicLibraryRequest<Playlist>()
         request.sort(by: \.name, ascending: true)
@@ -68,9 +92,7 @@ final class AppleMusicManager: @unchecked Sendable {
         for playlist: Playlist,
         localISRCLookup: (@Sendable (_ ids: [String]) -> [String: String])? = nil
     ) async throws -> [AppleMusicTrackInfo] {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         // Load tracks relationship
         let detailedPlaylist = try await playlist.with([.tracks])
@@ -135,9 +157,7 @@ final class AppleMusicManager: @unchecked Sendable {
     
     /// Creates a new playlist in the user's Apple Music library.
     func createPlaylist(name: String, description: String? = nil) async throws -> Playlist {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         let playlist = try await MusicLibrary.shared.createPlaylist(
             name: name,
@@ -151,18 +171,14 @@ final class AppleMusicManager: @unchecked Sendable {
     
     /// Adds a song to a playlist.
     func addTrack(_ song: Song, to playlist: Playlist) async throws {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         _ = try await MusicLibrary.shared.add(song, to: playlist)
     }
     
     /// Adds multiple songs to a playlist in a single batch request to preserve order and optimize performance.
     func addTracks(_ songs: [Song], to playlist: Playlist) async throws {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         guard !songs.isEmpty else { return }
         
@@ -225,9 +241,7 @@ final class AppleMusicManager: @unchecked Sendable {
     /// Searches the Apple Music catalog for a song by ISRC code.
     /// This is the primary matching strategy for cross-platform sync.
     func searchByISRC(_ isrc: String) async throws -> Song? {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         do {
             let request = MusicCatalogResourceRequest<Song>(matching: \.isrc, equalTo: isrc)
@@ -241,9 +255,7 @@ final class AppleMusicManager: @unchecked Sendable {
     
     /// Searches the Apple Music catalog by query string (fuzzy fallback).
     func searchCatalog(query: String, limit: Int = 10) async throws -> [Song] {
-        guard isAuthorized else {
-            throw AppleMusicError.notAuthorized
-        }
+        try await ensureAuthorized()
         
         do {
             var request = MusicCatalogSearchRequest(term: query, types: [Song.self])

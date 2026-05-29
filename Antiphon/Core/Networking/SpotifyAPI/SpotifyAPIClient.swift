@@ -1,14 +1,17 @@
 import Foundation
 
 /// A client for making authenticated requests to the Spotify Web API.
+///
+/// Takes a `SpotifyTokenProvider` (actor) for token lifecycle instead of
+/// `SpotifyAuthManager` — keeping API access decoupled from UI auth state.
 actor SpotifyAPIClient {
     
-    private let authManager: SpotifyAuthManager
+    private let tokenProvider: SpotifyTokenProvider
     private let session: URLSession
     private let decoder: JSONDecoder
     
-    init(authManager: SpotifyAuthManager) {
-        self.authManager = authManager
+    init(tokenProvider: SpotifyTokenProvider = SpotifyTokenProvider()) {
+        self.tokenProvider = tokenProvider
         self.session = URLSession.shared
         self.decoder = JSONDecoder()
     }
@@ -136,7 +139,7 @@ actor SpotifyAPIClient {
     /// Uploads a custom cover image to a Spotify playlist.
     /// The image must be a Base64-encoded JPEG string (max ~256KB).
     func uploadPlaylistImage(playlistId: String, base64JPEG: String) async throws {
-        let token = try await authManager.validAccessToken()
+        let token = try await tokenProvider.validAccessToken()
         let endpoint = SpotifyEndpoint.uploadPlaylistImage(playlistId: playlistId)
         guard let url = endpoint.url() else {
             throw SpotifyAPIError.invalidURL
@@ -162,7 +165,7 @@ actor SpotifyAPIClient {
     // MARK: - Generic Request
     
     private func request<T: Decodable>(endpoint: SpotifyEndpoint) async throws -> T {
-        let token = try await authManager.validAccessToken()
+        let token = try await tokenProvider.validAccessToken()
         guard let url = endpoint.url() else {
             throw SpotifyAPIError.invalidURL
         }
@@ -175,7 +178,7 @@ actor SpotifyAPIClient {
     }
     
     private func request<T: Decodable, B: Encodable>(endpoint: SpotifyEndpoint, body: B) async throws -> T {
-        let token = try await authManager.validAccessToken()
+        let token = try await tokenProvider.validAccessToken()
         guard let url = endpoint.url() else {
             throw SpotifyAPIError.invalidURL
         }

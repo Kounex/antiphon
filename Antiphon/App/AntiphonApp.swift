@@ -25,11 +25,8 @@ struct AntiphonApp: App {
         spotifyAuth = SpotifyAuthManager()
         syncCoordinator = SyncCoordinator(modelContainer: modelContainer)
 
-        // Register background tasks with the real handler
-        BackgroundTaskManager.registerTasks(
-            modelContainer: modelContainer,
-            spotifyAuth: spotifyAuth
-        )
+        // Register background tasks (handler creates its own auth instances)
+        BackgroundTaskManager.registerTasks(modelContainer: modelContainer)
     }
 
     var body: some Scene {
@@ -43,7 +40,7 @@ struct AntiphonApp: App {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                break
+                NotificationManager.requestPermissionIfNeeded()
             case .background:
                 BackgroundTaskManager.scheduleBackgroundRefresh()
             default:

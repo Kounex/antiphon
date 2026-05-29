@@ -13,7 +13,6 @@ import MusicKit
 struct LinkWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
     @Environment(SyncCoordinator.self) private var syncCoordinator
 
     @State private var viewModel = LinkWizardViewModel()
@@ -68,11 +67,9 @@ struct LinkWizardView: View {
                         modelContext.insert(pair)
                         try? modelContext.save()
                         
-                        // Immediately trigger the initial sync
                         syncCoordinator.startSync(
                             pairId: pair.id,
-                            action: .initialSync,
-                            spotifyAuth: spotifyAuth
+                            action: .initialSync
                         )
                     }
                     dismiss()
@@ -124,6 +121,7 @@ enum LinkWizardStep: Int, CaseIterable, Comparable {
 // MARK: - View Model
 
 @Observable
+@MainActor
 final class LinkWizardViewModel {
     // Step tracking
     var currentStep: LinkWizardStep = .pickPlatform

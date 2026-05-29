@@ -3,7 +3,6 @@ import SwiftData
 
 /// The main dashboard view showing all linked playlist pairs and their sync status.
 struct DashboardView: View {
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SyncPair.createdAt, order: .reverse) private var syncPairs: [SyncPair]
 
@@ -61,11 +60,9 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
-                    .environment(spotifyAuth)
             }
             .sheet(isPresented: $showingLinkWizard) {
                 LinkWizardView()
-                    .environment(spotifyAuth)
             }
         }
     }
@@ -138,7 +135,6 @@ struct DashboardView: View {
                 ForEach(syncPairs) { pair in
                     NavigationLink {
                         PlaylistInspectorView(syncPair: pair)
-                            .environment(spotifyAuth)
                     } label: {
                         SyncPairRow(syncPair: pair)
                     }
@@ -324,12 +320,12 @@ struct SyncPairRow: View {
 }
 
 #Preview {
+    let container = try! ModelContainer(
+        for: SyncPair.self, CachedTrack.self, SyncLog.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
     DashboardView()
         .environment(SpotifyAuthManager())
-        .modelContainer(
-            try! ModelContainer(
-                for: SyncPair.self, CachedTrack.self, SyncLog.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-            )
-        )
+        .environment(SyncCoordinator(modelContainer: container))
+        .modelContainer(container)
 }

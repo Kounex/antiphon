@@ -3,8 +3,15 @@ import AuthenticationServices
 import CryptoKit
 import Observation
 
+/// Manages Spotify OAuth authentication and observable UI state.
+///
+/// Fully `@MainActor`-isolated: owns login/logout flows, user profile display,
+/// and BYOK Client ID management. Does NOT manage token lifecycle for API calls —
+/// that responsibility belongs to `SpotifyTokenProvider` (an actor that reads the
+/// same Keychain tokens written here during login).
+@MainActor
 @Observable
-final class SpotifyAuthManager: NSObject, @unchecked Sendable {
+final class SpotifyAuthManager: NSObject {
     
     // MARK: - Published State
     
@@ -27,43 +34,6 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
     
     // MARK: - Private State
     
-    private var accessToken: String? {
-        get { KeychainManager.load(.spotifyAccessToken) }
-        set {
-            if let newValue {
-                try? KeychainManager.save(newValue, for: .spotifyAccessToken)
-            } else {
-                KeychainManager.delete(.spotifyAccessToken)
-            }
-        }
-    }
-    
-    private var refreshToken: String? {
-        get { KeychainManager.load(.spotifyRefreshToken) }
-        set {
-            if let newValue {
-                try? KeychainManager.save(newValue, for: .spotifyRefreshToken)
-            } else {
-                KeychainManager.delete(.spotifyRefreshToken)
-            }
-        }
-    }
-    
-    private var tokenExpiryDate: Date? {
-        get {
-            guard let string = KeychainManager.load(.spotifyTokenExpiry),
-                  let interval = TimeInterval(string) else { return nil }
-            return Date(timeIntervalSince1970: interval)
-        }
-        set {
-            if let newValue {
-                try? KeychainManager.save(String(newValue.timeIntervalSince1970), for: .spotifyTokenExpiry)
-            } else {
-                KeychainManager.delete(.spotifyTokenExpiry)
-            }
-        }
-    }
-    
     private var codeVerifier: String?
     private var authSession: ASWebAuthenticationSession?
     private weak var presentingAnchor: ASPresentationAnchor?
@@ -72,31 +42,12 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
     
     override init() {
         super.init()
-        // Check if we have a valid refresh token
-        isAuthenticated = refreshToken != nil
+        isAuthenticated = KeychainManager.load(.spotifyRefreshToken) != nil
     }
     
     // MARK: - Public API
     
-    /// Returns a valid access token, refreshing if necessary.
-    func validAccessToken() async throws -> String {
-        // If token is still valid (with 5-min buffer), return it
-        if let token = accessToken,
-           let expiry = tokenExpiryDate,
-           expiry.timeIntervalSinceNow > 300 {
-            return token
-        }
-        
-        // Try to refresh
-        guard let refresh = refreshToken else {
-            throw SpotifyAuthError.notAuthenticated
-        }
-        
-        return try await refreshAccessToken(using: refresh)
-    }
-    
     /// Starts the Spotify OAuth PKCE login flow.
-    @MainActor
     func startLogin(presentingFrom anchor: ASPresentationAnchor) async throws {
         guard let clientId else {
             throw SpotifyAuthError.noClientId
@@ -108,12 +59,10 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
         
         defer { isAuthenticating = false }
         
-        // Generate PKCE values
         let verifier = generateCodeVerifier()
         let challenge = generateCodeChallenge(from: verifier)
         self.codeVerifier = verifier
         
-        // Build authorization URL
         var components = URLComponents(string: AppConstants.Spotify.authURL)!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientId),
@@ -129,7 +78,6 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
             throw SpotifyAuthError.invalidURL
         }
         
-        // Present the auth session
         let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(
                 url: authURL,
@@ -149,27 +97,28 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
             session.start()
         }
         
-        // Extract authorization code
         guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
             throw SpotifyAuthError.noAuthCode
         }
         
-        // Exchange code for tokens
-        try await exchangeCodeForTokens(code: code, verifier: verifier)
-        
-        // Fetch user profile
-        await fetchUserProfile()
+        let accessToken = try await exchangeCodeForTokens(code: code, verifier: verifier)
+        await fetchUserProfile(accessToken: accessToken)
     }
     
     /// Logs out and clears all stored tokens.
-    @MainActor
     func logout() {
-        accessToken = nil
-        refreshToken = nil
-        tokenExpiryDate = nil
+        KeychainManager.delete(.spotifyAccessToken)
+        KeychainManager.delete(.spotifyRefreshToken)
+        KeychainManager.delete(.spotifyTokenExpiry)
         isAuthenticated = false
         userProfile = nil
+    }
+    
+    /// Re-checks Keychain for auth state. Call after a background token refresh
+    /// failure may have cleared tokens.
+    func refreshAuthStatus() {
+        isAuthenticated = KeychainManager.load(.spotifyRefreshToken) != nil
     }
     
     // MARK: - PKCE Helpers
@@ -192,10 +141,10 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
             .replacingOccurrences(of: "=", with: "")
     }
     
-    // MARK: - Token Exchange
+    // MARK: - Token Exchange (login-only, writes to Keychain for SpotifyTokenProvider)
     
-    @MainActor
-    private func exchangeCodeForTokens(code: String, verifier: String) async throws {
+    @discardableResult
+    private func exchangeCodeForTokens(code: String, verifier: String) async throws -> String {
         guard let clientId else { throw SpotifyAuthError.noClientId }
         
         var request = URLRequest(url: URL(string: AppConstants.Spotify.tokenURL)!)
@@ -221,56 +170,20 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
         
         let tokenResponse = try JSONDecoder().decode(SpotifyTokenResponse.self, from: data)
         
-        accessToken = tokenResponse.accessToken
+        try? KeychainManager.save(tokenResponse.accessToken, for: .spotifyAccessToken)
         if let newRefresh = tokenResponse.refreshToken {
-            refreshToken = newRefresh
+            try? KeychainManager.save(newRefresh, for: .spotifyRefreshToken)
         }
-        tokenExpiryDate = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
+        let expiry = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
+        try? KeychainManager.save(String(expiry.timeIntervalSince1970), for: .spotifyTokenExpiry)
         isAuthenticated = true
-    }
-    
-    @MainActor
-    private func refreshAccessToken(using refresh: String) async throws -> String {
-        guard let clientId else { throw SpotifyAuthError.noClientId }
-        
-        var request = URLRequest(url: URL(string: AppConstants.Spotify.tokenURL)!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let body = [
-            "grant_type=refresh_token",
-            "refresh_token=\(refresh)",
-            "client_id=\(clientId)"
-        ].joined(separator: "&")
-        
-        request.httpBody = body.data(using: .utf8)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            // Refresh failed — user needs to re-authenticate
-            logout()
-            throw SpotifyAuthError.tokenRefreshFailed
-        }
-        
-        let tokenResponse = try JSONDecoder().decode(SpotifyTokenResponse.self, from: data)
-        
-        accessToken = tokenResponse.accessToken
-        if let newRefresh = tokenResponse.refreshToken {
-            refreshToken = newRefresh
-        }
-        tokenExpiryDate = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
-        
         return tokenResponse.accessToken
     }
     
     // MARK: - User Profile
     
-    @MainActor
-    private func fetchUserProfile() async {
+    private func fetchUserProfile(accessToken token: String) async {
         do {
-            let token = try await validAccessToken()
             guard let url = SpotifyEndpoint.me.url() else { return }
             
             var request = URLRequest(url: url)
@@ -279,7 +192,6 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
             let (data, _) = try await URLSession.shared.data(for: request)
             userProfile = try JSONDecoder().decode(SpotifyUserProfile.self, from: data)
         } catch {
-            // Non-critical — profile is nice-to-have
             print("Failed to fetch Spotify profile: \(error)")
         }
     }
@@ -288,16 +200,17 @@ final class SpotifyAuthManager: NSObject, @unchecked Sendable {
 // MARK: - ASWebAuthenticationPresentationContextProviding
 
 extension SpotifyAuthManager: ASWebAuthenticationPresentationContextProviding {
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        if let presentingAnchor {
-            return presentingAnchor
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            if let presentingAnchor {
+                return presentingAnchor
+            }
+            if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+               let window = scene.windows.first(where: { $0.isKeyWindow }) {
+                return window
+            }
+            return UIWindow()
         }
-        // Fallback to active window
-        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let window = scene.windows.first(where: { $0.isKeyWindow }) {
-            return window
-        }
-        return UIWindow()
     }
 }
 

@@ -6,7 +6,6 @@ import SwiftData
 struct PlaylistInspectorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
     @Environment(SyncCoordinator.self) private var syncCoordinator
     @Bindable var syncPair: SyncPair
 
@@ -70,8 +69,7 @@ struct PlaylistInspectorView: View {
                     Button {
                         syncCoordinator.startSync(
                             pairId: syncPair.id,
-                            action: .manualSync,
-                            spotifyAuth: spotifyAuth
+                            action: .manualSync
                         )
                     } label: {
                         Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
@@ -81,8 +79,7 @@ struct PlaylistInspectorView: View {
                     Button {
                         syncCoordinator.startSync(
                             pairId: syncPair.id,
-                            action: .fullRebuild,
-                            spotifyAuth: spotifyAuth
+                            action: .fullRebuild
                         )
                     } label: {
                         Label("Full Rebuild", systemImage: "arrow.clockwise.square")

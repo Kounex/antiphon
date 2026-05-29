@@ -10,6 +10,7 @@ final class SyncLog {
     var id: UUID
     var timestamp: Date
     var action: SyncAction
+    var result: SyncResultStatus?
     var tracksAdded: Int
     var tracksRemoved: Int
     var tracksFailed: Int
@@ -19,6 +20,7 @@ final class SyncLog {
 
     init(
         action: SyncAction,
+        result: SyncResultStatus = .success,
         tracksAdded: Int = 0,
         tracksRemoved: Int = 0,
         tracksFailed: Int = 0,
@@ -28,11 +30,37 @@ final class SyncLog {
         self.id = UUID()
         self.timestamp = Date()
         self.action = action
+        self.result = result
         self.tracksAdded = tracksAdded
         self.tracksRemoved = tracksRemoved
         self.tracksFailed = tracksFailed
         self.tracksMatched = tracksMatched
         self.details = details
+    }
+
+    /// Resolved result — infers status from the details text for legacy rows
+    /// that were written before the `result` field existed.
+    var effectiveResult: SyncResultStatus {
+        if let result { return result }
+        if let details {
+            if details.hasPrefix("Sync failed") || details.hasPrefix("Safety threshold") {
+                return .failed
+            }
+            if details.hasPrefix("Sync interrupted") {
+                return .partial
+            }
+        }
+        return .success
+    }
+
+    /// A successful sync that produced no track additions, removals, or failures.
+    var isNoOp: Bool {
+        effectiveResult == .success && tracksAdded == 0 && tracksRemoved == 0 && tracksFailed == 0
+    }
+    
+    /// Whether this log represents a failed sync operation.
+    var isFailed: Bool {
+        effectiveResult == .failed
     }
 }
 

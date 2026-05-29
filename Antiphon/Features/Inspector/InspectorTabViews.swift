@@ -512,17 +512,44 @@ struct FlaggedTrackRow: View {
 
 // MARK: - History Tab
 
-/// Shows the sync log history for a SyncPair.
+/// Shows the sync log history for a SyncPair, grouped by date with
+/// collapsed no-op runs, filter chips, and pagination.
 struct HistoryTabView: View {
     let syncPair: SyncPair
 
     @Query private var logs: [SyncLog]
+    @State private var activeFilter: HistoryFilter = .all
+    @State private var displayLimit = 50
 
     init(syncPair: SyncPair) {
         self.syncPair = syncPair
         let pairId = syncPair.id
         let predicate = #Predicate<SyncLog> { $0.syncPair?.id == pairId }
         _logs = Query(filter: predicate, sort: \.timestamp, order: .reverse)
+    }
+
+    private var filteredLogs: [SyncLog] {
+        switch activeFilter {
+        case .all: return logs
+        case .failures: return logs.filter { $0.isFailed }
+        case .action(let action): return logs.filter { $0.action == action }
+        }
+    }
+    
+    private var failureCount: Int {
+        logs.filter { $0.isFailed }.count
+    }
+    
+    private var latestSyncFailed: Bool {
+        logs.first?.isFailed == true
+    }
+
+    private var sections: [HistorySection] {
+        HistorySection.build(from: Array(filteredLogs.prefix(displayLimit)))
+    }
+
+    private var hasMore: Bool {
+        filteredLogs.count > displayLimit
     }
 
     var body: some View {
@@ -543,15 +570,372 @@ struct HistoryTabView: View {
                 }
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(logs) { log in
-                            SyncLogRow(log: log)
+                    LazyVStack(spacing: 0) {
+                        filterChips
+                            .padding(.bottom, 12)
+                        
+                        if activeFilter == .all, latestSyncFailed {
+                            failureBanner
+                                .padding(.bottom, 12)
+                        }
+
+                        ForEach(sections) { section in
+                            sectionHeader(section.title)
+
+                            ForEach(section.items) { item in
+                                switch item {
+                                case .single(let log):
+                                    SyncLogRow(log: log)
+                                        .padding(.bottom, 8)
+                                case .collapsed(let logs):
+                                    CollapsedSyncRow(logs: logs)
+                                        .padding(.bottom, 8)
+                                }
+                            }
+                        }
+
+                        if hasMore {
+                            Button {
+                                withAnimation { displayLimit += 50 }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.appCaption)
+                                    Text("Show Earlier History")
+                                        .font(.appCaptionBold)
+                                }
+                                .foregroundStyle(Color.textSecondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.surfaceElevated.opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 4)
                         }
                     }
                     .padding()
                 }
             }
         }
+    }
+
+    // MARK: - Filter Chips
+
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                FilterChip(label: "All", isActive: activeFilter == .all) {
+                    withAnimation { activeFilter = .all; displayLimit = 50 }
+                }
+                if failureCount > 0 {
+                    FilterChip(
+                        label: latestSyncFailed ? "Failures (\(failureCount))" : "Failures",
+                        isActive: activeFilter == .failures,
+                        isDestructive: latestSyncFailed
+                    ) {
+                        withAnimation { activeFilter = .failures; displayLimit = 50 }
+                    }
+                }
+                FilterChip(label: "Manual", isActive: activeFilter == .action(.manualSync)) {
+                    withAnimation { activeFilter = .action(.manualSync); displayLimit = 50 }
+                }
+                FilterChip(label: "Monitor", isActive: activeFilter == .action(.monitorSync)) {
+                    withAnimation { activeFilter = .action(.monitorSync); displayLimit = 50 }
+                }
+                FilterChip(label: "Delta", isActive: activeFilter == .action(.deltaSync)) {
+                    withAnimation { activeFilter = .action(.deltaSync); displayLimit = 50 }
+                }
+                FilterChip(label: "Rebuild", isActive: activeFilter == .action(.fullRebuild)) {
+                    withAnimation { activeFilter = .action(.fullRebuild); displayLimit = 50 }
+                }
+            }
+        }
+    }
+
+    // MARK: - Failure Banner
+    
+    private var failureBanner: some View {
+        Button {
+            withAnimation { activeFilter = .failures; displayLimit = 50 }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.syncError)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(failureCount) sync failure\(failureCount == 1 ? "" : "s") detected")
+                        .font(.appCaptionBold)
+                        .foregroundStyle(Color.syncError)
+                    Text("Tap to review — this may need your attention.")
+                        .font(.appMicro)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.syncError.opacity(0.6))
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.syncError.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.syncError.opacity(0.2), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // MARK: - Section Header
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.appCaptionBold)
+                .foregroundStyle(Color.textTertiary)
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - History Filter
+
+private enum HistoryFilter: Equatable {
+    case all
+    case failures
+    case action(SyncAction)
+}
+
+// MARK: - Filter Chip
+
+private struct FilterChip: View {
+    let label: String
+    let isActive: Bool
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.appCaptionBold)
+                .foregroundStyle(chipForeground)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(chipBackground)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var chipForeground: Color {
+        if isActive && isDestructive { return .white }
+        if isActive { return .white }
+        if isDestructive { return .syncError }
+        return .textSecondary
+    }
+    
+    private var chipBackground: Color {
+        if isActive && isDestructive { return .syncError.opacity(0.7) }
+        if isActive { return .white.opacity(0.15) }
+        if isDestructive { return .syncError.opacity(0.1) }
+        return .surfaceElevated
+    }
+}
+
+// MARK: - History Section Model
+
+/// Groups logs into date-based sections with collapsed no-op runs.
+struct HistorySection: Identifiable {
+    let id: String
+    let title: String
+    let items: [HistoryItem]
+
+    enum HistoryItem: Identifiable {
+        case single(SyncLog)
+        case collapsed([SyncLog])
+
+        var id: String {
+            switch self {
+            case .single(let log): return log.id.uuidString
+            case .collapsed(let logs): return "collapsed-\(logs.first?.id.uuidString ?? UUID().uuidString)"
+            }
+        }
+    }
+
+    static func build(from logs: [SyncLog]) -> [HistorySection] {
+        let calendar = Calendar.current
+        let now = Date()
+
+        let grouped: [(key: DateGroup, logs: [SyncLog])] = {
+            var result: [(key: DateGroup, logs: [SyncLog])] = []
+            for log in logs {
+                let group = DateGroup.from(log.timestamp, calendar: calendar, now: now)
+                if let last = result.last, last.key == group {
+                    result[result.count - 1].logs.append(log)
+                } else {
+                    result.append((key: group, logs: [log]))
+                }
+            }
+            return result
+        }()
+
+        return grouped.map { group in
+            HistorySection(
+                id: group.key.id,
+                title: group.key.title,
+                items: collapseNoOps(group.logs)
+            )
+        }
+    }
+
+    private static func collapseNoOps(_ logs: [SyncLog]) -> [HistoryItem] {
+        var items: [HistoryItem] = []
+        var noOpRun: [SyncLog] = []
+
+        func flushNoOps() {
+            guard !noOpRun.isEmpty else { return }
+            if noOpRun.count == 1 {
+                items.append(.single(noOpRun[0]))
+            } else {
+                items.append(.collapsed(noOpRun))
+            }
+            noOpRun = []
+        }
+
+        for log in logs {
+            if log.isNoOp && !log.isFailed {
+                noOpRun.append(log)
+            } else {
+                flushNoOps()
+                items.append(.single(log))
+            }
+        }
+        flushNoOps()
+        return items
+    }
+}
+
+// MARK: - Date Grouping
+
+private enum DateGroup: Equatable {
+    case today
+    case yesterday
+    case thisWeek
+    case earlier(month: Int, year: Int)
+
+    var title: String {
+        switch self {
+        case .today: return "Today"
+        case .yesterday: return "Yesterday"
+        case .thisWeek: return "This Week"
+        case .earlier(let month, let year):
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM yyyy"
+            var components = DateComponents()
+            components.month = month
+            components.year = year
+            if let date = Calendar.current.date(from: components) {
+                return formatter.string(from: date)
+            }
+            return "\(month)/\(year)"
+        }
+    }
+
+    var id: String {
+        switch self {
+        case .today: return "today"
+        case .yesterday: return "yesterday"
+        case .thisWeek: return "thisWeek"
+        case .earlier(let month, let year): return "earlier-\(year)-\(month)"
+        }
+    }
+
+    static func from(_ date: Date, calendar: Calendar, now: Date) -> DateGroup {
+        if calendar.isDateInToday(date) { return .today }
+        if calendar.isDateInYesterday(date) { return .yesterday }
+        if calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear) { return .thisWeek }
+        let components = calendar.dateComponents([.month, .year], from: date)
+        return .earlier(month: components.month ?? 1, year: components.year ?? 2026)
+    }
+}
+
+// MARK: - Collapsed Sync Row
+
+struct CollapsedSyncRow: View {
+    let logs: [SyncLog]
+    @State private var isExpanded = false
+
+    private var timeRange: String {
+        guard let newest = logs.first?.timestamp,
+              let oldest = logs.last?.timestamp else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        if Calendar.current.isDate(newest, inSameDayAs: oldest) {
+            return "\(formatter.string(from: oldest)) – \(formatter.string(from: newest))"
+        }
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "MMM d"
+        return "\(dayFormatter.string(from: oldest)) – \(dayFormatter.string(from: newest))"
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.surfaceElevated)
+                            .frame(width: 40, height: 40)
+
+                        Image(systemName: "checkmark.circle")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.textTertiary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("\(logs.count) syncs with no changes")
+                                .font(.appBodyBold)
+                                .foregroundStyle(Color.textSecondary)
+                        }
+
+                        Text(timeRange)
+                            .font(.appCaption)
+                            .foregroundStyle(Color.textTertiary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.textTertiary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .glassCard(padding: 12)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(spacing: 6) {
+                    ForEach(logs) { log in
+                        SyncLogRow(log: log)
+                    }
+                }
+                .padding(.leading, 28)
+                .padding(.top, 6)
+                .transition(.opacity)
+            }
+        }
+        .clipped()
+        .animation(.easeInOut(duration: 0.25), value: isExpanded)
     }
 }
 
@@ -560,24 +944,25 @@ struct HistoryTabView: View {
 struct SyncLogRow: View {
     let log: SyncLog
 
+    private var isFailed: Bool { log.isFailed }
+
     var body: some View {
         HStack(spacing: 14) {
-            // Action icon
             ZStack {
                 Circle()
-                    .fill(Color.surfaceElevated)
+                    .fill(isFailed ? Color.syncError.opacity(0.15) : Color.surfaceElevated)
                     .frame(width: 40, height: 40)
 
-                Image(systemName: log.action.icon)
+                Image(systemName: isFailed ? "xmark.circle.fill" : log.action.icon)
                     .font(.appCaption)
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(isFailed ? Color.syncError : Color.textSecondary)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(log.action.label)
+                    Text(isFailed ? "Sync Failed" : log.action.label)
                         .font(.appBodyBold)
-                        .foregroundStyle(Color.textPrimary)
+                        .foregroundStyle(isFailed ? Color.syncError : Color.textPrimary)
 
                     Text(log.timestamp.relativeDescription)
                         .font(.appCaption)
@@ -608,18 +993,32 @@ struct SyncLogRow: View {
                             .font(.appCaption)
                             .foregroundStyle(Color.textTertiary)
                     }
+
+                    if log.isNoOp && !isFailed {
+                        Text("No changes")
+                            .font(.appCaption)
+                            .foregroundStyle(Color.textTertiary)
+                    }
                 }
 
                 if let details = log.details {
                     Text(details)
                         .font(.appCaption)
-                        .foregroundStyle(Color.textTertiary)
-                        .lineLimit(2)
+                        .foregroundStyle(isFailed ? Color.syncError.opacity(0.8) : Color.textTertiary)
+                        .lineLimit(3)
                 }
             }
 
             Spacer()
         }
-        .glassCard(padding: 12)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(isFailed ? Color.syncError.opacity(0.06) : Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(isFailed ? Color.syncError.opacity(0.2) : .clear, lineWidth: 1)
+                )
+        )
     }
 }

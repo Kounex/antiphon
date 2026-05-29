@@ -177,15 +177,13 @@ struct ConfirmLinkStep: View {
                     isCreating = true
                 }
 
-                // Brief delay for visual feedback, then complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task {
+                    try? await Task.sleep(for: .milliseconds(500))
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         showCheckmark = true
                     }
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        viewModel.didComplete = true
-                    }
+                    try? await Task.sleep(for: .milliseconds(800))
+                    viewModel.didComplete = true
                 }
             } label: {
                 HStack {

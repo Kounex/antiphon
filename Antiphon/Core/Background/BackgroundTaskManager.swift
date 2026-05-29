@@ -3,24 +3,22 @@ import Foundation
 import SwiftData
 
 /// Manages background task registration and scheduling for playlist sync.
-/// Uses SyncCoordinator for sync operations so background syncs are visible
-/// in the UI if the app is foregrounded during execution.
+///
+/// Creates its own `SpotifyAuthManager` and `AppleMusicManager` per background
+/// execution, isolating background work from the foreground UI's shared instances.
+/// This follows the same self-contained pattern as `SyncPlaylistsIntent`.
 enum BackgroundTaskManager {
     
     /// Registers the background refresh task handler.
     /// Must be called before the app finishes launching.
-    static func registerTasks(
-        modelContainer: ModelContainer,
-        spotifyAuth: SpotifyAuthManager
-    ) {
+    static func registerTasks(modelContainer: ModelContainer) {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: AppConstants.BackgroundTasks.playlistRefreshIdentifier,
             using: nil
         ) { task in
             handleAppRefresh(
                 task: task as! BGAppRefreshTask,
-                modelContainer: modelContainer,
-                spotifyAuth: spotifyAuth
+                modelContainer: modelContainer
             )
         }
         print("[BackgroundTaskManager] Registered background refresh handler")
@@ -50,17 +48,15 @@ enum BackgroundTaskManager {
     
     private static func handleAppRefresh(
         task: BGAppRefreshTask,
-        modelContainer: ModelContainer,
-        spotifyAuth: SpotifyAuthManager
+        modelContainer: ModelContainer
     ) {
-        // Always reschedule for next time
         scheduleBackgroundRefresh()
         
         print("[BackgroundTaskManager] Background refresh triggered")
         
         let syncTask = Task { @Sendable in
             let appleMusicManager = AppleMusicManager()
-            let spotifyClient = SpotifyAPIClient(authManager: spotifyAuth)
+            let spotifyClient = SpotifyAPIClient()
             
             let engine = SyncEngine(
                 modelContainer: modelContainer,
@@ -68,12 +64,17 @@ enum BackgroundTaskManager {
                 appleMusicManager: appleMusicManager
             )
             
-            let success = await engine.handleBackgroundRefresh()
-            print("[BackgroundTaskManager] Background sync completed, success: \(success)")
-            task.setTaskCompleted(success: success)
+            let results = await engine.handleBackgroundRefresh()
+            let allSucceeded = results.allSatisfy { $0.status != .failed }
+            
+            if !allSucceeded {
+                NotificationManager.postSyncFailureNotification(results: results)
+            }
+            
+            print("[BackgroundTaskManager] Background sync completed, success: \(allSucceeded)")
+            task.setTaskCompleted(success: allSucceeded)
         }
         
-        // Handle expiration — iOS is reclaiming our time
         task.expirationHandler = {
             print("[BackgroundTaskManager] Background task expired, cancelling sync")
             syncTask.cancel()

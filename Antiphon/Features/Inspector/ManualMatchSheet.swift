@@ -6,8 +6,6 @@ import MusicKit
 struct ManualMatchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
-
     let track: CachedTrack
     let targetPlatform: UnmatchedPlatform
 
@@ -134,9 +132,10 @@ struct ManualMatchSheet: View {
         }
         .presentationBackground(Color.appBackground)
         .onAppear {
-            // Pre-fill with the track's title + artist
             searchQuery = "\(track.artist) \(track.title)"
-            Task { await search() }
+        }
+        .task {
+            await search()
         }
     }
 
@@ -254,7 +253,7 @@ struct ManualMatchSheet: View {
                 let am = AppleMusicManager()
                 appleMusicResults = try await am.searchCatalog(query: query, limit: 15)
             } else {
-                let client = SpotifyAPIClient(authManager: spotifyAuth)
+                let client = SpotifyAPIClient()
                 spotifyResults = try await client.search(query: query, limit: 15)
             }
         } catch {
@@ -302,7 +301,7 @@ struct ManualMatchSheet: View {
         do {
             // Add to the Spotify playlist
             if let syncPair = track.syncPair {
-                let client = SpotifyAPIClient(authManager: spotifyAuth)
+                let client = SpotifyAPIClient()
                 try await client.addTracksToPlaylist(
                     playlistId: syncPair.spotifyPlaylistId,
                     trackUris: [spotifyTrack.uri]

@@ -4,8 +4,13 @@ import Observation
 
 /// Coordinates sync operations across the app, running them as background tasks
 /// that don't block the UI. Observable so views can react to sync state changes.
+///
+/// Fully `@MainActor`-isolated: all state is UI-owned and consumed by SwiftUI views.
+/// Background sync work runs on the `SyncEngine` actor; the coordinator only manages
+/// task handles and progress state on the main actor.
+@MainActor
 @Observable
-final class SyncCoordinator: @unchecked Sendable {
+final class SyncCoordinator {
     
     // MARK: - State
     
@@ -43,13 +48,7 @@ final class SyncCoordinator: @unchecked Sendable {
     
     /// Starts a sync for a given pair in the background.
     /// Returns immediately — observe `syncingPairIds` for progress.
-    @MainActor
-    func startSync(
-        pairId: UUID,
-        action: SyncAction,
-        spotifyAuth: SpotifyAuthManager
-    ) {
-        // Don't start if already syncing this pair
+    func startSync(pairId: UUID, action: SyncAction) {
         guard !syncingPairIds.contains(pairId) else { return }
         
         syncingPairIds.insert(pairId)
@@ -57,10 +56,9 @@ final class SyncCoordinator: @unchecked Sendable {
         syncProgress[pairId] = SyncProgress(totalTracks: 0, completedTracks: 0, failedTracks: 0)
         
         let container = modelContainer
-        let coordinator = self
-        let task = Task { @Sendable in
+        let task = Task {
             let appleMusicManager = AppleMusicManager()
-            let spotifyClient = SpotifyAPIClient(authManager: spotifyAuth)
+            let spotifyClient = SpotifyAPIClient()
             
             let engine = SyncEngine(
                 modelContainer: container,
@@ -68,18 +66,16 @@ final class SyncCoordinator: @unchecked Sendable {
                 appleMusicManager: appleMusicManager
             )
             
-            let result = await engine.syncPair(pairId, action: action) { progress in
+            let result = await engine.syncPair(pairId, action: action) { [weak self] progress in
                 await MainActor.run {
-                    coordinator.syncProgress[pairId] = progress
+                    self?.syncProgress[pairId] = progress
                 }
             }
             
-            await MainActor.run {
-                coordinator.syncingPairIds.remove(pairId)
-                coordinator.runningTasks[pairId] = nil
-                coordinator.syncProgress[pairId] = nil
-                coordinator.lastResults[pairId] = result
-            }
+            syncingPairIds.remove(pairId)
+            runningTasks[pairId] = nil
+            syncProgress[pairId] = nil
+            lastResults[pairId] = result
             
             return result
         }
@@ -88,7 +84,6 @@ final class SyncCoordinator: @unchecked Sendable {
     }
     
     /// Cancels an in-progress sync for a specific pair.
-    @MainActor
     func cancelSync(pairId: UUID) {
         runningTasks[pairId]?.cancel()
         runningTasks[pairId] = nil
@@ -102,7 +97,6 @@ final class SyncCoordinator: @unchecked Sendable {
     }
     
     /// Cancels all running syncs.
-    @MainActor
     func cancelAll() {
         for (pairId, task) in runningTasks {
             task.cancel()
@@ -118,7 +112,6 @@ final class SyncCoordinator: @unchecked Sendable {
     }
     
     /// Updates progress for a syncing pair. Called by SyncEngine from background.
-    @MainActor
     func updateProgress(pairId: UUID, progress: SyncProgress) {
         syncProgress[pairId] = progress
     }

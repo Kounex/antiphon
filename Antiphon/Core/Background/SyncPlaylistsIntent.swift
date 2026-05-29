@@ -35,9 +35,8 @@ struct SyncPlaylistsIntent: AppIntent {
             return .result(dialog: "No monitored playlists to sync.")
         }
         
-        // Initialize managers
-        let spotifyAuth = SpotifyAuthManager()
-        let spotifyClient = SpotifyAPIClient(authManager: spotifyAuth)
+        // Initialize managers — SpotifyAPIClient creates its own SpotifyTokenProvider
+        let spotifyClient = SpotifyAPIClient()
         let appleMusicManager = AppleMusicManager()
         
         let syncEngine = SyncEngine(
@@ -48,10 +47,17 @@ struct SyncPlaylistsIntent: AppIntent {
         
         let results = await syncEngine.syncAllMonitored()
         
+        let failedResults = results.filter { $0.status == .failed }
+        if !failedResults.isEmpty {
+            NotificationManager.postSyncFailureNotification(results: results)
+        }
+        
         let successCount = results.filter(\.isSuccess).count
         let totalAdded = results.reduce(0) { $0 + $1.tracksAdded }
         
-        if totalAdded > 0 {
+        if !failedResults.isEmpty {
+            return .result(dialog: "Synced \(successCount)/\(results.count) playlists. \(failedResults.count) failed — check the app for details.")
+        } else if totalAdded > 0 {
             return .result(dialog: "Synced \(successCount)/\(results.count) playlists. \(totalAdded) tracks added.")
         } else {
             return .result(dialog: "All \(successCount) playlists are up to date.")

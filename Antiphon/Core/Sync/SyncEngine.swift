@@ -364,6 +364,7 @@ actor SyncEngine {
                         pair.lastSyncResult = .failed
                         pair.lastSyncMessage = message
                         logSync(pair: pair, context: context, action: action,
+                               result: .failed,
                                tracksAdded: 0, tracksRemoved: 0, tracksFailed: 0,
                                tracksMatched: cachedTracks.count, details: message)
                         return SyncResult(pairId: pair.id, status: .failed, message: message)
@@ -429,6 +430,7 @@ actor SyncEngine {
             
             logSync(
                 pair: pair, context: context, action: action,
+                result: resultStatus,
                 tracksAdded: tracksAdded, tracksRemoved: totalRemovalFlags,
                 tracksFailed: totalUnmatched, tracksMatched: totalMatched - totalRemovalFlags - totalUnmatched,
                 details: message
@@ -449,6 +451,7 @@ actor SyncEngine {
             pair.lastSyncMessage = message
             
             logSync(pair: pair, context: context, action: action,
+                   result: .failed,
                    tracksAdded: tracksAdded, tracksRemoved: 0,
                    tracksFailed: tracksFailed, tracksMatched: 0,
                    details: message)
@@ -666,6 +669,7 @@ actor SyncEngine {
         try? context.save()
         
         logSync(pair: pair, context: context, action: action,
+               result: .partial,
                tracksAdded: tracksAdded, tracksRemoved: 0,
                tracksFailed: tracksFailed, tracksMatched: cachedTracks.count,
                details: "Sync interrupted, \(tracksAdded) added so far")
@@ -681,11 +685,11 @@ actor SyncEngine {
     
     // MARK: - Background Refresh Handler
     
-    /// Handles a BGAppRefreshTask. Called from the background task handler.
-    func handleBackgroundRefresh() async -> Bool {
-        guard shouldSync else { return true }
-        let results = await syncAllMonitored()
-        return results.allSatisfy { $0.status != .failed }
+    /// Handles a BGAppRefreshTask. Returns all sync results for the caller
+    /// to inspect (e.g. posting failure notifications).
+    func handleBackgroundRefresh() async -> [SyncResult] {
+        guard shouldSync else { return [] }
+        return await syncAllMonitored()
     }
     
     // MARK: - Helpers
@@ -694,6 +698,7 @@ actor SyncEngine {
         pair: SyncPair,
         context: ModelContext,
         action: SyncAction,
+        result: SyncResultStatus = .success,
         tracksAdded: Int,
         tracksRemoved: Int,
         tracksFailed: Int,
@@ -702,6 +707,7 @@ actor SyncEngine {
     ) {
         let log = SyncLog(
             action: action,
+            result: result,
             tracksAdded: tracksAdded,
             tracksRemoved: tracksRemoved,
             tracksFailed: tracksFailed,

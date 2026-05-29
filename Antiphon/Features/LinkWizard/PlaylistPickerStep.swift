@@ -4,7 +4,6 @@ import MusicKit
 /// Step 2: Browse and select a playlist from the chosen source platform.
 struct PlaylistPickerStep: View {
     @Bindable var viewModel: LinkWizardViewModel
-    @Environment(SpotifyAuthManager.self) private var spotifyAuth
 
     private let appleMusicManager = AppleMusicManager()
 
@@ -163,7 +162,7 @@ struct PlaylistPickerStep: View {
 
         do {
             if viewModel.sourcePlatform == .spotify {
-                let client = SpotifyAPIClient(authManager: spotifyAuth)
+                let client = SpotifyAPIClient()
                 viewModel.spotifyPlaylists = try await client.getAllPlaylists()
             } else {
                 await appleMusicManager.requestAuthorization()
