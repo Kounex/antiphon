@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Step 4: Review the link configuration and confirm.
 ///
@@ -6,6 +7,7 @@ import SwiftUI
 /// configure sync direction and auto-monitoring, then creates the SyncPair.
 struct ConfirmLinkStep: View {
     @Bindable var viewModel: LinkWizardViewModel
+    @Environment(\.modelContext) private var modelContext
 
     @State private var isCreating = false
     @State private var showCheckmark = false
@@ -171,20 +173,12 @@ struct ConfirmLinkStep: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.secondary)
+            // Once the pair is saved, going back (or cancelling) would leave a
+            // persisted pair that never gets its initial sync.
+            .disabled(isCreating || viewModel.createdPair != nil)
 
             Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isCreating = true
-                }
-
-                Task {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                        showCheckmark = true
-                    }
-                    try? await Task.sleep(for: .milliseconds(800))
-                    viewModel.didComplete = true
-                }
+                Task { await createLink() }
             } label: {
                 HStack {
                     if isCreating {
@@ -207,6 +201,55 @@ struct ConfirmLinkStep: View {
             .disabled(isCreating)
         }
         .padding()
+    }
+
+    // MARK: - Link Creation
+
+    private func createLink() async {
+        isCreating = true
+
+        guard let pair = viewModel.buildSyncPair() else {
+            viewModel.setError("Playlist selection is incomplete. Please go back and choose a playlist for both sides.")
+            isCreating = false
+            return
+        }
+
+        do {
+            let spotifyId = pair.spotifyPlaylistId
+            let appleMusicId = pair.appleMusicPlaylistId
+            let descriptor = FetchDescriptor<SyncPair>(predicate: #Predicate {
+                $0.spotifyPlaylistId == spotifyId || $0.appleMusicPlaylistId == appleMusicId
+            })
+            if let existing = try modelContext.fetch(descriptor).first {
+                if existing.spotifyPlaylistId == spotifyId {
+                    viewModel.setError("The Spotify playlist \"\(existing.spotifyPlaylistName)\" is already linked.")
+                } else {
+                    viewModel.setError("The Apple Music playlist \"\(existing.appleMusicPlaylistName)\" is already linked.")
+                }
+                isCreating = false
+                return
+            }
+
+            modelContext.insert(pair)
+            do {
+                try modelContext.save()
+            } catch {
+                modelContext.delete(pair)
+                throw error
+            }
+        } catch {
+            viewModel.setError("Failed to save link: \(error.localizedDescription)")
+            isCreating = false
+            return
+        }
+
+        viewModel.createdPair = pair
+
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+            showCheckmark = true
+        }
+        try? await Task.sleep(for: .milliseconds(800))
+        viewModel.didComplete = true
     }
 }
 

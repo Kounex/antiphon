@@ -7,7 +7,7 @@ enum SpotifyEndpoint {
     case addTracks(playlistId: String)
     case removeTracks(playlistId: String)
     case createPlaylist(userId: String)
-    case searchByISRC(isrc: String, market: String)
+    case searchByISRC(isrc: String, market: String?)
     case searchByQuery(query: String, type: String, market: String?, limit: Int)
     case uploadPlaylistImage(playlistId: String)
     
@@ -51,12 +51,13 @@ enum SpotifyEndpoint {
         case .addTracks, .removeTracks, .createPlaylist, .uploadPlaylistImage:
             return []
         case .searchByISRC(let isrc, let market):
-            return [
+            var items = [
                 URLQueryItem(name: "q", value: "isrc:\(isrc)"),
                 URLQueryItem(name: "type", value: "track"),
-                URLQueryItem(name: "market", value: market),
                 URLQueryItem(name: "limit", value: "1")
             ]
+            if let market { items.append(URLQueryItem(name: "market", value: market)) }
+            return items
         case .searchByQuery(let query, let type, let market, let limit):
             var items = [
                 URLQueryItem(name: "q", value: query),

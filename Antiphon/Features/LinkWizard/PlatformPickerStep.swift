@@ -3,6 +3,8 @@ import SwiftUI
 /// Step 1: Choose the source platform (where the playlist already exists).
 struct PlatformPickerStep: View {
     @Bindable var viewModel: LinkWizardViewModel
+    @Environment(SpotifyAuthManager.self) private var spotifyAuth
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 32) {
@@ -49,6 +51,10 @@ struct PlatformPickerStep: View {
             }
             .padding(.horizontal)
 
+            if viewModel.sourcePlatform == .spotify && !spotifyAuth.isAuthenticated {
+                spotifyConnectBanner
+            }
+
             Spacer()
 
             // Continue button
@@ -63,9 +69,46 @@ struct PlatformPickerStep: View {
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.antiphon)
+            .disabled(!viewModel.canAdvanceFromPlatform)
+            .opacity(viewModel.canAdvanceFromPlatform ? 1 : 0.5)
             .padding(.horizontal)
             .padding(.bottom, 16)
         }
+        .onChange(of: spotifyAuth.isAuthenticated, initial: true) { _, isAuthenticated in
+            viewModel.spotifyAuthenticated = isAuthenticated
+        }
+    }
+
+    // MARK: - Spotify Connect Banner
+
+    private var spotifyConnectBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.appBody)
+                .foregroundStyle(Color.syncWarning)
+
+            Text("Spotify isn't connected.")
+                .font(.appCaption)
+                .foregroundStyle(Color.textSecondary)
+
+            Spacer()
+
+            Button("Connect in Settings") {
+                dismiss()
+            }
+            .font(.appCaptionBold)
+            .foregroundStyle(Color.spotifyGreen)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.surfaceElevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.syncWarning.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
     }
 }
 
@@ -139,5 +182,6 @@ struct PlatformOptionCard: View {
 
 #Preview {
     PlatformPickerStep(viewModel: LinkWizardViewModel())
+        .environment(SpotifyAuthManager())
         .background(Color.appBackground)
 }

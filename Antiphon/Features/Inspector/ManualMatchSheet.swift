@@ -224,12 +224,14 @@ struct ManualMatchSheet: View {
                         AppleMusicResultRow(song: song) {
                             Task { await linkAppleMusicTrack(song) }
                         }
+                        .disabled(isLinking)
                     }
                 } else {
                     ForEach(spotifyResults, id: \.id) { spotifyTrack in
                         SpotifyResultRow(track: spotifyTrack) {
                             Task { await linkSpotifyTrack(spotifyTrack) }
                         }
+                        .disabled(isLinking)
                     }
                 }
             }
@@ -246,6 +248,8 @@ struct ManualMatchSheet: View {
 
         isSearching = true
         linkError = nil
+        appleMusicResults = []
+        spotifyResults = []
         defer { isSearching = false }
 
         do {
@@ -265,6 +269,7 @@ struct ManualMatchSheet: View {
 
     @MainActor
     private func linkAppleMusicTrack(_ song: Song) async {
+        guard !isLinking else { return }
         isLinking = true
         linkError = nil
         defer { isLinking = false }
@@ -276,12 +281,15 @@ struct ManualMatchSheet: View {
                 let playlists = try await am.fetchUserPlaylists()
                 if let playlist = playlists.first(where: { $0.id.rawValue == syncPair.appleMusicPlaylistId }) {
                     try await am.addTrack(song, to: playlist)
+                } else {
+                    throw AppleMusicError.playlistNotFound
                 }
             }
 
             // Update the cached track
             track.appleMusicTrackId = song.id.rawValue
             track.unmatchedPlatform = nil
+            track.syncState = .synced
             if track.source == .spotify {
                 track.source = .both
             }
@@ -294,6 +302,7 @@ struct ManualMatchSheet: View {
 
     @MainActor
     private func linkSpotifyTrack(_ spotifyTrack: SpotifyTrack) async {
+        guard !isLinking else { return }
         isLinking = true
         linkError = nil
         defer { isLinking = false }
@@ -311,6 +320,7 @@ struct ManualMatchSheet: View {
             // Update the cached track
             track.spotifyTrackUri = spotifyTrack.uri
             track.unmatchedPlatform = nil
+            track.syncState = .synced
             if track.source == .appleMusic {
                 track.source = .both
             }

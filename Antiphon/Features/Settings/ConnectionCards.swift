@@ -16,7 +16,7 @@ struct SpotifyConnectionCard: View {
         VStack(spacing: 14) {
             // Header
             HStack(spacing: 12) {
-                PlatformBadge(platform: .spotify, size: .regular)
+                PlatformBadge(platform: .spotify, size: .regular, isDecorative: true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Spotify")
@@ -96,6 +96,7 @@ struct SpotifyConnectionCard: View {
                                     .font(.appCaption)
                                     .foregroundStyle(Color.textSecondary)
                             }
+                            .accessibilityLabel(isSecretVisible ? "Hide Client ID" : "Show Client ID")
                         }
                         .padding(10)
                         .background(
@@ -115,6 +116,7 @@ struct SpotifyConnectionCard: View {
                                 )
                         }
                         .disabled(clientIdInput.count < 20)
+                        .accessibilityLabel("Save Client ID")
                     }
                 }
 
@@ -152,9 +154,19 @@ struct SpotifyConnectionCard: View {
         }
         .glassCard()
         .onAppear {
-            clientIdInput = spotifyAuth.clientId ?? ""
-            isSecretVisible = clientIdInput.isEmpty
+            seedClientIdInput()
         }
+        .onChange(of: spotifyAuth.isAuthenticated) {
+            seedClientIdInput()
+        }
+        .onChange(of: spotifyAuth.clientId) {
+            seedClientIdInput()
+        }
+    }
+
+    private func seedClientIdInput() {
+        clientIdInput = spotifyAuth.clientId ?? ""
+        isSecretVisible = clientIdInput.isEmpty
     }
 
     private var maskedClientId: String {
@@ -171,8 +183,12 @@ struct SpotifyConnectionCard: View {
         isLoggingIn = true
         defer { isLoggingIn = false }
 
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first else { return }
+        guard let scene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = scene.windows.first(where: { $0.isKeyWindow }) else {
+            spotifyAuth.authError = "Unable to find an active window to present the Spotify login. Please try again."
+            return
+        }
 
         do {
             try await spotifyAuth.startLogin(presentingFrom: window)
@@ -189,7 +205,7 @@ struct AppleMusicConnectionCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PlatformBadge(platform: .appleMusic, size: .regular)
+            PlatformBadge(platform: .appleMusic, size: .regular, isDecorative: true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Apple Music")

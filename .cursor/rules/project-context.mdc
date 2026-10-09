@@ -1,0 +1,24 @@
+---
+description: Read project documentation before code tasks; update docs when making relevant changes
+alwaysApply: true
+---
+
+# Project Context
+
+Before any code task, read the documentation relevant to the area you are changing:
+
+- **UI / Theme / Components** (`UI/`, `Features/`): Read `DESIGN.md`
+- **Architecture / Core / App** (`Core/`, `App/`, new modules): Read `docs/ARCHITECTURE.md`
+- **Sync engine** (`Core/Sync/`): Read `docs/SYNC_ENGINE.md`
+- **Build setup / capabilities / project structure**: Read `README.md`
+
+For broad tasks (audits, refactors, new features spanning multiple areas), read all four.
+
+## Updating docs alongside code
+
+When your changes alter documented behavior, update the corresponding markdown:
+
+- Keep the existing structure and tone.
+- Make the doc reflect current reality (not a changelog).
+- If you add a new module, enum, model, or pipeline stage, add it to the relevant doc.
+- If you change the color palette, typography, or component specs, update `DESIGN.md`.

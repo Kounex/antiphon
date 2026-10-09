@@ -183,7 +183,9 @@ final class AppleMusicManager {
         guard !songs.isEmpty else { return }
         
         let playlistId = playlist.id.rawValue
-        let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistId)/tracks")!
+        guard let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistId)/tracks") else {
+            throw AppleMusicError.invalidURL
+        }
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -215,25 +217,29 @@ final class AppleMusicManager {
         
         // Download the image data
         let (data, _) = try await URLSession.shared.data(from: url)
-        
-        guard let uiImage = UIImage(data: data) else {
-            return nil
-        }
-        
-        // Compress as JPEG — start at 0.8 quality, reduce if over 256KB
-        var quality: CGFloat = 0.8
-        var jpegData = uiImage.jpegData(compressionQuality: quality)
-        
-        while let data = jpegData, data.count > 256_000, quality > 0.1 {
-            quality -= 0.1
-            jpegData = uiImage.jpegData(compressionQuality: quality)
-        }
-        
-        guard let finalData = jpegData else {
-            return nil
-        }
-        
-        return finalData.base64EncodedString()
+
+        // Decode and JPEG-compress off the main actor — this is CPU-bound work
+        // that must not block the @MainActor-isolated class.
+        return await Task.detached(priority: .userInitiated) {
+            guard let uiImage = UIImage(data: data) else {
+                return nil
+            }
+
+            // Compress as JPEG — start at 0.8 quality, reduce if over 256KB
+            var quality: CGFloat = 0.8
+            var jpegData = uiImage.jpegData(compressionQuality: quality)
+
+            while let currentData = jpegData, currentData.count > 256_000, quality > 0.1 {
+                quality -= 0.1
+                jpegData = uiImage.jpegData(compressionQuality: quality)
+            }
+
+            guard let finalData = jpegData else {
+                return nil
+            }
+
+            return finalData.base64EncodedString()
+        }.value
     }
     
     // MARK: - Catalog Search
@@ -291,6 +297,7 @@ struct AppleMusicTrackInfo: Identifiable, Sendable {
 
 enum AppleMusicError: LocalizedError {
     case notAuthorized
+    case invalidURL
     case playlistNotFound
     case trackNotFound(isrc: String)
     case addTrackFailed(String)
@@ -299,6 +306,8 @@ enum AppleMusicError: LocalizedError {
         switch self {
         case .notAuthorized:
             return "Apple Music access not authorized. Please grant access in Settings."
+        case .invalidURL:
+            return "Invalid Apple Music API URL."
         case .playlistNotFound:
             return "The Apple Music playlist could not be found."
         case .trackNotFound(let isrc):

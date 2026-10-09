@@ -11,6 +11,7 @@
 		0AEED1F0A37B5209293342FB /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44555A4D1FC05272BC09979 /* KeychainManager.swift */; };
 		0E7E05B76CEA9B92F8DB61E9 /* PlaylistPickerStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F38004660D6053523AD713 /* PlaylistPickerStep.swift */; };
 		0F714A0B104A0C31F8557040 /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A3AD9FE96B71E8F3A377CA /* AppConstants.swift */; };
+		20791B3B827E37B4214C1FBC /* SharedModelContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652E661E77A42F95F038ABBD /* SharedModelContainer.swift */; };
 		2373E98A4E8D40BB9ABD6175 /* SyncLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BC9147487C1DED6DA49EA2 /* SyncLog.swift */; };
 		365A4A2F7D195C80A78F646D /* AppleMusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */; };
 		3B1D7FF5109EB562927FEB28 /* TargetPlaylistStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */; };
@@ -67,6 +68,7 @@
 		5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetPlaylistStep.swift; sourceTree = "<group>"; };
 		60A3AD9FE96B71E8F3A377CA /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
 		644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAuthManager.swift; sourceTree = "<group>"; };
+		652E661E77A42F95F038ABBD /* SharedModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedModelContainer.swift; sourceTree = "<group>"; };
 		6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmLinkStep.swift; sourceTree = "<group>"; };
 		6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
 		783AC2466C7B861B46004A94 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 			isa = PBXGroup;
 			children = (
 				B44555A4D1FC05272BC09979 /* KeychainManager.swift */,
+				652E661E77A42F95F038ABBD /* SharedModelContainer.swift */,
 				B9848E1FA50417DA7723C817 /* Models */,
 			);
 			path = Storage;
@@ -432,6 +435,7 @@
 				0E7E05B76CEA9B92F8DB61E9 /* PlaylistPickerStep.swift in Sources */,
 				A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */,
 				D78A1F182316CFE52A2F6D88 /* SettingsView.swift in Sources */,
+				20791B3B827E37B4214C1FBC /* SharedModelContainer.swift in Sources */,
 				7BF8FE73CCD309CD0BDECA7E /* SpotifyAPIClient.swift in Sources */,
 				BA74C2BAB518A2D47AC3542E /* SpotifyAuthManager.swift in Sources */,
 				6B4012B49A6E898DC7167FD3 /* SpotifyEndpoints.swift in Sources */,
@@ -464,10 +468,12 @@
 				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -492,10 +498,12 @@
 				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				INFOPLIST_FILE = Antiphon/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Antiphon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Antiphon needs access to your Apple Music library to sync playlists.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -545,7 +553,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -566,7 +574,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.2.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -613,7 +621,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 2CCV4GWY52;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -628,7 +636,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.2.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

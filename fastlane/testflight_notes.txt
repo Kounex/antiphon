@@ -1,0 +1,11 @@
+What's new in this build:
+
+• Fixed: connecting Spotify could silently sign you out — a background token-refresh race wiped your stored login
+• Fixed: playlists containing podcast episodes failed to load at all
+• Fixed: expired Spotify sessions now recover automatically (refresh + retry) instead of failing
+• Fixed: playlist artwork now uploads to Spotify — requires the new image permission, so reconnect Spotify once after updating
+• Fixed: non-US accounts no longer lose tracks to US-market filtering
+• Settings now shows the real connection state if a background refresh signed you out
+• Safer Reset All Data (stops running syncs first), shared database for Shortcuts automations, clearer duplicate-link errors
+
+Focus for testers: connect Spotify, sync a playlist that contains podcast episodes, run a Shortcut automation while the app is open, and confirm you stay signed in.

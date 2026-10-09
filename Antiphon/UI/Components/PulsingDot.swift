@@ -6,6 +6,7 @@ struct PulsingDot: View {
     var size: CGFloat = 10
 
     @State private var isPulsing = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -13,8 +14,8 @@ struct PulsingDot: View {
             Circle()
                 .fill(color.opacity(0.3))
                 .frame(width: size * 2.5, height: size * 2.5)
-                .scaleEffect(isPulsing ? 1.0 : 0.5)
-                .opacity(isPulsing ? 0 : 0.6)
+                .scaleEffect(reduceMotion ? 0.75 : (isPulsing ? 1.0 : 0.5))
+                .opacity(reduceMotion ? 0.6 : (isPulsing ? 0 : 0.6))
 
             // Core dot
             Circle()
@@ -22,7 +23,8 @@ struct PulsingDot: View {
                 .frame(width: size, height: size)
                 .shadow(color: color.opacity(0.5), radius: 4)
         }
-        .onAppear {
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
             withAnimation(
                 .easeInOut(duration: 1.5)
                     .repeatForever(autoreverses: false)

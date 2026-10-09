@@ -20,6 +20,13 @@ struct DeltaEngine {
         if isSpotifySource {
             // Spotify is source, Apple Music is target
             
+            // Precompute normalized strings once per target track — the fuzzy
+            // pass below is O(N×M) and must not re-normalize per comparison
+            let normalizedAppleTracks: [(id: String, title: String, artist: String, durationMs: Int?)] =
+                appleMusicTracks.map {
+                    ($0.id, $0.title.normalizedForMatching, $0.artist.normalizedForMatching, $0.durationMs)
+                }
+            
             // Map target Apple Music tracks by ISRC for O(1) matching in Pass 1
             var targetByISRC: [String: AppleMusicTrackInfo] = [:]
             for appleTrack in appleMusicTracks {
@@ -32,7 +39,9 @@ struct DeltaEngine {
             
             // Pass 1: Match by exact ISRC (O(N))
             for cached in cachedTracks {
-                guard cached.source == .spotify else { continue }
+                // Skip source removals — CacheAligner flagged them for user review
+                // moments earlier and matching here would clear that flag
+                guard cached.source == .spotify, cached.removalFlag != .removedFromSource else { continue }
                 let lowercasedIsrc = cached.isrc.lowercased()
                 if let appleTrack = targetByISRC[lowercasedIsrc] {
                     cached.source = .both
@@ -46,50 +55,55 @@ struct DeltaEngine {
             
             // Pass 2: Match by fuzzy (title/artist/duration)
             for cached in cachedTracks {
-                guard cached.source == .spotify else { continue }
+                guard cached.source == .spotify, cached.removalFlag != .removedFromSource else { continue }
                 let targetTitle = cached.title.normalizedForMatching
                 let targetArtist = cached.artist.normalizedForMatching
                 let targetDuration = cached.durationMs
                 
-                if let appleTrack = appleMusicTracks.first(where: { appleTrack in
-                    !matchedAppleTrackIds.contains(appleTrack.id) &&
+                if let match = normalizedAppleTracks.first(where: { candidate in
+                    !matchedAppleTrackIds.contains(candidate.id) &&
                     trackMatcher.matchScore(
-                        candidateTitle: appleTrack.title.normalizedForMatching,
-                        candidateArtist: appleTrack.artist.normalizedForMatching,
-                        candidateDurationMs: appleTrack.durationMs,
+                        candidateTitle: candidate.title,
+                        candidateArtist: candidate.artist,
+                        candidateDurationMs: candidate.durationMs,
                         targetTitle: targetTitle,
                         targetArtist: targetArtist,
                         targetDurationMs: targetDuration
                     ) >= 0.75
                 }) {
                     cached.source = .both
-                    cached.appleMusicTrackId = appleTrack.id
+                    cached.appleMusicTrackId = match.id
                     cached.syncState = .synced
                     cached.removalFlag = nil
                     cached.removalFlaggedAt = nil
-                    matchedAppleTrackIds.insert(appleTrack.id)
+                    matchedAppleTrackIds.insert(match.id)
                 }
             }
             
             // Destination-only tracks (on Apple Music but not in cached)
             let cachedAppleIds = Set(cachedTracks.compactMap { $0.appleMusicTrackId })
+            let normalizedCachedTracks = cachedTracks.map {
+                (isrc: $0.isrc.lowercased(), title: $0.title.normalizedForMatching, artist: $0.artist.normalizedForMatching, durationMs: $0.durationMs)
+            }
             var nextAddedAt = (cachedTracks.map { $0.addedAt }.max() ?? Date()).addingTimeInterval(1.0)
             for appleTrack in appleMusicTracks {
                 if !matchedAppleTrackIds.contains(appleTrack.id) && !cachedAppleIds.contains(appleTrack.id) {
                     let isrc = appleTrack.isrc ?? "local-\(appleTrack.id)"
                     
                     // Skip if this track (by ISRC or title/artist fuzzy match) is already in the cache
+                    let candidateTitle = appleTrack.title.normalizedForMatching
+                    let candidateArtist = appleTrack.artist.normalizedForMatching
                     let lowercasedIsrc = isrc.lowercased()
-                    let alreadyCached = cachedTracks.contains { cached in
+                    let alreadyCached = normalizedCachedTracks.contains { cached in
                         if !lowercasedIsrc.hasPrefix("local-") && !cached.isrc.hasPrefix("local-") {
-                            return cached.isrc.lowercased() == lowercasedIsrc
+                            return cached.isrc == lowercasedIsrc
                         }
                         return trackMatcher.matchScore(
-                            candidateTitle: appleTrack.title.normalizedForMatching,
-                            candidateArtist: appleTrack.artist.normalizedForMatching,
+                            candidateTitle: candidateTitle,
+                            candidateArtist: candidateArtist,
                             candidateDurationMs: appleTrack.durationMs,
-                            targetTitle: cached.title.normalizedForMatching,
-                            targetArtist: cached.artist.normalizedForMatching,
+                            targetTitle: cached.title,
+                            targetArtist: cached.artist,
                             targetDurationMs: cached.durationMs
                         ) >= 0.75
                     }
@@ -136,6 +150,14 @@ struct DeltaEngine {
         } else {
             // Apple Music is source, Spotify is target
             
+            // Precompute normalized strings once per target track — the fuzzy
+            // pass below is O(N×M) and must not re-normalize per comparison
+            let normalizedSpotifyTracks: [(uri: String, title: String, artist: String, durationMs: Int?)] =
+                spotifyTracks.compactMap { item in
+                    guard let sTrack = item.track else { return nil }
+                    return (sTrack.uri, sTrack.name.normalizedForMatching, sTrack.primaryArtist.normalizedForMatching, sTrack.durationMs)
+                }
+            
             // Map target Spotify tracks by ISRC for O(1) matching in Pass 1
             var targetByISRC: [String: SpotifyPlaylistItem] = [:]
             for item in spotifyTracks {
@@ -149,7 +171,9 @@ struct DeltaEngine {
             
             // Pass 1: Match by exact ISRC (O(N))
             for cached in cachedTracks {
-                guard cached.source == .appleMusic else { continue }
+                // Skip source removals — CacheAligner flagged them for user review
+                // moments earlier and matching here would clear that flag
+                guard cached.source == .appleMusic, cached.removalFlag != .removedFromSource else { continue }
                 let lowercasedIsrc = cached.isrc.lowercased()
                 if let spotifyItem = targetByISRC[lowercasedIsrc], let sTrack = spotifyItem.track {
                     cached.source = .both
@@ -163,34 +187,36 @@ struct DeltaEngine {
             
             // Pass 2: Match by fuzzy (title/artist/duration)
             for cached in cachedTracks {
-                guard cached.source == .appleMusic else { continue }
+                guard cached.source == .appleMusic, cached.removalFlag != .removedFromSource else { continue }
                 let targetTitle = cached.title.normalizedForMatching
                 let targetArtist = cached.artist.normalizedForMatching
                 let targetDuration = cached.durationMs
                 
-                if let spotifyItem = spotifyTracks.first(where: { item in
-                    guard let sTrack = item.track else { return false }
-                    return !matchedSpotifyURIs.contains(sTrack.uri) &&
+                if let match = normalizedSpotifyTracks.first(where: { candidate in
+                    !matchedSpotifyURIs.contains(candidate.uri) &&
                     trackMatcher.matchScore(
-                        candidateTitle: sTrack.name.normalizedForMatching,
-                        candidateArtist: sTrack.primaryArtist.normalizedForMatching,
-                        candidateDurationMs: sTrack.durationMs,
+                        candidateTitle: candidate.title,
+                        candidateArtist: candidate.artist,
+                        candidateDurationMs: candidate.durationMs,
                         targetTitle: targetTitle,
                         targetArtist: targetArtist,
                         targetDurationMs: targetDuration
                     ) >= 0.75
-                }), let sTrack = spotifyItem.track {
+                }) {
                     cached.source = .both
-                    cached.spotifyTrackUri = sTrack.uri
+                    cached.spotifyTrackUri = match.uri
                     cached.syncState = .synced
                     cached.removalFlag = nil
                     cached.removalFlaggedAt = nil
-                    matchedSpotifyURIs.insert(sTrack.uri)
+                    matchedSpotifyURIs.insert(match.uri)
                 }
             }
             
             // Destination-only tracks (on Spotify but not in cached)
             let cachedSpotifyUris = Set(cachedTracks.compactMap { $0.spotifyTrackUri })
+            let normalizedCachedTracks = cachedTracks.map {
+                (isrc: $0.isrc.lowercased(), title: $0.title.normalizedForMatching, artist: $0.artist.normalizedForMatching, durationMs: $0.durationMs)
+            }
             var nextAddedAt = (cachedTracks.map { $0.addedAt }.max() ?? Date()).addingTimeInterval(1.0)
             for item in spotifyTracks {
                 guard let sTrack = item.track else { continue }
@@ -198,17 +224,19 @@ struct DeltaEngine {
                     let isrc = sTrack.isrc ?? "local-\(sTrack.uri)"
                     
                     // Skip if this track (by ISRC or title/artist fuzzy match) is already in the cache
+                    let candidateTitle = sTrack.name.normalizedForMatching
+                    let candidateArtist = sTrack.primaryArtist.normalizedForMatching
                     let lowercasedIsrc = isrc.lowercased()
-                    let alreadyCached = cachedTracks.contains { cached in
+                    let alreadyCached = normalizedCachedTracks.contains { cached in
                         if !lowercasedIsrc.hasPrefix("local-") && !cached.isrc.hasPrefix("local-") {
-                            return cached.isrc.lowercased() == lowercasedIsrc
+                            return cached.isrc == lowercasedIsrc
                         }
                         return trackMatcher.matchScore(
-                            candidateTitle: sTrack.name.normalizedForMatching,
-                            candidateArtist: sTrack.primaryArtist.normalizedForMatching,
+                            candidateTitle: candidateTitle,
+                            candidateArtist: candidateArtist,
                             candidateDurationMs: sTrack.durationMs,
-                            targetTitle: cached.title.normalizedForMatching,
-                            targetArtist: cached.artist.normalizedForMatching,
+                            targetTitle: cached.title,
+                            targetArtist: cached.artist,
                             targetDurationMs: cached.durationMs
                         ) >= 0.75
                     }

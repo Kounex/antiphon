@@ -37,6 +37,8 @@ enum KeychainManager {
     // MARK: - CRUD
 
     /// Saves a string value to the Keychain, replacing any existing item for the given key.
+    /// Uses an update-in-place when the item already exists so the operation is atomic
+    /// (no delete-then-add window where a concurrent reader could see missing data).
     static func save(_ value: String, for key: Key) throws {
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.dataConversionError
@@ -44,17 +46,30 @@ enum KeychainManager {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key.rawValue,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccount as String: key.rawValue
         ]
 
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
+        let matchStatus = SecItemCopyMatching(query as CFDictionary, nil)
 
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.unexpectedStatus(status)
+        if matchStatus == errSecSuccess {
+            let update: [String: Any] = [
+                kSecValueData as String: data
+            ]
+            let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+            guard status == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(status)
+            }
+        } else if matchStatus == errSecItemNotFound {
+            var addQuery = query
+            addQuery[kSecValueData as String] = data
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+
+            let status = SecItemAdd(addQuery as CFDictionary, nil)
+            guard status == errSecSuccess else {
+                throw KeychainError.unexpectedStatus(status)
+            }
+        } else {
+            throw KeychainError.unexpectedStatus(matchStatus)
         }
     }
 
@@ -88,9 +103,10 @@ enum KeychainManager {
         SecItemDelete(query as CFDictionary)
     }
 
-    /// Removes all Spotify-related tokens from the Keychain.
+    /// Removes all Spotify tokens from the Keychain. The BYOK Client ID is
+    /// deliberately preserved — it is user configuration, not a credential.
     static func deleteAll() {
-        for key in [Key.spotifyAccessToken, .spotifyRefreshToken, .spotifyTokenExpiry, .spotifyClientId] {
+        for key in [Key.spotifyAccessToken, .spotifyRefreshToken, .spotifyTokenExpiry] {
             delete(key)
         }
     }

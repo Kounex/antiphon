@@ -4,6 +4,9 @@ import SwiftUI
 struct PlatformBadge: View {
     let platform: Platform
     var size: BadgeSize = .regular
+    /// Set to `true` when adjacent text already identifies the platform,
+    /// so VoiceOver doesn't announce the platform twice.
+    var isDecorative: Bool = false
 
     enum BadgeSize {
         case small, regular, large
@@ -34,6 +37,8 @@ struct PlatformBadge: View {
                 Circle()
                     .fill(platform.color.opacity(0.15))
             )
+            .accessibilityLabel(platform.rawValue)
+            .accessibilityHidden(isDecorative)
     }
 }
 

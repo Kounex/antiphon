@@ -12,10 +12,10 @@ struct GlassCardModifier: ViewModifier {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color.cardBackground)
+                    .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(AppGradients.glass)
+                            .fill(Color.cardBackground.opacity(0.5))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
@@ -91,6 +91,7 @@ extension ButtonStyle where Self == SecondaryButtonStyle {
 /// Adds a subtle shimmer animation overlay, useful for loading placeholders.
 struct ShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -105,10 +106,12 @@ struct ShimmerModifier: ViewModifier {
                     endPoint: .trailing
                 )
                 .rotationEffect(.degrees(30))
-                .offset(x: phase)
+                .offset(x: reduceMotion ? 0 : phase)
+                .opacity(reduceMotion ? 0.5 : 1)
             )
             .clipped()
-            .onAppear {
+            .task(id: reduceMotion) {
+                guard !reduceMotion else { return }
                 withAnimation(
                     .linear(duration: 2.0)
                         .repeatForever(autoreverses: false)

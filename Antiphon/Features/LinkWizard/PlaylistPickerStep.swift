@@ -14,19 +14,23 @@ struct PlaylistPickerStep: View {
                 .padding(.horizontal)
                 .padding(.top, 12)
 
-            // Content
-            if viewModel.isLoadingPlaylists {
+            // Content — full-screen spinner only for the initial load; pull-to-refresh
+            // keeps the list visible while it reloads
+            if viewModel.isLoadingPlaylists && viewModel.spotifyPlaylists.isEmpty && viewModel.appleMusicPlaylists.isEmpty {
                 loadingView
             } else if viewModel.sourcePlatform == .spotify {
                 spotifyPlaylistList
             } else {
                 appleMusicPlaylistList
             }
-
-            // Bottom bar
+        }
+        .safeAreaInset(edge: .bottom) {
             bottomBar
         }
         .task {
+            await loadPlaylistsIfNeeded()
+        }
+        .refreshable {
             await loadPlaylists()
         }
     }
@@ -51,6 +55,7 @@ struct PlaylistPickerStep: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color.textTertiary)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(12)
@@ -150,13 +155,18 @@ struct PlaylistPickerStep: View {
 
     // MARK: - Data Loading
 
+    private func loadPlaylistsIfNeeded() async {
+        let alreadyLoaded: Bool
+        if viewModel.sourcePlatform == .spotify {
+            alreadyLoaded = !viewModel.spotifyPlaylists.isEmpty
+        } else {
+            alreadyLoaded = !viewModel.appleMusicPlaylists.isEmpty
+        }
+        guard !alreadyLoaded else { return }
+        await loadPlaylists()
+    }
+
     private func loadPlaylists() async {
-        guard !viewModel.isLoadingPlaylists else { return }
-
-        // Only load if not already loaded
-        if viewModel.sourcePlatform == .spotify && !viewModel.spotifyPlaylists.isEmpty { return }
-        if viewModel.sourcePlatform == .appleMusic && !viewModel.appleMusicPlaylists.isEmpty { return }
-
         viewModel.isLoadingPlaylists = true
         defer { viewModel.isLoadingPlaylists = false }
 

@@ -45,24 +45,29 @@ actor SpotifyAPIClient {
     }
     
     /// Fetches all tracks in a playlist (handles pagination).
-    func getPlaylistTracks(playlistId: String, market: String = "US") async throws -> [SpotifyPlaylistItem] {
+    ///
+    /// Podcast episode items (`type == "episode"`) are dropped: they can't be
+    /// matched or added on Apple Music, and their different JSON shape must
+    /// never poison the sync pipeline. `market` defaults to nil so tracks are
+    /// returned without availability filtering for one specific country.
+    func getPlaylistTracks(playlistId: String, market: String? = nil) async throws -> [SpotifyPlaylistItem] {
         var allItems: [SpotifyPlaylistItem] = []
         var offset = 0
         let limit = 50
-        
+
         while true {
             let page: SpotifyPagingObject<SpotifyPlaylistItem> = try await request(
                 endpoint: .playlistTracks(playlistId: playlistId, limit: limit, offset: offset, market: market)
             )
-            allItems.append(contentsOf: page.items)
-            
+            allItems.append(contentsOf: page.items.filter { $0.track?.type != "episode" })
+
             if page.next == nil { break }
             offset += limit
-            
+
             // Small delay between pages to avoid rate limiting
             try await Task.sleep(for: .milliseconds(100))
         }
-        
+
         return allItems
     }
     
@@ -119,7 +124,7 @@ actor SpotifyAPIClient {
     // MARK: - Search
     
     /// Searches for a track by ISRC code.
-    func searchByISRC(_ isrc: String, market: String = "US") async throws -> SpotifyTrack? {
+    func searchByISRC(_ isrc: String, market: String? = nil) async throws -> SpotifyTrack? {
         let response: SpotifySearchResponse = try await request(
             endpoint: .searchByISRC(isrc: isrc, market: market)
         )
@@ -127,7 +132,7 @@ actor SpotifyAPIClient {
     }
     
     /// Searches for tracks by query string.
-    func search(query: String, type: String = "track", market: String? = "US", limit: Int = 10) async throws -> [SpotifyTrack] {
+    func search(query: String, type: String = "track", market: String? = nil, limit: Int = 10) async throws -> [SpotifyTrack] {
         let response: SpotifySearchResponse = try await request(
             endpoint: .searchByQuery(query: query, type: type, market: market, limit: limit)
         )
@@ -139,57 +144,70 @@ actor SpotifyAPIClient {
     /// Uploads a custom cover image to a Spotify playlist.
     /// The image must be a Base64-encoded JPEG string (max ~256KB).
     func uploadPlaylistImage(playlistId: String, base64JPEG: String) async throws {
-        let token = try await tokenProvider.validAccessToken()
         let endpoint = SpotifyEndpoint.uploadPlaylistImage(playlistId: playlistId)
-        guard let url = endpoint.url() else {
-            throw SpotifyAPIError.invalidURL
+        let token = try await tokenProvider.validAccessToken()
+
+        func buildUploadRequest(_ token: String) throws -> URLRequest {
+            guard let url = endpoint.url() else {
+                throw SpotifyAPIError.invalidURL
+            }
+            var urlRequest = URLRequest(url: url)
+            urlRequest.httpMethod = endpoint.httpMethod
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            urlRequest.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+            urlRequest.httpBody = base64JPEG.data(using: .utf8)
+            return urlRequest
         }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = endpoint.httpMethod
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = base64JPEG.data(using: .utf8)
-        
-        let (_, response) = try await session.data(for: urlRequest)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw SpotifyAPIError.httpError(statusCode: statusCode, body: "Failed to upload playlist image")
+
+        do {
+            try await executeWithRetryNoContent(buildUploadRequest(token))
+        } catch SpotifyAPIError.httpError(let statusCode, _) where statusCode == 401 {
+            let freshToken = try await tokenProvider.forceRefreshedToken(rejecting: token)
+            try await executeWithRetryNoContent(buildUploadRequest(freshToken))
         }
-        
+
         print("[Spotify] Playlist image uploaded successfully for \(playlistId)")
     }
     
     // MARK: - Generic Request
-    
+
     private func request<T: Decodable>(endpoint: SpotifyEndpoint) async throws -> T {
         let token = try await tokenProvider.validAccessToken()
-        guard let url = endpoint.url() else {
-            throw SpotifyAPIError.invalidURL
+        do {
+            return try await executeWithRetry(buildRequest(endpoint: endpoint, token: token))
+        } catch SpotifyAPIError.httpError(let statusCode, _) where statusCode == 401 {
+            // Spotify rejected a token the local expiry still trusted (clock
+            // skew, revocation). Force one refresh and retry once.
+            let freshToken = try await tokenProvider.forceRefreshedToken(rejecting: token)
+            return try await executeWithRetry(buildRequest(endpoint: endpoint, token: freshToken))
         }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = endpoint.httpMethod
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        return try await executeWithRetry(urlRequest)
     }
-    
+
     private func request<T: Decodable, B: Encodable>(endpoint: SpotifyEndpoint, body: B) async throws -> T {
         let token = try await tokenProvider.validAccessToken()
+        do {
+            return try await executeWithRetry(buildRequest(endpoint: endpoint, token: token, body: body))
+        } catch SpotifyAPIError.httpError(let statusCode, _) where statusCode == 401 {
+            let freshToken = try await tokenProvider.forceRefreshedToken(rejecting: token)
+            return try await executeWithRetry(buildRequest(endpoint: endpoint, token: freshToken, body: body))
+        }
+    }
+
+    private func buildRequest(endpoint: SpotifyEndpoint, token: String) throws -> URLRequest {
         guard let url = endpoint.url() else {
             throw SpotifyAPIError.invalidURL
         }
-        
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = endpoint.httpMethod
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return urlRequest
+    }
+
+    private func buildRequest<B: Encodable>(endpoint: SpotifyEndpoint, token: String, body: B) throws -> URLRequest {
+        var urlRequest = try buildRequest(endpoint: endpoint, token: token)
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(body)
-        
-        return try await executeWithRetry(urlRequest)
+        return urlRequest
     }
     
     private func executeWithRetry<T: Decodable>(_ request: URLRequest, retryCount: Int = 0) async throws -> T {
@@ -217,6 +235,32 @@ actor SpotifyAPIClient {
         }
         
         return try decoder.decode(T.self, from: data)
+    }
+
+    /// Same retry pipeline as `executeWithRetry` for requests with no decodable body.
+    private func executeWithRetryNoContent(_ request: URLRequest, retryCount: Int = 0) async throws {
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SpotifyAPIError.invalidResponse
+        }
+
+        // Handle rate limiting
+        if httpResponse.statusCode == 429 {
+            let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
+                .flatMap(TimeInterval.init) ?? 5.0
+
+            guard retryCount < 3 else {
+                throw SpotifyAPIError.rateLimited
+            }
+
+            try await Task.sleep(for: .seconds(retryAfter))
+            return try await executeWithRetryNoContent(request, retryCount: retryCount + 1)
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw SpotifyAPIError.httpError(statusCode: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
+        }
     }
 }
 

@@ -11,7 +11,7 @@ enum AppConstants {
         static let tokenURL = "https://accounts.spotify.com/api/token"
         static let apiBaseURL = "https://api.spotify.com/v1"
         static let redirectURI = "antiphon://spotify-callback"
-        static let scopes = "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-library-read"
+        static let scopes = "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-library-read ugc-image-upload"
     }
 
     /// Background task identifiers.

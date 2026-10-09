@@ -1,9 +1,15 @@
 import Foundation
 import SwiftData
 import MusicKit
+import os
 
 /// Progress callback type — called after each track is processed.
 typealias SyncProgressCallback = @Sendable (SyncProgress) async -> Void
+
+/// Process-wide registry of SyncPair IDs with an in-progress sync. UI-triggered syncs,
+/// background refresh, and AppIntents each create their own SyncEngine instance, so
+/// per-instance state cannot enforce mutual exclusion across engines.
+private let inProgressSyncPairs = OSAllocatedUnfairLock(initialState: Set<UUID>())
 
 /// Central sync engine that performs bidirectional delta synchronization
 /// between Spotify and Apple Music playlists.
@@ -20,8 +26,6 @@ actor SyncEngine {
     private let spotifyClient: SpotifyAPIClient
     private let appleMusicManager: AppleMusicManager
     private let trackMatcher: TrackMatcher
-    
-    private var lastSyncTimestamp: Date?
     
     init(
         modelContainer: ModelContainer,
@@ -77,7 +81,6 @@ actor SyncEngine {
         }
         
         try? context.save()
-        lastSyncTimestamp = Date()
         
         return results
     }
@@ -116,12 +119,6 @@ actor SyncEngine {
         return await syncPair(pairId, action: .initialSync)
     }
     
-    /// Whether enough time has passed since the last sync to justify another one.
-    var shouldSync: Bool {
-        guard let last = lastSyncTimestamp else { return true }
-        return Date().timeIntervalSince(last) >= AppConstants.Sync.minimumSyncIntervalSeconds
-    }
-    
     // MARK: - Core Sync Algorithm
     
     private func syncSinglePair(
@@ -131,6 +128,19 @@ actor SyncEngine {
         progressCallback: SyncProgressCallback? = nil
     ) async -> SyncResult {
         
+        // Cross-engine mutual exclusion: every caller (UI, background, AppIntent)
+        // builds a fresh SyncEngine, so the registry must live outside the actor.
+        let pairId = pair.id
+        guard inProgressSyncPairs.withLock({ $0.insert(pairId).inserted }) else {
+            // Report as partial (not failed) so background callers don't fire
+            // spurious failure notifications for an overlapping sync.
+            let message = SyncError.syncAlreadyInProgress.localizedDescription
+            pair.lastSyncResult = .partial
+            pair.lastSyncMessage = message
+            return SyncResult(pairId: pairId, status: .partial, message: message)
+        }
+        defer { _ = inProgressSyncPairs.withLock { $0.remove(pairId) } }
+        
         pair.lastSyncResult = .inProgress
         pair.lastSyncMessage = nil
         
@@ -138,7 +148,6 @@ actor SyncEngine {
         var tracksFailed = 0
         
         // ── Fetch local database cache (Exactly 1 query for the entire sync run) ──
-        let pairId = pair.id
         var cachedTrackDescriptor = FetchDescriptor<CachedTrack>(
             predicate: #Predicate { $0.syncPair?.id == pairId }
         )
@@ -213,7 +222,7 @@ actor SyncEngine {
                     appleMusicTracks = []
                 }
                 
-                let matchResult = await matchTracksOneByOne(
+                let matchResult = try await matchTracksOneByOne(
                     pendingTracks: pendingTracks,
                     pair: pair,
                     context: context,
@@ -387,7 +396,7 @@ actor SyncEngine {
                     currentTrackName: nil
                 ))
                 
-                let matchResult = await matchTracksOneByOne(
+                let matchResult = try await matchTracksOneByOne(
                     pendingTracks: pendingTracks,
                     pair: pair,
                     context: context,
@@ -445,6 +454,13 @@ actor SyncEngine {
                 tracksFailed: tracksFailed
             )
             
+        } catch is CancellationError {
+            // User cancellation (or task teardown) arriving mid-write must resume
+            // later, not be reported as a failure — the queued writes were already
+            // rolled back to .pending inside matchTracksOneByOne.
+            return handleInterruption(pair: pair, context: context, action: action,
+                                      tracksAdded: tracksAdded, tracksFailed: tracksFailed,
+                                      cachedTracks: cachedTracks)
         } catch {
             let message = "Sync failed: \(error.localizedDescription)"
             pair.lastSyncResult = .failed
@@ -467,6 +483,22 @@ actor SyncEngine {
         var failed: Int
     }
     
+    /// A track queued for a Spotify batch write, with the state needed to roll
+    /// the track back to .pending if the write never lands on the target playlist.
+    private struct QueuedSpotifyWrite {
+        let track: CachedTrack
+        let uri: String
+        let originalSource: TrackSource
+    }
+    
+    /// A track queued for an Apple Music batch write, with the state needed to roll
+    /// the track back to .pending if the write never lands on the target playlist.
+    private struct QueuedAppleMusicWrite {
+        let track: CachedTrack
+        let songId: String
+        let originalSource: TrackSource
+    }
+    
     /// Matches pending tracks one-by-one with cancellation checkpoints and progress reporting.
     private func matchTracksOneByOne(
         pendingTracks: [CachedTrack],
@@ -479,7 +511,7 @@ actor SyncEngine {
         totalTracks: Int,
         alreadyCompleted: Int,
         progressCallback: SyncProgressCallback?
-    ) async -> MatchResult {
+    ) async throws -> MatchResult {
         var added = 0
         var failed = 0
         var completed = alreadyCompleted
@@ -489,6 +521,11 @@ actor SyncEngine {
         
         // Batch songs for Apple Music additions
         var appleMusicSongsToAdd: [Song] = []
+        
+        // Tracks paired with their queued writes, so batch-write failures and
+        // interruptions can roll unwritten tracks back to .pending
+        var queuedSpotifyWrites: [QueuedSpotifyWrite] = []
+        var queuedAppleMusicWrites: [QueuedAppleMusicWrite] = []
         
         // Pre-resolve Apple Music catalog songs by ISRC in batches to avoid sequential network requests
         var resolvedSongsByISRC: [String: Song] = [:]
@@ -518,6 +555,8 @@ actor SyncEngine {
                 break
             }
             
+            let originalSource = track.source
+            
             // Mark as syncing
             track.syncState = .syncing
             track.lastSyncAttempt = Date()
@@ -540,13 +579,22 @@ actor SyncEngine {
                     var song: Song? = resolvedSongsByISRC[track.isrc.lowercased()]
                     
                     if song == nil {
-                        // Find on Apple Music Catalog (exact isrc then fuzzy fallback)
-                        song = try await trackMatcher.findAppleMusicTrack(
-                            forISRC: track.isrc,
-                            title: track.title,
-                            artist: track.artist,
-                            durationMs: track.durationMs
-                        )
+                        if track.isrc.hasPrefix("local-") {
+                            // Synthetic 'local-' ISRC — catalog ISRC lookup can't succeed
+                            song = try await trackMatcher.findAppleMusicTrack(
+                                title: track.title,
+                                artist: track.artist,
+                                durationMs: track.durationMs
+                            )
+                        } else {
+                            // Find on Apple Music Catalog (exact isrc then fuzzy fallback)
+                            song = try await trackMatcher.findAppleMusicTrack(
+                                forISRC: track.isrc,
+                                title: track.title,
+                                artist: track.artist,
+                                durationMs: track.durationMs
+                            )
+                        }
                     }
                     
                     if let song {
@@ -557,6 +605,11 @@ actor SyncEngine {
                         
                         if !alreadyExists {
                             appleMusicSongsToAdd.append(song)
+                            queuedAppleMusicWrites.append(QueuedAppleMusicWrite(
+                                track: track,
+                                songId: song.id.rawValue,
+                                originalSource: originalSource
+                            ))
                             added += 1
                         } else {
                             print("[SyncEngine] Track '\(track.title)' already exists in Apple Music target playlist. Skipping add.")
@@ -574,12 +627,23 @@ actor SyncEngine {
                     }
                 } else if needsSpotifyMatch {
                     // Find on Spotify
-                    if let spotifyTrack = try await trackMatcher.findSpotifyTrack(
-                        forISRC: track.isrc,
-                        title: track.title,
-                        artist: track.artist,
-                        durationMs: track.durationMs
-                    ) {
+                    let lookup: SpotifyTrack? = if track.isrc.hasPrefix("local-") {
+                        // Synthetic 'local-' ISRC — catalog ISRC lookup can't succeed
+                        try await trackMatcher.findSpotifyTrack(
+                            title: track.title,
+                            artist: track.artist,
+                            durationMs: track.durationMs
+                        )
+                    } else {
+                        try await trackMatcher.findSpotifyTrack(
+                            forISRC: track.isrc,
+                            title: track.title,
+                            artist: track.artist,
+                            durationMs: track.durationMs
+                        )
+                    }
+                    
+                    if let spotifyTrack = lookup {
                         // Check if already in target playlist
                         let alreadyExists = spotifyTracks.contains { spotifyItem in
                             trackMatcher.isMatch(spotifyTrack: spotifyTrack, spotifyItem: spotifyItem)
@@ -587,6 +651,11 @@ actor SyncEngine {
                         
                         if !alreadyExists {
                             spotifyUrisToAdd.append(spotifyTrack.uri)
+                            queuedSpotifyWrites.append(QueuedSpotifyWrite(
+                                track: track,
+                                uri: spotifyTrack.uri,
+                                originalSource: originalSource
+                            ))
                             added += 1
                         } else {
                             print("[SyncEngine] Track '\(track.title)' already exists in Spotify target playlist. Skipping add.")
@@ -607,6 +676,12 @@ actor SyncEngine {
                     track.syncState = .skipped
                 }
                 
+            } catch is CancellationError {
+                // Task cancelled — leave the track retryable for the next run
+                // without penalizing its retry count
+                print("[SyncEngine] Track match cancelled for '\(track.title)'")
+                track.syncState = .pending
+                break
             } catch {
                 // Network/API error for this track — mark as failed, continue with others
                 print("[SyncEngine] Track match error for '\(track.title)': \(error.localizedDescription)")
@@ -621,6 +696,20 @@ actor SyncEngine {
             try? context.save()
         }
         
+        // If cancelled between marking tracks .synced and the batch writes below,
+        // the queued tracks never reached the target playlist. Roll them back to
+        // .pending so the next sync re-adds them instead of trusting the cache.
+        if Task.isCancelled {
+            let rolledBack = rollbackUnwrittenWrites(
+                spotifyWrites: queuedSpotifyWrites,
+                unwrittenSpotifyURIs: Set(queuedSpotifyWrites.map(\.uri)),
+                appleMusicWrites: queuedAppleMusicWrites,
+                unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                context: context
+            )
+            added -= rolledBack
+        }
+        
         // Batch-add Spotify tracks if any
         if !spotifyUrisToAdd.isEmpty && !Task.isCancelled {
             do {
@@ -629,22 +718,104 @@ actor SyncEngine {
                     trackUris: spotifyUrisToAdd
                 )
             } catch {
-                print("[SyncEngine] Failed to batch-add Spotify tracks: \(error.localizedDescription)")
+                // Roll affected tracks back to .pending and fail the sync instead
+                // of silently reporting success for writes that never landed. The
+                // AM block below never runs after this throw, so its queued writes
+                // must be rolled back here too.
+                let rolledBack = rollbackUnwrittenWrites(
+                    spotifyWrites: queuedSpotifyWrites,
+                    unwrittenSpotifyURIs: Set(spotifyUrisToAdd),
+                    appleMusicWrites: queuedAppleMusicWrites,
+                    unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                    context: context
+                )
+                added -= rolledBack
+                failed += rolledBack
+                throw error
             }
         }
         
         // Batch-add Apple Music tracks if any
-        if !appleMusicSongsToAdd.isEmpty && !Task.isCancelled {
-            do {
-                if let amPlaylist = amPlaylist {
-                    try await appleMusicManager.addTracks(appleMusicSongsToAdd, to: amPlaylist)
+        if !appleMusicSongsToAdd.isEmpty {
+            if Task.isCancelled {
+                // Cancelled before the write: the tracks never reached the playlist,
+                // so roll them back instead of leaving .synced rows the cache trusts.
+                let rolledBack = rollbackUnwrittenWrites(
+                    spotifyWrites: [],
+                    unwrittenSpotifyURIs: [],
+                    appleMusicWrites: queuedAppleMusicWrites,
+                    unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                    context: context
+                )
+                added -= rolledBack
+            } else {
+                guard let amPlaylist = amPlaylist else {
+                    let rolledBack = rollbackUnwrittenWrites(
+                        spotifyWrites: [],
+                        unwrittenSpotifyURIs: [],
+                        appleMusicWrites: queuedAppleMusicWrites,
+                        unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                        context: context
+                    )
+                    added -= rolledBack
+                    failed += rolledBack
+                    throw SyncError.appleMusicPlaylistNotFound
                 }
-            } catch {
-                print("[SyncEngine] Failed to batch-add Apple Music tracks: \(error.localizedDescription)")
+                do {
+                    try await appleMusicManager.addTracks(appleMusicSongsToAdd, to: amPlaylist)
+                } catch {
+                    let rolledBack = rollbackUnwrittenWrites(
+                        spotifyWrites: [],
+                        unwrittenSpotifyURIs: [],
+                        appleMusicWrites: queuedAppleMusicWrites,
+                        unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                        context: context
+                    )
+                    added -= rolledBack
+                    failed += rolledBack
+                    throw error
+                }
             }
         }
         
         return MatchResult(added: added, failed: failed)
+    }
+    
+    /// Rolls back queued tracks that were marked .synced but whose writes never landed
+    /// on the target playlist, restoring their pre-match state so a later sync retries
+    /// them instead of trusting a cache row the platform doesn't have.
+    @discardableResult
+    private func rollbackUnwrittenWrites(
+        spotifyWrites: [QueuedSpotifyWrite],
+        unwrittenSpotifyURIs: Set<String>,
+        appleMusicWrites: [QueuedAppleMusicWrite],
+        unwrittenAppleSongIds: Set<String>,
+        context: ModelContext
+    ) -> Int {
+        var rolledBack = 0
+        
+        for write in spotifyWrites where unwrittenSpotifyURIs.contains(write.uri) {
+            write.track.syncState = .pending
+            write.track.spotifyTrackUri = nil
+            write.track.source = write.originalSource
+            write.track.unmatchedPlatform = nil
+            rolledBack += 1
+        }
+        
+        for write in appleMusicWrites where unwrittenAppleSongIds.contains(write.songId) {
+            write.track.syncState = .pending
+            write.track.appleMusicTrackId = nil
+            write.track.source = write.originalSource
+            write.track.unmatchedPlatform = nil
+            rolledBack += 1
+        }
+        
+        if rolledBack > 0 {
+            print("[SyncEngine] Rolled back \(rolledBack) unwritten tracks to .pending")
+            try? context.save()
+        }
+        
+        return rolledBack
     }
     
     // MARK: - Interruption Handling
@@ -686,10 +857,10 @@ actor SyncEngine {
     // MARK: - Background Refresh Handler
     
     /// Handles a BGAppRefreshTask. Returns all sync results for the caller
-    /// to inspect (e.g. posting failure notifications).
+    /// to inspect (e.g. posting failure notifications). The per-pair cooldown
+    /// inside `syncAllMonitored` keeps this from syncing too frequently.
     func handleBackgroundRefresh() async -> [SyncResult] {
-        guard shouldSync else { return [] }
-        return await syncAllMonitored()
+        await syncAllMonitored()
     }
     
     // MARK: - Helpers

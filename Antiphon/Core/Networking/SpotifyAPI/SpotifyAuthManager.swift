@@ -35,6 +35,7 @@ final class SpotifyAuthManager: NSObject {
     // MARK: - Private State
     
     private var codeVerifier: String?
+    private var expectedState: String?
     private var authSession: ASWebAuthenticationSession?
     private weak var presentingAnchor: ASPresentationAnchor?
     
@@ -62,8 +63,13 @@ final class SpotifyAuthManager: NSObject {
         let verifier = generateCodeVerifier()
         let challenge = generateCodeChallenge(from: verifier)
         self.codeVerifier = verifier
-        
-        var components = URLComponents(string: AppConstants.Spotify.authURL)!
+
+        let state = UUID().uuidString
+        self.expectedState = state
+
+        guard var components = URLComponents(string: AppConstants.Spotify.authURL) else {
+            throw SpotifyAuthError.invalidURL
+        }
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientId),
             URLQueryItem(name: "response_type", value: "code"),
@@ -71,7 +77,7 @@ final class SpotifyAuthManager: NSObject {
             URLQueryItem(name: "scope", value: AppConstants.Spotify.scopes),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: challenge),
-            URLQueryItem(name: "state", value: UUID().uuidString)
+            URLQueryItem(name: "state", value: state)
         ]
         
         guard let authURL = components.url else {
@@ -94,13 +100,22 @@ final class SpotifyAuthManager: NSObject {
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
             self.authSession = session
-            session.start()
+            guard session.start() else {
+                continuation.resume(throwing: SpotifyAuthError.sessionStartFailed)
+                return
+            }
         }
         
-        guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "code" })?.value else {
+        guard let callbackItems = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
+            .queryItems,
+              let code = callbackItems.first(where: { $0.name == "code" })?.value else {
             throw SpotifyAuthError.noAuthCode
         }
+
+        guard callbackItems.first(where: { $0.name == "state" })?.value == expectedState else {
+            throw SpotifyAuthError.invalidState
+        }
+        expectedState = nil
         
         let accessToken = try await exchangeCodeForTokens(code: code, verifier: verifier)
         await fetchUserProfile(accessToken: accessToken)
@@ -113,6 +128,7 @@ final class SpotifyAuthManager: NSObject {
         KeychainManager.delete(.spotifyTokenExpiry)
         isAuthenticated = false
         userProfile = nil
+        authError = nil
     }
     
     /// Re-checks Keychain for auth state. Call after a background token refresh
@@ -146,20 +162,24 @@ final class SpotifyAuthManager: NSObject {
     @discardableResult
     private func exchangeCodeForTokens(code: String, verifier: String) async throws -> String {
         guard let clientId else { throw SpotifyAuthError.noClientId }
-        
-        var request = URLRequest(url: URL(string: AppConstants.Spotify.tokenURL)!)
+
+        guard let tokenURL = URL(string: AppConstants.Spotify.tokenURL) else {
+            throw SpotifyAuthError.invalidURL
+        }
+        var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         
-        let body = [
-            "client_id=\(clientId)",
-            "grant_type=authorization_code",
-            "code=\(code)",
-            "redirect_uri=\(AppConstants.Spotify.redirectURI)",
-            "code_verifier=\(verifier)"
-        ].joined(separator: "&")
-        
-        request.httpBody = body.data(using: .utf8)
+        guard let body = SpotifyFormEncoder.encode([
+            ("client_id", clientId),
+            ("grant_type", "authorization_code"),
+            ("code", code),
+            ("redirect_uri", AppConstants.Spotify.redirectURI),
+            ("code_verifier", verifier)
+        ]) else {
+            throw SpotifyAuthError.invalidURL
+        }
+        request.httpBody = body
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -170,12 +190,12 @@ final class SpotifyAuthManager: NSObject {
         
         let tokenResponse = try JSONDecoder().decode(SpotifyTokenResponse.self, from: data)
         
-        try? KeychainManager.save(tokenResponse.accessToken, for: .spotifyAccessToken)
+        try KeychainManager.save(tokenResponse.accessToken, for: .spotifyAccessToken)
         if let newRefresh = tokenResponse.refreshToken {
-            try? KeychainManager.save(newRefresh, for: .spotifyRefreshToken)
+            try KeychainManager.save(newRefresh, for: .spotifyRefreshToken)
         }
         let expiry = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
-        try? KeychainManager.save(String(expiry.timeIntervalSince1970), for: .spotifyTokenExpiry)
+        try KeychainManager.save(String(expiry.timeIntervalSince1970), for: .spotifyTokenExpiry)
         isAuthenticated = true
         return tokenResponse.accessToken
     }
@@ -221,6 +241,8 @@ enum SpotifyAuthError: LocalizedError {
     case notAuthenticated
     case invalidURL
     case noAuthCode
+    case invalidState
+    case sessionStartFailed
     case tokenExchangeFailed
     case tokenRefreshFailed
     case unknown
@@ -231,6 +253,8 @@ enum SpotifyAuthError: LocalizedError {
         case .notAuthenticated: return "Not logged in to Spotify. Please connect your account."
         case .invalidURL: return "Failed to build authorization URL."
         case .noAuthCode: return "No authorization code received from Spotify."
+        case .invalidState: return "Authentication state mismatch. Please try again."
+        case .sessionStartFailed: return "Failed to start the login session. Please try again."
         case .tokenExchangeFailed: return "Failed to exchange authorization code for tokens."
         case .tokenRefreshFailed: return "Session expired. Please reconnect Spotify."
         case .unknown: return "An unknown error occurred during Spotify authentication."

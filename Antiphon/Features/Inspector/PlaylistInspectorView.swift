@@ -109,6 +109,7 @@ struct PlaylistInspectorView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(Color.textSecondary)
                 }
+                .accessibilityLabel("Sync pair options")
             }
         }
         .alert("Unlink Playlists?", isPresented: $showDeleteConfirmation) {
@@ -172,8 +173,8 @@ struct PlaylistInspectorView: View {
 
                 StatPill(
                     label: "Attention",
-                    value: "\(tracks.filter { $0.needsAttention }.count)",
-                    color: tracks.contains(where: { $0.unmatchedPlatform != nil }) ? .syncError : .syncWarning
+                    value: "\(tracks.filter { $0.needsAttention || $0.isUnmatched }.count)",
+                    color: tracks.contains(where: { $0.isUnmatched }) ? .syncError : .syncWarning
                 )
 
                 StatPill(
@@ -266,7 +267,7 @@ struct PlaylistInspectorView: View {
 
                     if syncPair.isMonitored {
                         HStack(spacing: 4) {
-                            PulsingDot(color: .syncSuccess, size: 6)
+                            MonitoringDot(color: .syncSuccess, size: 6)
                             Text("Monitoring")
                                 .font(.appMicro)
                                 .foregroundStyle(Color.syncSuccess)
@@ -285,7 +286,7 @@ struct PlaylistInspectorView: View {
 
                     if syncPair.isMonitored {
                         HStack(spacing: 4) {
-                            PulsingDot(color: .syncSuccess, size: 6)
+                            MonitoringDot(color: .syncSuccess, size: 6)
                             Text("Monitoring")
                                 .font(.appMicro)
                                 .foregroundStyle(Color.syncSuccess)
@@ -315,9 +316,9 @@ struct PlaylistInspectorView: View {
                                 .font(.appCaptionBold)
 
                             if tab == .flagged {
-                                let attentionCount = tracks.filter { $0.needsAttention }.count
+                                let attentionCount = tracks.filter { $0.needsAttention || $0.isUnmatched }.count
                                 if attentionCount > 0 {
-                                    let hasUnmatched = tracks.contains { $0.unmatchedPlatform != nil }
+                                    let hasUnmatched = tracks.contains { $0.isUnmatched }
                                     Text("\(attentionCount)")
                                         .font(.appMicro)
                                         .foregroundStyle(.white)
@@ -345,7 +346,7 @@ struct PlaylistInspectorView: View {
             return nil
         }
         let flaggedCount = tracks.filter { $0.removalFlag != nil }.count
-        let unmatchedCount = tracks.filter { $0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed }.count
+        let unmatchedCount = tracks.filter { $0.isUnmatched }.count
         
         if unmatchedCount > 0 {
             return .failed
@@ -362,7 +363,7 @@ struct PlaylistInspectorView: View {
             return "No tracks in playlist"
         }
         let flaggedCount = tracks.filter { $0.removalFlag != nil }.count
-        let unmatchedCount = tracks.filter { $0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed }.count
+        let unmatchedCount = tracks.filter { $0.isUnmatched }.count
         let syncedCount = totalCount - flaggedCount - unmatchedCount
         
         if unmatchedCount == 0 && flaggedCount == 0 {
@@ -457,5 +458,25 @@ struct StatPill: View {
                 .foregroundStyle(Color.textTertiary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Monitoring Dot
+
+/// A monitoring indicator that renders a static dot when Reduce Motion is on.
+private struct MonitoringDot: View {
+    let color: Color
+    var size: CGFloat = 10
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if reduceMotion {
+            Circle()
+                .fill(color)
+                .frame(width: size, height: size)
+        } else {
+            PulsingDot(color: color, size: size)
+        }
     }
 }

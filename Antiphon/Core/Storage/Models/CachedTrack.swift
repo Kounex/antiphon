@@ -117,6 +117,31 @@ final class CachedTrack {
         unmatchedPlatform != nil || removalFlag != nil
     }
 
+    /// Whether this track is missing on its target platform — either the sync engine
+    /// recorded the unmatched platform or it failed before recording one.
+    var isUnmatched: Bool {
+        unmatchedPlatform != nil || effectiveSyncState == .failed
+    }
+
+    /// The platform a manual match should target. Derived from the track's source
+    /// and the pair's sync direction when the engine failed before recording
+    /// `unmatchedPlatform`.
+    var manualMatchTarget: UnmatchedPlatform? {
+        if let unmatchedPlatform { return unmatchedPlatform }
+        switch (source, syncPair?.syncDirection ?? .bidirectional) {
+        case (.spotify, .appleToSpotify), (.appleMusic, .spotifyToApple), (.both, .bidirectional):
+            return nil
+        case (.spotify, _):
+            return .appleMusic
+        case (.appleMusic, _):
+            return .spotify
+        case (.both, .spotifyToApple):
+            return .appleMusic
+        case (.both, .appleToSpotify):
+            return .spotify
+        }
+    }
+
     /// Dynamically resolved description for the removal flag based on the track's platform details.
     var removalDescription: String? {
         guard let flag = removalFlag else { return nil }

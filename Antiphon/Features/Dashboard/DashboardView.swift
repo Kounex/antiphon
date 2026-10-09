@@ -4,6 +4,7 @@ import SwiftData
 /// The main dashboard view showing all linked playlist pairs and their sync status.
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(SyncCoordinator.self) private var syncCoordinator
     @Query(sort: \SyncPair.createdAt, order: .reverse) private var syncPairs: [SyncPair]
 
     @State private var showingSettings = false
@@ -32,6 +33,7 @@ struct DashboardView: View {
                         Image(systemName: "gearshape.fill")
                             .foregroundStyle(Color.textSecondary)
                     }
+                    .accessibilityLabel("Settings")
                 }
 
                 ToolbarItem(placement: .principal) {
@@ -56,6 +58,7 @@ struct DashboardView: View {
                             .font(.title3)
                             .foregroundStyle(Color.spotifyGreen)
                     }
+                    .accessibilityLabel("Link playlist")
                 }
             }
             .sheet(isPresented: $showingSettings) {
@@ -139,6 +142,15 @@ struct DashboardView: View {
                         SyncPairRow(syncPair: pair)
                     }
                     .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            syncCoordinator.startSync(pairId: pair.id, action: .manualSync)
+                        } label: {
+                            Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .tint(Color.spotifyGreen)
+                        .disabled(syncCoordinator.isSyncing(pair.id))
+                    }
                 }
             }
             .padding()
@@ -190,8 +202,19 @@ struct SyncPairRow: View {
 
     private var progressSummaryText: String {
         let total = tracks.count
-        let synced = tracks.filter { $0.unmatchedPlatform == nil && $0.effectiveSyncState != .failed && $0.removalFlag == nil }.count
-        return "\(synced)/\(total)"
+        guard total > 0 else { return "" }
+        // Segments are disjoint so they always sum to the total: a track with a
+        // removal flag counts as flagged even if it is also unmatched.
+        let flagged = tracks.filter { $0.removalFlag != nil }.count
+        let missing = tracks.filter {
+            $0.removalFlag == nil && ($0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed)
+        }.count
+        let synced = total - missing - flagged
+        var parts: [String] = []
+        if missing > 0 { parts.append("\(missing) missing") }
+        if flagged > 0 { parts.append("\(flagged) flagged") }
+        parts.append("\(synced) synced")
+        return parts.joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -227,7 +250,7 @@ struct SyncPairRow: View {
             }
         case .unmatched:
             HStack(spacing: 6) {
-                Text("Partially synced, missing songs")
+                Text("Missing songs")
                     .font(.appCaption)
                     .foregroundStyle(Color.syncError)
                 if !tracks.isEmpty {
@@ -267,6 +290,19 @@ struct SyncPairRow: View {
         }
     }
 
+    private var rowAccessibilityLabel: String {
+        let status: String
+        switch overallStatus {
+        case .synced: status = "In sync"
+        case .flagged: status = "Partially synced"
+        case .unmatched: status = "Missing songs"
+        case .syncing: status = "Syncing"
+        case .pending, .unknown: status = "Not synced"
+        }
+        let counts = tracks.isEmpty ? "" : ", \(progressSummaryText)"
+        return "\(syncPair.spotifyPlaylistName), \(status)\(counts)"
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             // Platform badges
@@ -281,6 +317,7 @@ struct SyncPairRow: View {
                     .font(.appTitle3)
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
                 if syncCoordinator.isSyncing(syncPair.id) {
                     HStack(spacing: 6) {
@@ -289,33 +326,45 @@ struct SyncPairRow: View {
                             .scaleEffect(0.6)
                         subtitleText
                     }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 } else {
                     subtitleText
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
+            .layoutPriority(1)
 
             Spacer()
 
             // Status indicator dot
-            if overallStatus == .unknown || overallStatus == .pending {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                    .frame(width: 20, height: 20) // Match PulsingDot frame bounds
-            } else {
-                PulsingDot(color: statusColor, size: 8)
+            Group {
+                if overallStatus == .syncing {
+                    PulsingDot(color: statusColor, size: 8)
+                } else {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 8, height: 8)
+                        .frame(width: 20, height: 20) // Match PulsingDot frame bounds
+                }
             }
+            .accessibilityHidden(true)
 
             // Sync direction badge
             Image(systemName: syncPair.syncDirection.icon)
                 .font(.appCaption)
                 .foregroundStyle(Color.textTertiary)
+                .accessibilityHidden(true)
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.textTertiary.opacity(0.5))
+                .accessibilityHidden(true)
         }
         .glassCard()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(rowAccessibilityLabel)
     }
 }
 

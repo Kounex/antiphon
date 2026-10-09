@@ -178,15 +178,19 @@ struct TrackMatcher: Sendable {
         maxScore += 0.45
         if candidateTitle == targetTitle {
             score += 0.45
-        } else if candidateTitle.contains(targetTitle) || targetTitle.contains(candidateTitle) {
+        } else if !candidateTitle.isEmpty, !targetTitle.isEmpty,
+                  candidateTitle.contains(targetTitle) || targetTitle.contains(candidateTitle) {
+            // contains("") is always true — without the emptiness guards an
+            // all-symbol title would earn partial credit on everything.
             score += 0.30
         }
-        
+
         // Artist match (weight: 0.40)
         maxScore += 0.40
         if candidateArtist == targetArtist {
             score += 0.40
-        } else if candidateArtist.contains(targetArtist) || targetArtist.contains(candidateArtist) {
+        } else if !candidateArtist.isEmpty, !targetArtist.isEmpty,
+                  candidateArtist.contains(targetArtist) || targetArtist.contains(candidateArtist) {
             score += 0.25
         }
         

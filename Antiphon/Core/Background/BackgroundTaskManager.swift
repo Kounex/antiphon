@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import BackgroundTasks
+import os
 import SwiftData
 
 /// Manages background task registration and scheduling for playlist sync.
@@ -16,8 +17,12 @@ enum BackgroundTaskManager {
             forTaskWithIdentifier: AppConstants.BackgroundTasks.playlistRefreshIdentifier,
             using: nil
         ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
             handleAppRefresh(
-                task: task as! BGAppRefreshTask,
+                task: refreshTask,
                 modelContainer: modelContainer
             )
         }
@@ -53,30 +58,34 @@ enum BackgroundTaskManager {
         scheduleBackgroundRefresh()
         
         print("[BackgroundTaskManager] Background refresh triggered")
-        
+
+        let expired = OSAllocatedUnfairLock(initialState: false)
+
         let syncTask = Task { @Sendable in
             let appleMusicManager = AppleMusicManager()
             let spotifyClient = SpotifyAPIClient()
-            
+
             let engine = SyncEngine(
                 modelContainer: modelContainer,
                 spotifyClient: spotifyClient,
                 appleMusicManager: appleMusicManager
             )
-            
+
             let results = await engine.handleBackgroundRefresh()
-            let allSucceeded = results.allSatisfy { $0.status != .failed }
-            
-            if !allSucceeded {
+            let wasExpired = expired.withLock { $0 }
+            let allSucceeded = !wasExpired && results.allSatisfy { $0.status != .failed }
+
+            if !wasExpired && !allSucceeded {
                 NotificationManager.postSyncFailureNotification(results: results)
             }
-            
+
             print("[BackgroundTaskManager] Background sync completed, success: \(allSucceeded)")
             task.setTaskCompleted(success: allSucceeded)
         }
-        
+
         task.expirationHandler = {
             print("[BackgroundTaskManager] Background task expired, cancelling sync")
+            expired.withLock { $0 = true }
             syncTask.cancel()
         }
     }

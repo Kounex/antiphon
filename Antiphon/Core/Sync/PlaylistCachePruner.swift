@@ -67,6 +67,12 @@ struct PlaylistCachePruner {
                     duplicate.removalFlaggedAt = nil
                 }
                 
+                // Preserve unmatchedPlatform from the merged-away duplicate
+                // if the kept row has none
+                if duplicate.unmatchedPlatform == nil {
+                    duplicate.unmatchedPlatform = track.unmatchedPlatform
+                }
+                
                 tracksToDelete.append(track)
                 deduped = true
             } else {

@@ -30,6 +30,7 @@ struct TrackArtworkView: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .accessibilityHidden(true)
     }
 
     private var fallbackView: some View {

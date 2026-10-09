@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Manages local notification permissions and delivery for background sync events.
 ///
@@ -50,7 +50,6 @@ enum NotificationManager {
             }
         }
         
-        content.categoryIdentifier = "SYNC_FAILURE"
         content.threadIdentifier = "sync-failures"
         
         let request = UNNotificationRequest(

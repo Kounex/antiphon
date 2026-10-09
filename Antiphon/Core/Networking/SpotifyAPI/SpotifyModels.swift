@@ -94,6 +94,13 @@ struct SpotifyPlaylistItem: Codable {
     }
 }
 
+/// A track object as returned by the Spotify Web API.
+///
+/// Playlist track endpoints can also return podcast *episode* objects in the
+/// same `track` slot. Episodes share the fields below but have no `artists`
+/// array, so `artists` must stay optional or a single episode fails the decode
+/// of the entire page. Non-track items are filtered out in
+/// `SpotifyAPIClient.getPlaylistTracks`.
 struct SpotifyTrack: Codable, Identifiable {
     let id: String?
     let name: String
@@ -102,9 +109,10 @@ struct SpotifyTrack: Codable, Identifiable {
     let explicit: Bool?
     let popularity: Int?
     let album: SpotifyAlbum?
-    let artists: [SpotifyArtist]
+    let artists: [SpotifyArtist]?
     let externalIds: SpotifyExternalIds?
     let externalUrls: SpotifyExternalURLs?
+    /// "track", "episode", etc.
     let type: String
     
     enum CodingKeys: String, CodingKey {
@@ -121,7 +129,7 @@ struct SpotifyTrack: Codable, Identifiable {
     
     /// Primary artist name.
     var primaryArtist: String {
-        artists.first?.name ?? "Unknown Artist"
+        artists?.first?.name ?? "Unknown Artist"
     }
 }
 

@@ -83,6 +83,21 @@ final class SyncCoordinator {
         runningTasks[pairId] = task
     }
     
+    /// Cancels all in-progress syncs and waits for them to unwind. Call before
+    /// destructive operations such as "Reset All Data" so no running task is
+    /// still mid-write when the store is wiped.
+    func cancelAllSyncs() async {
+        let tasks = runningTasks
+        for pairId in tasks.keys {
+            cancelSync(pairId: pairId)
+        }
+        // Engines only observe cancellation at loop checkpoints — await the
+        // task handles so the caller knows all writes have quiesced.
+        for task in tasks.values {
+            _ = await task.value
+        }
+    }
+
     /// Cancels an in-progress sync for a specific pair.
     func cancelSync(pairId: UUID) {
         runningTasks[pairId]?.cancel()
@@ -94,26 +109,6 @@ final class SyncCoordinator {
             status: .failed,
             message: "Sync cancelled by user"
         )
-    }
-    
-    /// Cancels all running syncs.
-    func cancelAll() {
-        for (pairId, task) in runningTasks {
-            task.cancel()
-            lastResults[pairId] = SyncResult(
-                pairId: pairId,
-                status: .failed,
-                message: "Sync cancelled"
-            )
-        }
-        runningTasks.removeAll()
-        syncingPairIds.removeAll()
-        syncProgress.removeAll()
-    }
-    
-    /// Updates progress for a syncing pair. Called by SyncEngine from background.
-    func updateProgress(pairId: UUID, progress: SyncProgress) {
-        syncProgress[pairId] = progress
     }
 }
 

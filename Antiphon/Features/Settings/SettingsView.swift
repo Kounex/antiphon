@@ -6,11 +6,13 @@ import MusicKit
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SpotifyAuthManager.self) private var spotifyAuth
+    @Environment(SyncCoordinator.self) private var syncCoordinator
     @Environment(\.modelContext) private var modelContext
 
     @State private var appleMusicManager = AppleMusicManager()
     @State private var showBYOKGuide = false
     @State private var showResetConfirmation = false
+    @State private var resetError: String?
     @AppStorage("syncIntervalMinutes") private var syncIntervalMinutes = AppConstants.Sync.defaultSyncIntervalMinutes
 
     private var appVersion: String {
@@ -67,6 +69,14 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("This will unlink all playlists, clear sync history, and sign out of Spotify. Your playlists on both platforms will not be affected.")
+            }
+            .alert("Reset Failed", isPresented: Binding(
+                get: { resetError != nil },
+                set: { if !$0 { resetError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(resetError ?? "An unknown error occurred.")
             }
         }
         .presentationBackground(Color.appBackground)
@@ -223,15 +233,22 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private func resetAllData() {
-        spotifyAuth.logout()
-        KeychainManager.deleteAll()
-        
-        // Actually delete the SyncPairs from the database
-        do {
-            try modelContext.delete(model: SyncPair.self)
-            try modelContext.save()
-        } catch {
-            print("Failed to delete all SyncPairs: \(error.localizedDescription)")
+        // Stop in-flight syncs first — otherwise they keep writing into the
+        // store we're about to wipe and re-insert dangling rows.
+        Task {
+            await syncCoordinator.cancelAllSyncs()
+
+            spotifyAuth.logout()
+            KeychainManager.deleteAll()
+
+            do {
+                try modelContext.delete(model: SyncPair.self)
+                try modelContext.delete(model: SyncLog.self)
+                try modelContext.delete(model: CachedTrack.self)
+                try modelContext.save()
+            } catch {
+                resetError = "Failed to clear local data: \(error.localizedDescription)"
+            }
         }
     }
 }

@@ -6,12 +6,16 @@ struct SyncStatusIndicator: View {
     let message: String?
 
     @State private var rotationAngle: Double = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 6) {
             statusIcon
+                .accessibilityHidden(true)
             statusText
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityStatusLabel)
     }
 
     // MARK: - Status Icon
@@ -21,16 +25,20 @@ struct SyncStatusIndicator: View {
         Image(systemName: statusIconName)
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(statusColor)
-            .rotationEffect(.degrees(rotationAngle))
-            .onAppear {
+            .rotationEffect(.degrees(reduceMotion ? 0 : rotationAngle))
+            .task(id: status) {
                 startRotationIfNeeded()
             }
-            .onChange(of: status) { _, _ in
+            .task(id: reduceMotion) {
                 startRotationIfNeeded()
             }
     }
 
     private func startRotationIfNeeded() {
+        guard !reduceMotion else {
+            rotationAngle = 0.0
+            return
+        }
         if status == .inProgress {
             rotationAngle = 0.0
             withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
@@ -59,6 +67,21 @@ struct SyncStatusIndicator: View {
         case .inProgress: return .syncProgress
         case nil: return .textTertiary
         }
+    }
+
+    private var accessibilityStatusLabel: String {
+        let statusText: String
+        switch status {
+        case .inProgress: statusText = "Syncing"
+        case .success: statusText = "Synced"
+        case .partial: statusText = "Partially synced"
+        case .failed: statusText = "Sync failed"
+        case nil: statusText = "Not synced"
+        }
+        if let message {
+            return "\(statusText), \(message)"
+        }
+        return statusText
     }
 
     // MARK: - Status Text

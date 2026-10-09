@@ -11,15 +11,7 @@ struct AntiphonApp: App {
     let syncCoordinator: SyncCoordinator
 
     init() {
-        // Initialize SwiftData with all model types
-        do {
-            modelContainer = try ModelContainer(
-                for: SyncPair.self, CachedTrack.self, SyncLog.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: false)
-            )
-        } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
-        }
+        modelContainer = SharedModelContainer.container
 
         // Initialize auth managers
         spotifyAuth = SpotifyAuthManager()
@@ -41,6 +33,9 @@ struct AntiphonApp: App {
             switch newPhase {
             case .active:
                 NotificationManager.requestPermissionIfNeeded()
+                // A background token-refresh failure may have cleared the
+                // Keychain — re-sync the observable auth state with reality.
+                spotifyAuth.refreshAuthStatus()
             case .background:
                 BackgroundTaskManager.scheduleBackgroundRefresh()
             default:

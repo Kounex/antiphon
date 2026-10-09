@@ -12,7 +12,6 @@ import MusicKit
 /// 4. Configure sync direction + confirm
 struct LinkWizardView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(SyncCoordinator.self) private var syncCoordinator
 
     @State private var viewModel = LinkWizardViewModel()
@@ -29,21 +28,20 @@ struct LinkWizardView: View {
                         .padding(.top, 8)
 
                     // Step content
-                    TabView(selection: $viewModel.currentStep) {
-                        PlatformPickerStep(viewModel: viewModel)
-                            .tag(LinkWizardStep.pickPlatform)
-
-                        PlaylistPickerStep(viewModel: viewModel)
-                            .tag(LinkWizardStep.pickPlaylist)
-
-                        TargetPlaylistStep(viewModel: viewModel)
-                            .tag(LinkWizardStep.pickTarget)
-
-                        ConfirmLinkStep(viewModel: viewModel)
-                            .tag(LinkWizardStep.confirm)
+                    Group {
+                        switch viewModel.currentStep {
+                        case .pickPlatform:
+                            PlatformPickerStep(viewModel: viewModel)
+                        case .pickPlaylist:
+                            PlaylistPickerStep(viewModel: viewModel)
+                        case .pickTarget:
+                            TargetPlaylistStep(viewModel: viewModel)
+                        case .confirm:
+                            ConfirmLinkStep(viewModel: viewModel)
+                        }
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+                    .transition(.opacity)
+                    .id(viewModel.currentStep)
                 }
             }
             .navigationTitle(viewModel.currentStep.title)
@@ -53,6 +51,7 @@ struct LinkWizardView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(Color.textSecondary)
+                        .disabled(viewModel.createdPair != nil)
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {
@@ -61,19 +60,15 @@ struct LinkWizardView: View {
                 Text(viewModel.errorMessage ?? "An unexpected error occurred.")
             }
             .onChange(of: viewModel.didComplete) { _, completed in
-                if completed {
-                    // Save the new SyncPair
-                    if let pair = viewModel.buildSyncPair() {
-                        modelContext.insert(pair)
-                        try? modelContext.save()
-                        
-                        syncCoordinator.startSync(
-                            pairId: pair.id,
-                            action: .initialSync
-                        )
-                    }
-                    dismiss()
-                }
+                // didComplete is only set after the pair was built, deduped,
+                // and saved successfully (see ConfirmLinkStep.createLink).
+                guard completed, let pair = viewModel.createdPair else { return }
+
+                syncCoordinator.startSync(
+                    pairId: pair.id,
+                    action: .initialSync
+                )
+                dismiss()
             }
         }
         .presentationBackground(Color.appBackground)
@@ -126,9 +121,11 @@ final class LinkWizardViewModel {
     // Step tracking
     var currentStep: LinkWizardStep = .pickPlatform
     var didComplete = false
+    var createdPair: SyncPair?
 
     // Step 1: Platform selection
     var sourcePlatform: Platform = .spotify
+    var spotifyAuthenticated = false
 
     // Step 2: Source playlist
     var spotifyPlaylists: [SpotifyPlaylist] = []
@@ -167,13 +164,17 @@ final class LinkWizardViewModel {
     func advance() {
         dismissKeyboard()
         guard let nextStep = LinkWizardStep(rawValue: currentStep.rawValue + 1) else { return }
-        currentStep = nextStep
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = nextStep
+        }
     }
 
     func goBack() {
         dismissKeyboard()
         guard let prevStep = LinkWizardStep(rawValue: currentStep.rawValue - 1) else { return }
-        currentStep = prevStep
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = prevStep
+        }
     }
 
     // MARK: - Source Playlist Info
@@ -249,6 +250,10 @@ final class LinkWizardViewModel {
     }
 
     // MARK: - Validation
+
+    var canAdvanceFromPlatform: Bool {
+        sourcePlatform == .appleMusic || spotifyAuthenticated
+    }
 
     var canAdvanceFromPlaylist: Bool {
         if sourcePlatform == .spotify {

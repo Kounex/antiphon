@@ -32,7 +32,7 @@ To maximize speed and prevent UI freezes, the synchronization engine is split in
 
 ## 🛠 Stage A: Cache Alignment & Delta calculations
 
-Stage A executes quick list alignments in memory using optimized dictionary lookups ($O(N)$ matching instead of $O(N^2)$ arrays).
+Stage A executes quick list alignments in memory. Exact-ISRC matching uses $O(1)$ dictionary lookups ($O(N)$ overall). The fuzzy fallback still compares every unmatched cached track against every unmatched target track — $O(N \times M)$ in the worst case — but normalized title/artist strings are precomputed once per track so no normalization work is repeated per comparison.
 
 ### 1. Source Alignment (`CacheAligner.swift`)
 * It fetches the source playlist tracks (Spotify by default, or Apple Music if Spotify is empty).
@@ -95,4 +95,4 @@ When tracks are flagged or fail to match, users can override states using two sa
 
 ## 🛑 Sync Safeguards
 
-* **Safety Threshold**: If more than 30% of your playlist's tracks are flagged for deletion in a single delta sync run, the engine triggers a safeguard abort. This protects against corrupted playlist fetches or API errors clearing your music collections.
+* **Safety Threshold**: If more than 50% of your playlist's tracks are flagged for deletion in a single delta sync run, the engine triggers a safeguard abort. This protects against corrupted playlist fetches or API errors clearing your music collections.

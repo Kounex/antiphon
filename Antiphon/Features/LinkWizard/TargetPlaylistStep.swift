@@ -27,10 +27,11 @@ struct TargetPlaylistStep: View {
             .padding(.horizontal)
             .padding(.top, 12)
 
-            // Content
+            // Content — full-screen spinner only for the initial load; pull-to-refresh
+            // keeps the list visible while it reloads
             if viewModel.createNewTarget {
                 createNewView
-            } else if viewModel.isLoadingTarget {
+            } else if viewModel.isLoadingTarget && viewModel.targetSpotifyPlaylists.isEmpty && viewModel.targetAppleMusicPlaylists.isEmpty {
                 loadingView
             } else {
                 VStack(spacing: 0) {
@@ -40,11 +41,14 @@ struct TargetPlaylistStep: View {
                     existingPlaylistList
                 }
             }
-
-            // Bottom bar
+        }
+        .safeAreaInset(edge: .bottom) {
             bottomBar
         }
         .task {
+            await loadTargetPlaylistsIfNeeded()
+        }
+        .refreshable {
             await loadTargetPlaylists()
         }
     }
@@ -156,6 +160,7 @@ struct TargetPlaylistStep: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color.textTertiary)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(12)
@@ -255,23 +260,28 @@ struct TargetPlaylistStep: View {
 
     // MARK: - Data Loading
 
-    private func loadTargetPlaylists() async {
-        guard !viewModel.isLoadingTarget else { return }
+    private func loadTargetPlaylistsIfNeeded() async {
+        let alreadyLoaded: Bool
+        if viewModel.targetPlatform == .spotify {
+            alreadyLoaded = !viewModel.targetSpotifyPlaylists.isEmpty
+        } else {
+            alreadyLoaded = !viewModel.targetAppleMusicPlaylists.isEmpty
+        }
+        guard !alreadyLoaded else { return }
+        await loadTargetPlaylists()
+    }
 
+    private func loadTargetPlaylists() async {
         viewModel.isLoadingTarget = true
         defer { viewModel.isLoadingTarget = false }
 
         do {
             if viewModel.targetPlatform == .spotify {
-                if viewModel.targetSpotifyPlaylists.isEmpty {
-                    let client = SpotifyAPIClient()
-                    viewModel.targetSpotifyPlaylists = try await client.getAllPlaylists()
-                }
+                let client = SpotifyAPIClient()
+                viewModel.targetSpotifyPlaylists = try await client.getAllPlaylists()
             } else {
-                if viewModel.targetAppleMusicPlaylists.isEmpty {
-                    await appleMusicManager.requestAuthorization()
-                    viewModel.targetAppleMusicPlaylists = try await appleMusicManager.fetchUserPlaylists()
-                }
+                await appleMusicManager.requestAuthorization()
+                viewModel.targetAppleMusicPlaylists = try await appleMusicManager.fetchUserPlaylists()
             }
         } catch {
             viewModel.setError("Failed to load target playlists: \(error.localizedDescription)")

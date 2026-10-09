@@ -106,7 +106,7 @@ struct TrackRow: View {
 
     var body: some View {
         Button {
-            if track.unmatchedPlatform != nil {
+            if track.isUnmatched && track.manualMatchTarget != nil {
                 showManualMatch = true
             }
         } label: {
@@ -137,8 +137,8 @@ struct TrackRow: View {
                     }
 
                     // Status label for problematic tracks
-                    if let unmatched = track.unmatchedPlatform {
-                        Text(unmatched.description)
+                    if track.isUnmatched {
+                        Text(track.unmatchedPlatform?.description ?? track.manualMatchTarget?.description ?? "Failed to match")
                             .font(.appMicro)
                             .foregroundStyle(Color.syncError)
                     } else if let removalDescription = track.removalDescription {
@@ -151,7 +151,7 @@ struct TrackRow: View {
                 Spacer()
 
                 // Source → Target sync status dots or Dismiss button
-                if track.unmatchedPlatform != nil {
+                if track.isUnmatched {
                     Button {
                         showDismissConfirmation = true
                     } label: {
@@ -172,8 +172,8 @@ struct TrackRow: View {
                     }
                 }
 
-                // Chevron for tappable unmatched tracks
-                if track.unmatchedPlatform != nil {
+                // Chevron only when the row actually opens the manual-match sheet
+                if track.isUnmatched, track.manualMatchTarget != nil {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Color.textTertiary.opacity(0.5))
@@ -200,14 +200,14 @@ struct TrackRow: View {
             Text("This will mark the track as synced and ignore the missing match. This action can only be reversed by running a Full Rebuild.")
         }
         .sheet(isPresented: $showManualMatch) {
-            if let platform = track.unmatchedPlatform {
+            if let platform = track.manualMatchTarget {
                 ManualMatchSheet(track: track, targetPlatform: platform)
             }
         }
     }
 
     private var rowBackground: Color {
-        if track.unmatchedPlatform != nil {
+        if track.isUnmatched {
             return Color.syncError.opacity(0.06)
         } else if track.removalFlag != nil {
             return Color.syncWarning.opacity(0.05)
@@ -221,13 +221,14 @@ struct TrackRow: View {
 struct StatusDot: View {
     let status: PlatformSyncStatus
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPulsing = false
 
     var body: some View {
         Circle()
             .fill(dotColor)
             .frame(width: 8, height: 8)
-            .opacity(status == .syncing ? (isPulsing ? 0.3 : 1.0) : 1.0)
+            .opacity(status == .syncing && !reduceMotion ? (isPulsing ? 0.3 : 1.0) : 1.0)
             .overlay {
                 if status == .unmatched {
                     Circle()
@@ -236,13 +237,13 @@ struct StatusDot: View {
                 }
             }
             .onAppear {
-                if status == .syncing {
-                    withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                        isPulsing = true
-                    }
+                guard !reduceMotion, status == .syncing else { return }
+                withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                    isPulsing = true
                 }
             }
             .onChange(of: status) { _, newValue in
+                guard !reduceMotion else { return }
                 if newValue == .syncing {
                     withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
                         isPulsing = true
@@ -270,7 +271,7 @@ struct StatusDot: View {
 }
 
 /// Shows tracks that need attention: unmatched, destination-only extras, and removal flags.
-/// The user can review these and decide to dismiss, remove, or keep.
+/// The user can review these and decide to dismiss or keep.
 struct FlaggedTabView: View {
     let syncPair: SyncPair
     @Environment(\.modelContext) private var modelContext
@@ -300,7 +301,7 @@ struct FlaggedTabView: View {
 
     private var unmatchedTracks: [CachedTrack] {
         tracks
-            .filter { $0.unmatchedPlatform != nil }
+            .filter { $0.isUnmatched }
     }
 
     private var extraOnDestTracks: [CachedTrack] {
@@ -365,9 +366,9 @@ struct FlaggedTabView: View {
                             let suffix = count == 1 ? "" : "s"
                             let bannerText: String = {
                                 if syncPair.syncDirection == .bidirectional {
-                                    return "\(count) track\(suffix) exist only on \(targetPlatformName). Bidirectional sync has matched them to \(sourcePlatformName), but you can choose to remove them."
+                                    return "\(count) track\(suffix) exist only on \(targetPlatformName). Bidirectional sync has matched them to \(sourcePlatformName), but you can choose to keep them."
                                 } else {
-                                    return "\(count) track\(suffix) exist only on \(targetPlatformName). Unidirectional sync ignores them, but you can choose to remove them."
+                                    return "\(count) track\(suffix) exist only on \(targetPlatformName). Unidirectional sync ignores them, but you can choose to keep them."
                                 }
                             }()
 
@@ -398,9 +399,9 @@ struct FlaggedTabView: View {
                         if !removalFlaggedTracks.isEmpty {
                             let bannerText: String = {
                                 if syncPair.syncDirection == .bidirectional {
-                                    return "These tracks were deleted from one platform. Tap Keep to ignore, or Remove to delete from the other platform."
+                                    return "These tracks were deleted from one platform. Tap Keep to mark as in-sync."
                                 } else {
-                                    return "These tracks were deleted from \(sourcePlatformName) (source). Tap Keep to ignore, or Remove to delete from \(targetPlatformName)."
+                                    return "These tracks were deleted from \(sourcePlatformName) (source). Tap Keep to mark as in-sync."
                                 }
                             }()
 
@@ -501,10 +502,8 @@ struct FlaggedTrackRow: View {
 
             Divider()
 
-            if let isrc = track.isrc as String? {
-                Button {} label: {
-                    Label("ISRC: \(isrc)", systemImage: "barcode")
-                }
+            Button {} label: {
+                Label("ISRC: \(track.isrc)", systemImage: "barcode")
             }
         }
     }

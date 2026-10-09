@@ -12,15 +12,14 @@ import SwiftData
 struct SyncPlaylistsIntent: AppIntent {
     static let title: LocalizedStringResource = "Sync Playlists"
     static let description = IntentDescription(
-        "Synchronizes all monitored playlists between Spotify and Apple Music."
+        "Synchronizes all monitored playlists between Spotify and the Music app."
     )
     static let openAppWhenRun: Bool = false
     
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        // Create a fresh ModelContainer for this background execution
-        let container = try ModelContainer(
-            for: SyncPair.self, CachedTrack.self, SyncLog.self
-        )
+        // Share the app's ModelContainer — a second SwiftData stack on the same
+        // store can write-conflict with a foreground or background sync.
+        let container = SharedModelContainer.container
         
         let context = ModelContext(container)
         

@@ -33,7 +33,7 @@ extension Color {
     static let textSecondary = Color.white.opacity(0.6)
 
     /// Tertiary text — very muted
-    static let textTertiary = Color.white.opacity(0.35)
+    static let textTertiary = Color.white.opacity(0.5)
 
     // MARK: - Status Colors
 
@@ -54,18 +54,13 @@ extension Color {
 // MARK: - Gradients
 
 enum AppGradients {
-    /// A blended Spotify → Apple Music gradient
+    /// A blended Spotify → Apple Music gradient.
+    /// Stops are darkened so white text meets the 4.5:1 contrast ratio.
     static let brand = LinearGradient(
-        colors: [.spotifyGreen, Color(red: 0.30, green: 0.50, blue: 0.90), .appleMusicPink],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    /// Subtle glass background gradient
-    static let glass = LinearGradient(
         colors: [
-            Color.white.opacity(0.12),
-            Color.white.opacity(0.04),
+            Color(red: 0.086, green: 0.510, blue: 0.235),
+            Color(red: 0.227, green: 0.376, blue: 0.769),
+            Color(red: 0.808, green: 0.157, blue: 0.337),
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
