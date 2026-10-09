@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import MusicKit
 
 /// A sheet that lets users manually search for a track on the target platform
@@ -9,7 +10,7 @@ struct ManualMatchSheet: View {
     let track: CachedTrack
     let targetPlatform: UnmatchedPlatform
 
-    @State private var searchQuery = ""
+    @State private var searchQuery: String
     @State private var isSearching = false
     @State private var appleMusicResults: [Song] = []
     @State private var spotifyResults: [SpotifyTrack] = []
@@ -17,6 +18,14 @@ struct ManualMatchSheet: View {
     @State private var linkError: String?
     @State private var didLink = false
     @State private var showDismissConfirmation = false
+
+    init(track: CachedTrack, targetPlatform: UnmatchedPlatform) {
+        self.track = track
+        self.targetPlatform = targetPlatform
+        // Seed in init, not onAppear — the .task auto-search can run before
+        // onAppear and would otherwise fire with an empty query.
+        _searchQuery = State(initialValue: "\(track.artist) \(track.title)")
+    }
 
     var body: some View {
         NavigationStack {
@@ -131,8 +140,24 @@ struct ManualMatchSheet: View {
             }
         }
         .presentationBackground(Color.appBackground)
-        .onAppear {
-            searchQuery = "\(track.artist) \(track.title)"
+        .overlay {
+            if isLinking {
+                ZStack {
+                    Color.black.opacity(0.5).ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Linking track…")
+                            .font(.appBody)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.surfaceElevated)
+                    )
+                }
+            }
         }
         .task {
             await search()
@@ -275,8 +300,33 @@ struct ManualMatchSheet: View {
         defer { isLinking = false }
 
         do {
-            // Add to the Apple Music playlist
-            if let syncPair = track.syncPair {
+            guard let syncPair = track.syncPair else {
+                throw AppleMusicError.playlistNotFound
+            }
+            let songId = song.id.rawValue
+
+            // Another cached row may already own this Apple Music track (both
+            // playlists contained the song with divergent metadata, so the
+            // engine kept two rows). Merge into it instead of adding a
+            // duplicate to the playlist and leaving twin rows behind.
+            if let existing = fetchCachedTrack(appleMusicTrackId: songId, excluding: track) {
+                if existing.spotifyTrackUri == nil {
+                    existing.spotifyTrackUri = track.spotifyTrackUri
+                }
+                existing.source = .both
+                existing.syncState = .synced
+                existing.unmatchedPlatform = nil
+                existing.removalFlag = nil
+                existing.removalFlaggedAt = nil
+                modelContext.delete(track)
+                try? modelContext.save()
+                didLink = true
+                return
+            }
+
+            // Add to the Apple Music playlist — unless this row already points
+            // at that exact song, in which case the write would duplicate it.
+            if track.appleMusicTrackId != songId {
                 let am = AppleMusicManager()
                 let playlists = try await am.fetchUserPlaylists()
                 if let playlist = playlists.first(where: { $0.id.rawValue == syncPair.appleMusicPlaylistId }) {
@@ -287,7 +337,7 @@ struct ManualMatchSheet: View {
             }
 
             // Update the cached track
-            track.appleMusicTrackId = song.id.rawValue
+            track.appleMusicTrackId = songId
             track.unmatchedPlatform = nil
             track.syncState = .synced
             if track.source == .spotify {
@@ -308,8 +358,32 @@ struct ManualMatchSheet: View {
         defer { isLinking = false }
 
         do {
-            // Add to the Spotify playlist
-            if let syncPair = track.syncPair {
+            guard let syncPair = track.syncPair else {
+                throw SyncError.spotifyPlaylistNotFound
+            }
+
+            // Another cached row may already own this Spotify track (both
+            // playlists contained the song with divergent metadata, so the
+            // engine kept two rows). Merge into it instead of adding a
+            // duplicate to the playlist and leaving twin rows behind.
+            if let existing = fetchCachedTrack(spotifyTrackUri: spotifyTrack.uri, excluding: track) {
+                if existing.appleMusicTrackId == nil {
+                    existing.appleMusicTrackId = track.appleMusicTrackId
+                }
+                existing.source = .both
+                existing.syncState = .synced
+                existing.unmatchedPlatform = nil
+                existing.removalFlag = nil
+                existing.removalFlaggedAt = nil
+                modelContext.delete(track)
+                try? modelContext.save()
+                didLink = true
+                return
+            }
+
+            // Add to the Spotify playlist — unless this row already points at
+            // that exact URI, in which case the write would duplicate it.
+            if track.spotifyTrackUri != spotifyTrack.uri {
                 let client = SpotifyAPIClient()
                 try await client.addTracksToPlaylist(
                     playlistId: syncPair.spotifyPlaylistId,
@@ -328,6 +402,27 @@ struct ManualMatchSheet: View {
             didLink = true
         } catch {
             linkError = "Failed to link: \(error.localizedDescription)"
+        }
+    }
+
+    /// Finds another cached row of the same SyncPair that already owns the
+    /// given platform identifier. Used to merge manual matches instead of
+    /// creating duplicate playlist entries.
+    @MainActor
+    private func fetchCachedTrack(
+        spotifyTrackUri: String? = nil,
+        appleMusicTrackId: String? = nil,
+        excluding current: CachedTrack
+    ) -> CachedTrack? {
+        guard let pairId = current.syncPair?.id else { return nil }
+        let descriptor = FetchDescriptor<CachedTrack>(
+            predicate: #Predicate { $0.syncPair?.id == pairId }
+        )
+        guard let rows = try? modelContext.fetch(descriptor) else { return nil }
+        return rows.first { row in
+            row.id != current.id &&
+            ((spotifyTrackUri != nil && row.spotifyTrackUri == spotifyTrackUri) ||
+             (appleMusicTrackId != nil && row.appleMusicTrackId == appleMusicTrackId))
         }
     }
 }

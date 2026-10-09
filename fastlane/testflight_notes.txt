@@ -1,11 +1,7 @@
 What's new in this build:
 
-• Fixed: connecting Spotify could silently sign you out — a background token-refresh race wiped your stored login
-• Fixed: playlists containing podcast episodes failed to load at all
-• Fixed: expired Spotify sessions now recover automatically (refresh + retry) instead of failing
-• Fixed: playlist artwork now uploads to Spotify — requires the new image permission, so reconnect Spotify once after updating
-• Fixed: non-US accounts no longer lose tracks to US-market filtering
-• Settings now shows the real connection state if a background refresh signed you out
-• Safer Reset All Data (stops running syncs first), shared database for Shortcuts automations, clearer duplicate-link errors
+• Fixed: manually linking an unmatched track could add a duplicate to the playlist and show the song twice in the track list — matches now merge into the existing entry instead
+• Fixed: the manual-match sheet could open blank and gave no feedback while linking — search now starts reliably and a "Linking track…" indicator shows progress
+• Improved: unmatched tracks now say which side's copy failed (e.g. "Apple Music copy — Not found on Spotify"), so bidirectional sync results make sense
 
-Focus for testers: connect Spotify, sync a playlist that contains podcast episodes, run a Shortcut automation while the app is open, and confirm you stay signed in.
+Focus for testers: flag a track as unmatched, link it manually to a song that already exists in the target playlist, and confirm no duplicate appears — in the app or on the platform.

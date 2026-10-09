@@ -138,7 +138,7 @@ struct TrackRow: View {
 
                     // Status label for problematic tracks
                     if track.isUnmatched {
-                        Text(track.unmatchedPlatform?.description ?? track.manualMatchTarget?.description ?? "Failed to match")
+                        Text(unmatchedLabel)
                             .font(.appMicro)
                             .foregroundStyle(Color.syncError)
                     } else if let removalDescription = track.removalDescription {
@@ -203,6 +203,24 @@ struct TrackRow: View {
             if let platform = track.manualMatchTarget {
                 ManualMatchSheet(track: track, targetPlatform: platform)
             }
+        }
+    }
+
+    /// Explains which side's copy failed to match, not just where it's
+    /// missing — "Not found on Spotify" alone reads as impossible when the
+    /// user believes they are syncing *from* Spotify, but the flagged row can
+    /// be the Apple Music-side copy in a bidirectional pair.
+    private var unmatchedLabel: String {
+        let platform = track.unmatchedPlatform?.description
+            ?? track.manualMatchTarget?.description
+            ?? "Failed to match"
+        switch track.source {
+        case .spotify:
+            return "Spotify copy — \(platform)"
+        case .appleMusic:
+            return "Apple Music copy — \(platform)"
+        case .both:
+            return platform
         }
     }
 
