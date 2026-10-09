@@ -258,9 +258,11 @@ enum RemovalFlag: String, Codable {
 // MARK: - UnmatchedPlatform
 
 /// Marks which target platform a track could not be found on during sync.
-enum UnmatchedPlatform: String, Codable {
+enum UnmatchedPlatform: String, Codable, Identifiable {
     case spotify
     case appleMusic
+
+    var id: Self { self }
 
     var description: String {
         switch self {

@@ -101,13 +101,13 @@ struct TracksListContainer: View {
 struct TrackRow: View {
     @Environment(\.modelContext) private var modelContext
     let track: CachedTrack
-    @State private var showManualMatch = false
+    @State private var manualMatchPlatform: UnmatchedPlatform?
     @State private var showDismissConfirmation = false
 
     var body: some View {
         Button {
-            if track.isUnmatched && track.manualMatchTarget != nil {
-                showManualMatch = true
+            if track.isUnmatched, let target = track.manualMatchTarget {
+                manualMatchPlatform = target
             }
         } label: {
             HStack(spacing: 12) {
@@ -199,10 +199,11 @@ struct TrackRow: View {
         } message: {
             Text("This will mark the track as synced and ignore the missing match. This action can only be reversed by running a Full Rebuild.")
         }
-        .sheet(isPresented: $showManualMatch) {
-            if let platform = track.manualMatchTarget {
-                ManualMatchSheet(track: track, targetPlatform: platform)
-            }
+        // Captured when the sheet opens: a successful link clears
+        // `manualMatchTarget` (e.g. bidirectional `.both` rows), and deriving
+        // the sheet content from it live blanked the open sheet.
+        .sheet(item: $manualMatchPlatform) { platform in
+            ManualMatchSheet(track: track, targetPlatform: platform)
         }
     }
 

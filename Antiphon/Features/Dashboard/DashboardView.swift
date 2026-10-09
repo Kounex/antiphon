@@ -265,7 +265,7 @@ struct SyncPairRow: View {
         case .syncing:
             if let progress = syncCoordinator.syncProgress[syncPair.id],
                progress.totalTracks > 0 {
-                Text("Syncing \(progress.summary)")
+                Text(progress.statusText)
                     .font(.appCaption)
                     .foregroundStyle(Color.syncProgress)
             } else {

@@ -571,9 +571,10 @@ actor SyncEngine {
             track.lastSyncAttempt = Date()
             
             // Report progress
+            // `completed` already includes failed tracks; don't count them twice
             await progressCallback?(SyncProgress(
                 totalTracks: totalTracks,
-                completedTracks: completed,
+                completedTracks: completed - failed,
                 failedTracks: failed,
                 currentTrackName: track.title
             ))
@@ -725,6 +726,12 @@ actor SyncEngine {
         
         // Batch-add Spotify tracks if any
         if !spotifyUrisToAdd.isEmpty && !Task.isCancelled {
+            await progressCallback?(SyncProgress(
+                totalTracks: spotifyUrisToAdd.count,
+                completedTracks: 0,
+                failedTracks: 0,
+                phase: .adding(platformName: "Spotify")
+            ))
             do {
                 try await spotifyClient.addTracksToPlaylist(
                     playlistId: pair.spotifyPlaylistId,
@@ -775,7 +782,21 @@ actor SyncEngine {
                     throw SyncError.appleMusicPlaylistNotFound
                 }
                 do {
-                    try await appleMusicManager.addTracks(appleMusicSongsToAdd, to: amPlaylist)
+                    let songCount = appleMusicSongsToAdd.count
+                    let reportAdded: @Sendable (Int) async -> Void = { addedCount in
+                        await progressCallback?(SyncProgress(
+                            totalTracks: songCount,
+                            completedTracks: addedCount,
+                            failedTracks: 0,
+                            phase: .adding(platformName: "Apple Music")
+                        ))
+                    }
+                    await reportAdded(0)
+                    try await appleMusicManager.addTracks(
+                        appleMusicSongsToAdd,
+                        to: amPlaylist,
+                        onSongAdded: reportAdded
+                    )
                 } catch {
                     // Songs are added one at a time, so only roll back the ones
                     // that never reached the playlist.

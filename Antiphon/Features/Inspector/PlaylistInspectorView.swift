@@ -208,7 +208,7 @@ struct PlaylistInspectorView: View {
                                 .foregroundStyle(Color.syncProgress)
                             
                             if let progress, progress.totalTracks > 0 {
-                                Text("\(progress.summary) tracks")
+                                Text(progress.phase == .matching ? "\(progress.summary) tracks" : progress.statusText)
                                     .font(.appMicro)
                                     .foregroundStyle(Color.textTertiary)
                             }

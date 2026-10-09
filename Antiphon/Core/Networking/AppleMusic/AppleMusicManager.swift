@@ -193,7 +193,11 @@ final class AppleMusicManager {
     /// doesn't accept. On failure or cancellation, throws
     /// `AppleMusicError.partialAdd` carrying the IDs that did land, so callers
     /// can roll back only the unwritten songs.
-    func addTracks(_ songs: [Song], to playlist: Playlist) async throws {
+    func addTracks(
+        _ songs: [Song],
+        to playlist: Playlist,
+        onSongAdded: (@Sendable (_ addedCount: Int) async -> Void)? = nil
+    ) async throws {
         try await ensureAuthorized()
         
         var addedSongIds = Set<String>()
@@ -202,6 +206,7 @@ final class AppleMusicManager {
                 try Task.checkCancellation()
                 _ = try await MusicLibrary.shared.add(song, to: playlist)
                 addedSongIds.insert(song.id.rawValue)
+                await onSongAdded?(addedSongIds.count)
             } catch {
                 throw AppleMusicError.partialAdd(addedSongIds: addedSongIds, underlying: error)
             }

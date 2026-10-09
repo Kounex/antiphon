@@ -167,6 +167,10 @@ struct SyncProgress: Sendable {
     var completedTracks: Int
     var failedTracks: Int
     var currentTrackName: String?
+    /// Matching runs first; queued writes to the target platform happen
+    /// afterwards and are counted separately (Apple Music adds one song at
+    /// a time, so this phase can take a while).
+    var phase: SyncPhase = .matching
     
     var fraction: Double {
         guard totalTracks > 0 else { return 0 }
@@ -176,4 +180,17 @@ struct SyncProgress: Sendable {
     var summary: String {
         "\(completedTracks + failedTracks)/\(totalTracks)"
     }
+    
+    /// Short status line, e.g. "Syncing 12/34" or "Adding 5/33 to Apple Music".
+    var statusText: String {
+        switch phase {
+        case .matching: "Syncing \(summary)"
+        case .adding(let platformName): "Adding \(summary) to \(platformName)"
+        }
+    }
+}
+
+enum SyncPhase: Sendable, Equatable {
+    case matching
+    case adding(platformName: String)
 }

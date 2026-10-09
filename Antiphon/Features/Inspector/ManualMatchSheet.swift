@@ -9,6 +9,11 @@ struct ManualMatchSheet: View {
     @Environment(\.modelContext) private var modelContext
     let track: CachedTrack
     let targetPlatform: UnmatchedPlatform
+    /// Display copies taken at open: linking can merge into another row and
+    /// delete `track` while the sheet still shows its confirmation.
+    private let trackTitle: String
+    private let trackArtist: String
+    private let trackArtworkURL: String?
 
     @State private var searchQuery: String
     @State private var isSearching = false
@@ -22,6 +27,9 @@ struct ManualMatchSheet: View {
     init(track: CachedTrack, targetPlatform: UnmatchedPlatform) {
         self.track = track
         self.targetPlatform = targetPlatform
+        self.trackTitle = track.title
+        self.trackArtist = track.artist
+        self.trackArtworkURL = track.artworkURL
         // Seed in init, not onAppear — the .task auto-search can run before
         // onAppear and would otherwise fire with an empty query.
         _searchQuery = State(initialValue: "\(track.artist) \(track.title)")
@@ -162,23 +170,31 @@ struct ManualMatchSheet: View {
         .task {
             await search()
         }
+        // Flash the confirmation, then close — the row is resolved, so there
+        // is nothing left to do in the sheet.
+        .task(id: didLink) {
+            guard didLink else { return }
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            dismiss()
+        }
     }
 
     // MARK: - Source Track Banner
 
     private var sourceTrackBanner: some View {
         HStack(spacing: 12) {
-            TrackArtworkView(url: track.artworkURL, size: 44, cornerRadius: 8)
+            TrackArtworkView(url: trackArtworkURL, size: 44, cornerRadius: 8)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Finding match for:")
                     .font(.appMicro)
                     .foregroundStyle(Color.textTertiary)
-                Text(track.title)
+                Text(trackTitle)
                     .font(.appBodyBold)
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
-                Text(track.artist)
+                Text(trackArtist)
                     .font(.appCaption)
                     .foregroundStyle(Color.textSecondary)
                     .lineLimit(1)
