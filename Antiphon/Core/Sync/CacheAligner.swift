@@ -79,6 +79,7 @@ struct CacheAligner {
                 
                 // Detect removals from Spotify (source)
                 let spotifyRemoved = cachedTracks.filter { cached in
+                    cached.removalKeptAt == nil &&
                     (cached.source == .spotify || cached.source == .both) &&
                     (cached.spotifyTrackUri != nil && !liveSpotifyURIs.contains(cached.spotifyTrackUri!))
                 }
@@ -119,6 +120,7 @@ struct CacheAligner {
                         }
                         existingTrack.removalFlag = nil
                         existingTrack.removalFlaggedAt = nil
+                        existingTrack.removalKeptAt = nil
                         existingTrack.addedAt = baseDate.addingTimeInterval(TimeInterval(index))
                     } else {
                         let isrc = sTrack.isrc ?? "local-\(sTrack.uri)"
@@ -145,6 +147,7 @@ struct CacheAligner {
                 
                 // Detect removals from Apple Music (source)
                 let appleRemoved = cachedTracks.filter { cached in
+                    cached.removalKeptAt == nil &&
                     (cached.source == .appleMusic || cached.source == .both) &&
                     (cached.appleMusicTrackId != nil && !liveAppleIDs.contains(cached.appleMusicTrackId!))
                 }
@@ -183,6 +186,7 @@ struct CacheAligner {
                         }
                         existingTrack.removalFlag = nil
                         existingTrack.removalFlaggedAt = nil
+                        existingTrack.removalKeptAt = nil
                         existingTrack.addedAt = baseDate.addingTimeInterval(TimeInterval(index))
                     } else {
                         let isrc = appleTrack.isrc ?? "local-\(appleTrack.id)"

@@ -4,6 +4,61 @@ import SwiftData
 /// Computes differences and matches target remote tracks with cached tracks using O(1) dictionary lookups.
 struct DeltaEngine {
     
+    /// Points cached rows whose `appleMusicTrackId` is not among the live
+    /// playlist IDs back at the live library track they correspond to.
+    ///
+    /// Stage B and manual matching store catalog Song IDs, but playlist reads
+    /// return library-track IDs, so without this every such row would look
+    /// removed from Apple Music on the next sync. Matches by ISRC first, then
+    /// by fuzzy title/artist/duration, and never claims a live track that
+    /// another row already owns. Rows with no match are left untouched so
+    /// genuine removals are still detected.
+    static func reanchorAppleMusicIds(
+        cachedTracks: [CachedTrack],
+        appleMusicTracks: [AppleMusicTrackInfo],
+        trackMatcher: TrackMatcher
+    ) {
+        let liveAppleIDs = Set(appleMusicTracks.map(\.id))
+        let staleTracks = cachedTracks.filter { cached in
+            guard let id = cached.appleMusicTrackId else { return false }
+            return !liveAppleIDs.contains(id)
+        }
+        guard !staleTracks.isEmpty else { return }
+        
+        var claimedIDs = Set(cachedTracks.compactMap(\.appleMusicTrackId)).intersection(liveAppleIDs)
+        let normalizedAppleTracks = appleMusicTracks.map {
+            (id: $0.id, isrc: $0.isrc?.lowercased(), title: $0.title.normalizedForMatching,
+             artist: $0.artist.normalizedForMatching, durationMs: $0.durationMs)
+        }
+        
+        for cached in staleTracks {
+            let cachedIsrc = cached.isrc.lowercased()
+            let hasRealIsrc = !cachedIsrc.isEmpty && !cachedIsrc.hasPrefix("local-")
+            let unclaimed = normalizedAppleTracks.filter { !claimedIDs.contains($0.id) }
+            
+            var match = hasRealIsrc ? unclaimed.first { $0.isrc == cachedIsrc } : nil
+            if match == nil {
+                let targetTitle = cached.title.normalizedForMatching
+                let targetArtist = cached.artist.normalizedForMatching
+                match = unclaimed.first { candidate in
+                    trackMatcher.matchScore(
+                        candidateTitle: candidate.title,
+                        candidateArtist: candidate.artist,
+                        candidateDurationMs: candidate.durationMs,
+                        targetTitle: targetTitle,
+                        targetArtist: targetArtist,
+                        targetDurationMs: cached.durationMs
+                    ) >= 0.75
+                }
+            }
+            
+            if let match {
+                cached.appleMusicTrackId = match.id
+                claimedIDs.insert(match.id)
+            }
+        }
+    }
+    
     /// Matches cache tracks with target tracks and updates sync state.
     /// Returns the updated list of cached tracks.
     static func matchTargetTracks(

@@ -39,6 +39,10 @@ final class CachedTrack {
     /// Set when the track is detected as removed on one platform but not the other.
     var removalFlag: RemovalFlag?
     var removalFlaggedAt: Date?
+    /// Set when the user chose Keep on a `.removedFromSource` flag, so later
+    /// syncs don't re-flag a track that is still absent from the source.
+    /// Cleared if the track reappears in the source playlist.
+    var removalKeptAt: Date?
 
     /// Set when the sync engine failed to find this track on the target platform.
     var unmatchedPlatform: UnmatchedPlatform?

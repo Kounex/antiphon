@@ -125,8 +125,16 @@ struct PlaylistInspectorView: View {
         .onDisappear {
             if isPendingDeletion {
                 isPendingDeletion = false
-                modelContext.delete(syncPair)
-                try? modelContext.save()
+                // The cancelled sync keeps writing until its next checkpoint;
+                // delete only once it has unwound, or it leaves orphan rows.
+                let pair = syncPair
+                let context = modelContext
+                let coordinator = syncCoordinator
+                Task {
+                    await coordinator.waitForSyncToFinish(pairId: pair.id)
+                    context.delete(pair)
+                    try? context.save()
+                }
             }
         }
     }

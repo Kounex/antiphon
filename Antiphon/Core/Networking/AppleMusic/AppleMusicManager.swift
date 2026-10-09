@@ -109,9 +109,16 @@ final class AppleMusicManager {
             resolvedISRCs = lookup(trackIDs)
         }
         
-        // 2. Identify missing IDs that require remote lookup
-        let missingIDs = trackIDs.filter { resolvedISRCs[$0] == nil }
-        let songIDsToFetch = missingIDs.filter { !$0.hasPrefix("i.") }.map { MusicItemID($0) }
+        // 2. Identify missing IDs that require remote lookup. Playlist tracks
+        // carry library IDs, which the catalog doesn't know — look up their
+        // catalog ID instead, keyed back to the library ID.
+        var catalogIDsByTrackID: [String: String] = [:]
+        for track in tracks where resolvedISRCs[track.id.rawValue] == nil {
+            if let catalogID = Self.catalogID(for: track) {
+                catalogIDsByTrackID[track.id.rawValue] = catalogID
+            }
+        }
+        let songIDsToFetch = Set(catalogIDsByTrackID.values).map { MusicItemID($0) }
         
         var catalogSongsByID: [String: Song] = [:]
         if !songIDsToFetch.isEmpty {
@@ -134,7 +141,9 @@ final class AppleMusicManager {
         // Process each track
         for track in tracks {
             var isrc = resolvedISRCs[track.id.rawValue]
-            if isrc == nil, let song = catalogSongsByID[track.id.rawValue] {
+            if isrc == nil,
+               let catalogID = catalogIDsByTrackID[track.id.rawValue],
+               let song = catalogSongsByID[catalogID] {
                 isrc = song.isrc
             }
             
@@ -176,32 +185,29 @@ final class AppleMusicManager {
         _ = try await MusicLibrary.shared.add(song, to: playlist)
     }
     
-    /// Adds multiple songs to a playlist in a single batch request to preserve order and optimize performance.
+    /// Adds multiple songs to a playlist in order.
+    ///
+    /// Uses `MusicLibrary` one song at a time: playlists from
+    /// `MusicLibraryRequest`/`createPlaylist` carry device-local IDs that the
+    /// Apple Music REST endpoint (`/v1/me/library/playlists/{id}/tracks`)
+    /// doesn't accept. On failure or cancellation, throws
+    /// `AppleMusicError.partialAdd` carrying the IDs that did land, so callers
+    /// can roll back only the unwritten songs.
     func addTracks(_ songs: [Song], to playlist: Playlist) async throws {
         try await ensureAuthorized()
         
-        guard !songs.isEmpty else { return }
-        
-        let playlistId = playlist.id.rawValue
-        guard let url = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistId)/tracks") else {
-            throw AppleMusicError.invalidURL
+        var addedSongIds = Set<String>()
+        for song in songs {
+            do {
+                try Task.checkCancellation()
+                _ = try await MusicLibrary.shared.add(song, to: playlist)
+                addedSongIds.insert(song.id.rawValue)
+            } catch {
+                throw AppleMusicError.partialAdd(addedSongIds: addedSongIds, underlying: error)
+            }
         }
         
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let trackData: [[String: String]] = songs.map { song in
-            ["id": song.id.rawValue, "type": "songs"]
-        }
-        
-        let body = ["data": trackData]
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let request = MusicDataRequest(urlRequest: urlRequest)
-        _ = try await request.response()
-        
-        print("[AppleMusic] Batch added \(songs.count) tracks to playlist \(playlist.name)")
+        print("[AppleMusic] Added \(songs.count) tracks to playlist \(playlist.name)")
     }
     
     // MARK: - Artwork
@@ -278,6 +284,26 @@ final class AppleMusicManager {
     }
 }
 
+// MARK: - Catalog ID Resolution
+
+extension AppleMusicManager {
+    /// The catalog ID behind a library track, when known.
+    ///
+    /// Library tracks expose it only inside their play parameters
+    /// (`catalogId`), which MusicKit doesn't surface as a property. Falls back
+    /// to the track's own ID unless that is a known library ID (`i.` prefix).
+    nonisolated static func catalogID(for track: Track) -> String? {
+        if let playParameters = track.playParameters,
+           let data = try? JSONEncoder().encode(playParameters),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let catalogId = json["catalogId"] as? String, !catalogId.isEmpty {
+            return catalogId
+        }
+        let id = track.id.rawValue
+        return id.hasPrefix("i.") ? nil : id
+    }
+}
+
 // MARK: - Bridge Types
 
 /// A lightweight representation of an Apple Music track for use with SwiftData.
@@ -301,6 +327,8 @@ enum AppleMusicError: LocalizedError {
     case playlistNotFound
     case trackNotFound(isrc: String)
     case addTrackFailed(String)
+    /// A multi-song add stopped partway; `addedSongIds` reached the playlist.
+    case partialAdd(addedSongIds: Set<String>, underlying: Error)
     
     var errorDescription: String? {
         switch self {
@@ -314,6 +342,8 @@ enum AppleMusicError: LocalizedError {
             return "No matching track found on Apple Music for ISRC: \(isrc)"
         case .addTrackFailed(let detail):
             return "Failed to add track to playlist: \(detail)"
+        case .partialAdd(_, let underlying):
+            return underlying.localizedDescription
         }
     }
 }

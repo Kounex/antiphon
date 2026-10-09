@@ -6,7 +6,7 @@ enum SpotifyEndpoint {
     case playlistTracks(playlistId: String, limit: Int, offset: Int, market: String?)
     case addTracks(playlistId: String)
     case removeTracks(playlistId: String)
-    case createPlaylist(userId: String)
+    case createPlaylist
     case searchByISRC(isrc: String, market: String?)
     case searchByQuery(query: String, type: String, market: String?, limit: Int)
     case uploadPlaylistImage(playlistId: String)
@@ -18,13 +18,13 @@ enum SpotifyEndpoint {
         case .myPlaylists:
             return "/me/playlists"
         case .playlistTracks(let playlistId, _, _, _):
-            return "/playlists/\(playlistId)/tracks"
+            return "/playlists/\(playlistId)/items"
         case .addTracks(let playlistId):
-            return "/playlists/\(playlistId)/tracks"
+            return "/playlists/\(playlistId)/items"
         case .removeTracks(let playlistId):
-            return "/playlists/\(playlistId)/tracks"
-        case .createPlaylist(let userId):
-            return "/users/\(userId)/playlists"
+            return "/playlists/\(playlistId)/items"
+        case .createPlaylist:
+            return "/me/playlists"
         case .searchByISRC, .searchByQuery:
             return "/search"
         case .uploadPlaylistImage(let playlistId):

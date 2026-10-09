@@ -278,7 +278,7 @@ struct TargetPlaylistStep: View {
         do {
             if viewModel.targetPlatform == .spotify {
                 let client = SpotifyAPIClient()
-                viewModel.targetSpotifyPlaylists = try await client.getAllPlaylists()
+                viewModel.targetSpotifyPlaylists = try await client.getEditablePlaylists()
             } else {
                 await appleMusicManager.requestAuthorization()
                 viewModel.targetAppleMusicPlaylists = try await appleMusicManager.fetchUserPlaylists()

@@ -20,7 +20,7 @@ struct SpotifyTokenResponse: Codable {
 
 // MARK: - Pagination
 
-struct SpotifyPagingObject<T: Codable>: Codable {
+struct SpotifyPagingObject<T: Decodable>: Decodable {
     let href: String
     let items: [T]
     let limit: Int
@@ -32,7 +32,7 @@ struct SpotifyPagingObject<T: Codable>: Codable {
 
 // MARK: - Playlist
 
-struct SpotifyPlaylist: Codable, Identifiable {
+struct SpotifyPlaylist: Decodable, Identifiable {
     let id: String
     let name: String
     let description: String?
@@ -40,16 +40,42 @@ struct SpotifyPlaylist: Codable, Identifiable {
     let collaborative: Bool
     let owner: SpotifyUser
     let snapshotId: String
+    /// Item count reference. Spotify's February 2026 Web API change renamed
+    /// the JSON key from `tracks` to `items`; both are accepted so the decode
+    /// survives either shape.
     let tracks: SpotifyPlaylistTracksRef
     let images: [SpotifyImage]?
     let uri: String
     let externalUrls: SpotifyExternalURLs
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, collaborative, owner, tracks, images, uri
+        case id, name, description, collaborative, owner, items, tracks, images, uri
         case isPublic = "public"
         case snapshotId = "snapshot_id"
         case externalUrls = "external_urls"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        isPublic = try container.decodeIfPresent(Bool.self, forKey: .isPublic)
+        collaborative = try container.decode(Bool.self, forKey: .collaborative)
+        owner = try container.decode(SpotifyUser.self, forKey: .owner)
+        snapshotId = try container.decode(String.self, forKey: .snapshotId)
+        tracks = try container.decodeIfPresent(SpotifyPlaylistTracksRef.self, forKey: .items)
+            ?? container.decode(SpotifyPlaylistTracksRef.self, forKey: .tracks)
+        images = try container.decodeIfPresent([SpotifyImage].self, forKey: .images)
+        uri = try container.decode(String.self, forKey: .uri)
+        externalUrls = try container.decode(SpotifyExternalURLs.self, forKey: .externalUrls)
+    }
+
+    /// Whether the current user can read and write this playlist's items.
+    /// Since February 2026 Spotify returns 403 for item reads and writes on
+    /// playlists the user merely follows.
+    func isEditable(byUserId userId: String) -> Bool {
+        owner.id == userId || collaborative
     }
 }
 
@@ -80,24 +106,36 @@ struct SpotifyExternalURLs: Codable {
 
 // MARK: - Track
 
-struct SpotifyPlaylistItem: Codable {
+struct SpotifyPlaylistItem: Decodable {
     let addedAt: String?
     let addedBy: SpotifyUser?
     let isLocal: Bool?
+    /// The track or episode. Spotify's February 2026 Web API change renamed
+    /// the JSON key from `track` to `item` (`track` is deprecated); both are
+    /// accepted.
     let track: SpotifyTrack?
     
     enum CodingKeys: String, CodingKey {
         case addedAt = "added_at"
         case addedBy = "added_by"
         case isLocal = "is_local"
-        case track
+        case item, track
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        addedAt = try container.decodeIfPresent(String.self, forKey: .addedAt)
+        addedBy = try container.decodeIfPresent(SpotifyUser.self, forKey: .addedBy)
+        isLocal = try container.decodeIfPresent(Bool.self, forKey: .isLocal)
+        track = try container.decodeIfPresent(SpotifyTrack.self, forKey: .item)
+            ?? container.decodeIfPresent(SpotifyTrack.self, forKey: .track)
     }
 }
 
 /// A track object as returned by the Spotify Web API.
 ///
-/// Playlist track endpoints can also return podcast *episode* objects in the
-/// same `track` slot. Episodes share the fields below but have no `artists`
+/// Playlist item endpoints can also return podcast *episode* objects in the
+/// same `item` slot. Episodes share the fields below but have no `artists`
 /// array, so `artists` must stay optional or a single episode fails the decode
 /// of the entire page. Non-track items are filtered out in
 /// `SpotifyAPIClient.getPlaylistTracks`.
@@ -158,7 +196,7 @@ struct SpotifyExternalIds: Codable {
 
 // MARK: - Search
 
-struct SpotifySearchResponse: Codable {
+struct SpotifySearchResponse: Decodable {
     let tracks: SpotifyPagingObject<SpotifyTrack>?
 }
 
@@ -170,11 +208,11 @@ struct SpotifyAddTracksRequest: Codable {
 }
 
 struct SpotifyRemoveTracksRequest: Codable {
-    let tracks: [SpotifyTrackReference]
+    let items: [SpotifyTrackReference]
     let snapshotId: String?
     
     enum CodingKeys: String, CodingKey {
-        case tracks
+        case items
         case snapshotId = "snapshot_id"
     }
 }

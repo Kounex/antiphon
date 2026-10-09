@@ -438,6 +438,11 @@ struct FlaggedTabView: View {
 
                              ForEach(removalFlaggedTracks) { track in
                                  FlaggedTrackRow(track: track) {
+                                     // A source removal persists across syncs, so
+                                     // remember the decision or it is re-flagged.
+                                     if track.removalFlag == .removedFromSource {
+                                         track.removalKeptAt = Date()
+                                     }
                                      track.removalFlag = nil
                                      track.removalFlaggedAt = nil
                                      try? modelContext.save()

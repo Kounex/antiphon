@@ -259,9 +259,7 @@ actor SyncEngine {
                 }
                 
                 if pair.spotifyPlaylistId.hasPrefix("pending-creation-") {
-                    let user = try await spotifyClient.getCurrentUser()
                     let newPlaylist = try await spotifyClient.createPlaylist(
-                        userId: user.id,
                         name: pair.spotifyPlaylistName,
                         description: "Synced from Apple Music by Antiphon"
                     )
@@ -305,6 +303,17 @@ actor SyncEngine {
                 
                 // ── Step 2: Populate cache with source tracks immediately ──
                 let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty
+                
+                // Rows matched in Stage B (or manually) may hold a catalog Song ID
+                // rather than the playlist's library ID. Re-anchor them before
+                // any step compares against the live library IDs.
+                if !isInitialSync {
+                    DeltaEngine.reanchorAppleMusicIds(
+                        cachedTracks: cachedTracks,
+                        appleMusicTracks: appleMusicTracks,
+                        trackMatcher: trackMatcher
+                    )
+                }
                 
                 cachedTracks = CacheAligner.alignCache(
                     in: context,
@@ -599,11 +608,11 @@ actor SyncEngine {
                     
                     if let song {
                         // Check if already in target playlist
-                        let alreadyExists = appleMusicTracks.contains { appleTrack in
+                        let existingAppleTrack = appleMusicTracks.first { appleTrack in
                             trackMatcher.isMatch(song: song, appleTrack: appleTrack)
                         }
                         
-                        if !alreadyExists {
+                        if existingAppleTrack == nil {
                             appleMusicSongsToAdd.append(song)
                             queuedAppleMusicWrites.append(QueuedAppleMusicWrite(
                                 track: track,
@@ -615,7 +624,11 @@ actor SyncEngine {
                             print("[SyncEngine] Track '\(track.title)' already exists in Apple Music target playlist. Skipping add.")
                         }
                         
-                        track.appleMusicTrackId = song.id.rawValue
+                        // Prefer the playlist's library ID, which is what later
+                        // syncs compare against. A freshly added song only has
+                        // its catalog ID here; the next sync re-anchors it via
+                        // DeltaEngine.reanchorAppleMusicIds.
+                        track.appleMusicTrackId = existingAppleTrack?.id ?? song.id.rawValue
                         track.syncState = .synced
                         track.source = .both
                         track.unmatchedPlatform = nil
@@ -764,16 +777,26 @@ actor SyncEngine {
                 do {
                     try await appleMusicManager.addTracks(appleMusicSongsToAdd, to: amPlaylist)
                 } catch {
+                    // Songs are added one at a time, so only roll back the ones
+                    // that never reached the playlist.
+                    var unwrittenSongIds = Set(queuedAppleMusicWrites.map(\.songId))
+                    var underlying = error
+                    if case AppleMusicError.partialAdd(let addedSongIds, let partialError) = error {
+                        unwrittenSongIds.subtract(addedSongIds)
+                        underlying = partialError
+                    }
                     let rolledBack = rollbackUnwrittenWrites(
                         spotifyWrites: [],
                         unwrittenSpotifyURIs: [],
                         appleMusicWrites: queuedAppleMusicWrites,
-                        unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
+                        unwrittenAppleSongIds: unwrittenSongIds,
                         context: context
                     )
                     added -= rolledBack
-                    failed += rolledBack
-                    throw error
+                    if !(underlying is CancellationError) {
+                        failed += rolledBack
+                    }
+                    throw underlying
                 }
             }
         }

@@ -14,8 +14,20 @@ final class SyncCoordinator {
     
     // MARK: - State
     
-    /// Currently running sync tasks, keyed by SyncPair ID.
-    private var runningTasks: [UUID: Task<SyncResult, Never>] = [:]
+    /// A sync task plus a unique run ID, so a finishing task can tell whether
+    /// it is still the pair's current run.
+    private struct RunningSync {
+        let runId: UUID
+        let task: Task<SyncResult, Never>
+    }
+    
+    /// Sync tasks that have not finished yet, keyed by SyncPair ID. A cancelled
+    /// task stays here until it has actually unwound, so callers can await it.
+    private var runningTasks: [UUID: RunningSync] = [:]
+    
+    /// Runs the user cancelled. Their results must not replace the
+    /// "cancelled" result shown in the UI.
+    private var cancelledRunIds: Set<UUID> = []
     
     /// IDs of pairs currently being synced — drives UI indicators.
     private(set) var syncingPairIds: Set<UUID> = []
@@ -55,53 +67,77 @@ final class SyncCoordinator {
         lastResults[pairId] = nil
         syncProgress[pairId] = SyncProgress(totalTracks: 0, completedTracks: 0, failedTracks: 0)
         
+        // A cancelled run may still be unwinding; the engine rejects a second
+        // concurrent run for the same pair, so wait for it first.
+        let previousTask = runningTasks[pairId]?.task
+        let runId = UUID()
         let container = modelContainer
         let task = Task {
-            let appleMusicManager = AppleMusicManager()
-            let spotifyClient = SpotifyAPIClient()
+            _ = await previousTask?.value
             
-            let engine = SyncEngine(
-                modelContainer: container,
-                spotifyClient: spotifyClient,
-                appleMusicManager: appleMusicManager
-            )
-            
-            let result = await engine.syncPair(pairId, action: action) { [weak self] progress in
-                await MainActor.run {
-                    self?.syncProgress[pairId] = progress
+            let result: SyncResult
+            if Task.isCancelled {
+                result = SyncResult(pairId: pairId, status: .failed, message: "Sync cancelled by user")
+            } else {
+                let appleMusicManager = AppleMusicManager()
+                let spotifyClient = SpotifyAPIClient()
+                
+                let engine = SyncEngine(
+                    modelContainer: container,
+                    spotifyClient: spotifyClient,
+                    appleMusicManager: appleMusicManager
+                )
+                
+                result = await engine.syncPair(pairId, action: action) { [weak self] progress in
+                    await MainActor.run {
+                        guard self?.runningTasks[pairId]?.runId == runId,
+                              self?.cancelledRunIds.contains(runId) == false else { return }
+                        self?.syncProgress[pairId] = progress
+                    }
                 }
             }
             
-            syncingPairIds.remove(pairId)
-            runningTasks[pairId] = nil
-            syncProgress[pairId] = nil
-            lastResults[pairId] = result
-            
+            finishRun(pairId: pairId, runId: runId, result: result)
             return result
         }
         
-        runningTasks[pairId] = task
+        runningTasks[pairId] = RunningSync(runId: runId, task: task)
+    }
+    
+    /// Clears a finished run's state — only if it is still the pair's current
+    /// run, so a cancelled run unwinding late never clobbers a newer one.
+    private func finishRun(pairId: UUID, runId: UUID, result: SyncResult) {
+        let wasCancelled = cancelledRunIds.remove(runId) != nil
+        guard runningTasks[pairId]?.runId == runId else { return }
+        
+        runningTasks[pairId] = nil
+        if !wasCancelled {
+            syncingPairIds.remove(pairId)
+            syncProgress[pairId] = nil
+            lastResults[pairId] = result
+        }
     }
     
     /// Cancels all in-progress syncs and waits for them to unwind. Call before
     /// destructive operations such as "Reset All Data" so no running task is
     /// still mid-write when the store is wiped.
     func cancelAllSyncs() async {
-        let tasks = runningTasks
-        for pairId in tasks.keys {
+        for pairId in Array(runningTasks.keys) {
             cancelSync(pairId: pairId)
         }
-        // Engines only observe cancellation at loop checkpoints — await the
-        // task handles so the caller knows all writes have quiesced.
-        for task in tasks.values {
-            _ = await task.value
+        for pairId in Array(runningTasks.keys) {
+            await waitForSyncToFinish(pairId: pairId)
         }
     }
 
-    /// Cancels an in-progress sync for a specific pair.
+    /// Cancels an in-progress sync for a specific pair. Returns immediately;
+    /// the engine stops at its next checkpoint. Use `waitForSyncToFinish`
+    /// before deleting anything the sync may still write to.
     func cancelSync(pairId: UUID) {
-        runningTasks[pairId]?.cancel()
-        runningTasks[pairId] = nil
+        if let running = runningTasks[pairId] {
+            running.task.cancel()
+            cancelledRunIds.insert(running.runId)
+        }
         syncingPairIds.remove(pairId)
         syncProgress[pairId] = nil
         lastResults[pairId] = SyncResult(
@@ -109,6 +145,17 @@ final class SyncCoordinator {
             status: .failed,
             message: "Sync cancelled by user"
         )
+    }
+    
+    /// Waits until no sync task for the pair is running, including cancelled
+    /// tasks still unwinding. Engines only observe cancellation at loop
+    /// checkpoints, so this is what guarantees their writes have quiesced.
+    func waitForSyncToFinish(pairId: UUID) async {
+        while let running = runningTasks[pairId] {
+            _ = await running.task.value
+            // finishRun has cleared the entry unless a newer run replaced it.
+            if runningTasks[pairId]?.runId == running.runId { break }
+        }
     }
 }
 

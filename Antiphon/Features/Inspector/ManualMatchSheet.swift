@@ -283,7 +283,7 @@ struct ManualMatchSheet: View {
                 appleMusicResults = try await am.searchCatalog(query: query, limit: 15)
             } else {
                 let client = SpotifyAPIClient()
-                spotifyResults = try await client.search(query: query, limit: 15)
+                spotifyResults = try await client.search(query: query, limit: 10)
             }
         } catch {
             linkError = "Search failed: \(error.localizedDescription)"

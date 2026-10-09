@@ -1,7 +1,12 @@
 What's new in this build:
 
-• Fixed: manually linking an unmatched track could add a duplicate to the playlist and show the song twice in the track list — matches now merge into the existing entry instead
-• Fixed: the manual-match sheet could open blank and gave no feedback while linking — search now starts reliably and a "Linking track…" indicator shows progress
-• Improved: unmatched tracks now say which side's copy failed (e.g. "Apple Music copy — Not found on Spotify"), so bidirectional sync results make sense
+• Fixed: Spotify playlists failed to load ("Failed to load playlists") and syncs failed after Spotify's February 2026 Web API changes — the app now uses the new playlist endpoints and response format
+• Fixed: creating a new Spotify playlist as a sync target failed
+• Fixed: manual-match search on Spotify failed with "Search failed"
+• Fixed: after a successful sync to Apple Music, the next sync could report nearly every track as removed and abort on the safety threshold
+• Fixed: adding tracks to Apple Music playlists could fail for the whole batch
+• Fixed: tapping Keep on a track removed from the source no longer gets re-flagged on every sync
+• Fixed: cancelling a sync and immediately syncing again, or unlinking during a sync, could leave stale state behind
+• Changed: playlist pickers only show Spotify playlists you own or collaborate on — Spotify no longer allows apps to read or write playlists you only follow. Existing links to followed playlists need to be relinked to a playlist you own.
 
-Focus for testers: flag a track as unmatched, link it manually to a song that already exists in the target playlist, and confirm no duplicate appears — in the app or on the platform.
+Focus for testers: link a Spotify playlist, sync Spotify → Apple Music twice in a row and confirm the second sync reports no removals; also try creating a new Spotify playlist from an Apple Music source.

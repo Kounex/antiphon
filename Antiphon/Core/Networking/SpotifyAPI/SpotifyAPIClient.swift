@@ -44,6 +44,16 @@ actor SpotifyAPIClient {
         return allPlaylists
     }
     
+    /// Fetches the current user's playlists whose items can be read and
+    /// written: owned or collaborative. Since February 2026 Spotify returns
+    /// 403 for item access on playlists the user only follows.
+    func getEditablePlaylists() async throws -> [SpotifyPlaylist] {
+        async let user = getCurrentUser()
+        async let playlists = getAllPlaylists()
+        let userId = try await user.id
+        return try await playlists.filter { $0.isEditable(byUserId: userId) }
+    }
+
     /// Fetches all tracks in a playlist (handles pagination).
     ///
     /// Podcast episode items (`type == "episode"`) are dropped: they can't be
@@ -71,9 +81,8 @@ actor SpotifyAPIClient {
         return allItems
     }
     
-    /// Creates a new playlist for the given user.
+    /// Creates a new playlist for the current user.
     func createPlaylist(
-        userId: String,
         name: String,
         description: String? = nil,
         isPublic: Bool = false
@@ -84,7 +93,7 @@ actor SpotifyAPIClient {
             isPublic: isPublic,
             collaborative: false
         )
-        return try await request(endpoint: .createPlaylist(userId: userId), body: body)
+        return try await request(endpoint: .createPlaylist, body: body)
     }
     
     /// Adds tracks to a playlist (handles batches of 100).
@@ -107,7 +116,7 @@ actor SpotifyAPIClient {
     func removeTracksFromPlaylist(playlistId: String, trackUris: [String]) async throws {
         for batch in trackUris.chunked(into: 100) {
             let body = SpotifyRemoveTracksRequest(
-                tracks: batch.map { SpotifyTrackReference(uri: $0) },
+                items: batch.map { SpotifyTrackReference(uri: $0) },
                 snapshotId: nil
             )
             let _: SpotifySnapshotResponse = try await request(
@@ -131,10 +140,11 @@ actor SpotifyAPIClient {
         return response.tracks?.items.first
     }
     
-    /// Searches for tracks by query string.
+    /// Searches for tracks by query string. Spotify caps `limit` at 10 for
+    /// Development Mode apps (February 2026), so larger values are clamped.
     func search(query: String, type: String = "track", market: String? = nil, limit: Int = 10) async throws -> [SpotifyTrack] {
         let response: SpotifySearchResponse = try await request(
-            endpoint: .searchByQuery(query: query, type: type, market: market, limit: limit)
+            endpoint: .searchByQuery(query: query, type: type, market: market, limit: min(limit, 10))
         )
         return response.tracks?.items ?? []
     }
