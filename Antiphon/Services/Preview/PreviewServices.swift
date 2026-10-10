@@ -29,7 +29,7 @@ enum PreviewFixtures {
         track("Midnight City", "M83", state: .review(confidence: 86, reason: .versionDifference)),
         track("Running Up That Hill", "Kate Bush", album: "Hounds of Love", state: .synced),
         track("Tokyo Drift (Live Session)", "Teriyaki Boyz", state: .missing("Not on Apple Music in Germany")),
-        track("A Real Hero", "College, Electric Youth", state: .synced, isNew: true),
+        track("A Real Hero", "College, Electric Youth", state: .synced, isNew: true, origin: .appleMusic),
         track("Tick of the Clock", "Chromatics", state: .synced)
     ]
 
@@ -77,8 +77,9 @@ enum PreviewFixtures {
         )
     }
 
-    static func track(_ title: String, _ artist: String, album: String? = nil, state: TrackRowState, isNew: Bool = false) -> SeamTrack {
-        SeamTrack(id: UUID(), title: title, artist: artist, album: album, artworkURL: nil, state: state, isNew: isNew)
+    static func track(_ title: String, _ artist: String, album: String? = nil, state: TrackRowState, isNew: Bool = false,
+                      origin: Platform = .spotify) -> SeamTrack {
+        SeamTrack(id: UUID(), title: title, artist: artist, album: album, artworkURL: nil, state: state, isNew: isNew, origin: origin)
     }
 }
 
@@ -96,7 +97,10 @@ actor PreviewSeamRepository: SeamRepository {
 
     func detail(for id: UUID) async throws -> SeamDetail? {
         guard let summary = summaries.first(where: { $0.id == id }) else { return nil }
-        return SeamDetail(summary: summary, tracks: PreviewFixtures.lateNightDriveTracks)
+        // Enough rows to scroll under the toolbar.
+        return SeamDetail(summary: summary, tracks: PreviewFixtures.lateNightDriveTracks + PreviewFixtures.lateNightDriveTracks.map {
+            PreviewFixtures.track($0.title + " (Extended)", $0.artist, album: $0.album, state: $0.state, origin: $0.origin)
+        })
     }
 
     func rules(for id: UUID) async throws -> SeamRules? {

@@ -75,6 +75,54 @@ struct SeamRepositoryTests {
         #expect(detail.tracks.filter(\.isNew).map(\.title) == ["Track 2"])
     }
 
+    @Test("Each track says which side it came from")
+    func trackOrigins() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let context = ModelContext(container)
+        let pair = SyncPair(spotifyPlaylistId: "sp", spotifyPlaylistName: "Antiphon Test", appleMusicPlaylistId: "p.am",
+                            appleMusicPlaylistName: "Antiphon Test", syncDirection: .bidirectional)
+        context.insert(pair)
+        func row(_ title: String, source: TrackSource, uri: String?, am: String?, order: Double) {
+            let t = CachedTrack(isrc: title, title: title, artist: "A", spotifyTrackUri: uri, appleMusicTrackId: am,
+                                source: source, syncState: .synced)
+            t.addedAt = Date(timeIntervalSince1970: order)
+            t.syncPair = pair
+            context.insert(t)
+        }
+        row("From Spotify, not synced yet", source: .spotify, uri: "spotify:track:1", am: nil, order: 1)
+        row("Copied from Apple Music", source: .both, uri: "spotify:track:2", am: "i.2", order: 2)
+        row("Copied from Spotify", source: .both, uri: "spotify:track:3", am: "1440", order: 3)
+        row("On both from the start", source: .both, uri: "spotify:track:4", am: "i.4", order: 4)
+        let log = SyncLog(action: .manualSync, tracksAdded: 2)
+        log.syncPair = pair
+        context.insert(log)
+        for (platform, id) in [(Platform.spotify, "spotify:track:2"), (.appleMusic, "1440")] {
+            let change = SyncChange(platform: platform, kind: .add, track: CatalogTrack(platform: platform, id: id, title: "x", artist: "A"))
+            change.run = log
+            context.insert(change)
+        }
+        try context.save()
+
+        let detail = try #require(try await SwiftDataSeamRepository(modelContainer: container).detail(for: pair.id))
+        #expect(detail.tracks.map(\.origin) == [.spotify, .appleMusic, .spotify, .spotify])
+    }
+
+    @Test("In an Apple Music → Spotify seam, tracks on both sides came from Apple Music")
+    func oneWayOrigin() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let context = ModelContext(container)
+        let pair = SyncPair(spotifyPlaylistId: "sp", spotifyPlaylistName: "A", appleMusicPlaylistId: "p.am",
+                            appleMusicPlaylistName: "A", syncDirection: .appleToSpotify)
+        context.insert(pair)
+        let t = CachedTrack(isrc: "I", title: "T", artist: "A", spotifyTrackUri: "spotify:track:1", appleMusicTrackId: "i.1",
+                            source: .both, syncState: .synced)
+        t.syncPair = pair
+        context.insert(t)
+        try context.save()
+        let detail = try #require(try await SwiftDataSeamRepository(modelContainer: container).detail(for: pair.id))
+        #expect(detail.tracks.first?.origin == .appleMusic)
+    }
+
     @Test("Rules round-trip, with safe defaults for migrated seams")
     func rules() async throws {
         let (container, id) = try makeStore()

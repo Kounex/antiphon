@@ -8,6 +8,8 @@ import SwiftUI
 enum DebugRoute {
     /// Which sync-flow phase to show for `shell/preview|syncing|synced`.
     @MainActor static var flowPhase: String?
+    /// Opens scrolled to the bottom, to check the toolbar over content.
+    @MainActor static var startScrolled = false
     /// Which new-seam step to open for `newseam/<step>`.
     @MainActor static var newSeamStep: String?
 
@@ -63,6 +65,9 @@ struct DebugRouteView: View {
         case "activity": model.selectedTab = .activity
         case "search": model.selectedTab = .search
         case "detail": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
+        case "detail-scrolled":
+            model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
+            DebugRoute.startScrolled = true
         case "rules": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id), .rules(PreviewFixtures.lateNightDrive.id)]
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true

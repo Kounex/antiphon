@@ -8,10 +8,24 @@ struct SeamDetailView: View {
     @State var model: SeamDetailModel
     @Binding var path: [SyncsRoute]
     let onSyncNow: (UUID) -> Void
+    @State private var heroOpacity: Double = 1
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content
+                #if DEBUG
+                .task(id: model.visibleTracks.count) {
+                    guard DebugRoute.startScrolled, let last = model.visibleTracks.last else { return }
+                    try? await Task.sleep(for: .milliseconds(300))
+                    proxy.scrollTo(last.id, anchor: .bottom)
+                }
+                #endif
+        }
+    }
+
+    private var content: some View {
         @Bindable var model = model
-        List {
+        return List {
             if let seam = model.detail?.summary {
                 header(seam).plainRow()
                 StatTiles([
@@ -27,10 +41,12 @@ struct SeamDetailView: View {
                         AntiphonDesign.TrackRow(
                             title: track.title,
                             detail: SeamPresentation.trackDetail(track),
-                            artwork: CoverArt(url: track.artworkURL, seed: track.title, size: 40),
+                            artwork: CoverArt(url: track.artworkURL, seed: track.title, size: 40,
+                                              service: SeamPresentation.service(track.origin)),
                             state: SeamPresentation.trackState(track.state),
                             isNew: track.isNew
                         )
+                        .accessibilityLabel("\(track.title), \(SeamPresentation.trackDetail(track)), from \(track.origin.rawValue)")
                         .listRowBackground(Color.canvasRaised)
                     }
                 }
@@ -40,7 +56,13 @@ struct SeamDetailView: View {
         .scrollContentBackground(.hidden)
         .background(alignment: .top) { heroBackground }
         .background(Color.canvas)
-        .scrollEdgeEffectStyle(.soft, for: .top)
+        // A frosted bar once rows scroll under the title; the hero art fades
+        // as the list moves, so it only shows behind the toolbar at the top.
+        .scrollEdgeEffectStyle(.hard, for: .top)
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, offset in
+            heroOpacity = max(0, min(1, 1 - offset / 260))
+        }
+
         .navigationTitle(model.detail?.summary.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -113,6 +135,7 @@ struct SeamDetailView: View {
         CoverPlaceholder(seed: model.detail?.summary.name ?? "")
             .frame(height: 420)
             .backgroundExtensionEffect()
+            .opacity(heroOpacity)
             .mask(LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom))
             .ignoresSafeArea(edges: .top)
             .accessibilityHidden(true)

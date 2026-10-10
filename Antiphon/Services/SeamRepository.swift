@@ -38,6 +38,8 @@ struct SeamTrack: Identifiable, Hashable, Sendable {
     let state: TrackRowState
     /// Added by Antiphon since the person last opened the seam.
     let isNew: Bool
+    /// The side the track came from, shown as the source dot.
+    var origin: Platform = .spotify
 }
 
 struct SeamDetail: Sendable {
@@ -140,6 +142,12 @@ actor SwiftDataSeamRepository: SeamRepository {
             .flatMap(\.changes)
             .filter { $0.kind == .add }
             .map(\.platformTrackId))
+        // Where Antiphon copied tracks to, by the ID they got there.
+        let addedTo: [String: Platform] = Dictionary(
+            pair.syncLogs.flatMap(\.changes).filter { $0.kind == .add }.map { ($0.platformTrackId, $0.platform) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let leading: Platform = pair.syncDirection == .appleToSpotify ? .appleMusic : .spotify
 
         let tracks = pair.cachedTracks
             .filter { $0.removalFlag != .extraOnDestination }
@@ -149,7 +157,8 @@ actor SwiftDataSeamRepository: SeamRepository {
                     id: track.id, title: track.title, artist: track.artist, album: track.albumName,
                     artworkURL: track.artworkURL.flatMap(URL.init(string:)),
                     state: TrackRowState(track),
-                    isNew: [track.spotifyTrackUri, track.appleMusicTrackId].contains { $0.map(newIds.contains) ?? false }
+                    isNew: [track.spotifyTrackUri, track.appleMusicTrackId].contains { $0.map(newIds.contains) ?? false },
+                    origin: Self.origin(of: track, addedTo: addedTo, leading: leading)
                 )
             }
         return SeamDetail(summary: summary(pair), tracks: tracks)
@@ -198,6 +207,20 @@ actor SwiftDataSeamRepository: SeamRepository {
     }
 
     // MARK: - Private
+
+    /// Rows only on one side came from that side. Rows on both came from the
+    /// other side of wherever Antiphon copied them, or else the leading side.
+    static func origin(of track: CachedTrack, addedTo: [String: Platform], leading: Platform) -> Platform {
+        switch track.source {
+        case .spotify: return .spotify
+        case .appleMusic: return .appleMusic
+        case .both:
+            for id in [track.spotifyTrackUri, track.appleMusicTrackId].compactMap({ $0 }) {
+                if let platform = addedTo[id] { return platform.other }
+            }
+            return leading
+        }
+    }
 
     private func fetch(_ id: UUID, in context: ModelContext) throws -> SyncPair? {
         try context.fetch(FetchDescriptor<SyncPair>(predicate: #Predicate { $0.id == id })).first
