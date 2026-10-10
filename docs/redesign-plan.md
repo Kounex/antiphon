@@ -433,3 +433,13 @@ Differences left, and why:
 - **"Play both previews"** is "Play Apple Music preview" plus "Open in Spotify": Spotify doesn't give new apps previews (D6).
 - **Review cards** don't include conflicts; removals stay their own question, reached from the seam (and the home banner counts both).
 - **Problems** "Fix" for a deleted playlist opens the seam (its Rules let you unlink); re-creating the playlist automatically isn't built.
+
+### On-device self-test and two-way fixes (2026-10-11)
+
+DEBUG-only harness: `-AntiphonScreen selftest[/twoway|ownam|realpreview]` (`Antiphon/Debug/SelfTest`). It runs the live planner, engine and editor against the real accounts. It uses its own store and only playlists named "Antiphon…", and logs `[SELFTEST]` lines for `devicectl … --console`. It keeps the screen awake while running. Scenarios: first sync, original album, removal on Apple Music becomes a question, put back, removed again, a second sync with the question open, keep the difference across syncs, re-added in the Music app, a stranded row, add and remove on each side, and a one-way sync into the person's own playlist. `realpreview` is a read-only dry run of the person's "Antiphon Test" seam. `ownam` writes into the person's own "Antiphon Test", which their real two-way seam also uses, so it only runs when named. Its first runs added Faint (and Word Up) there.
+
+What it found, all fixed and checked on device:
+- **Open questions were erased by the next sync.** `CacheAligner` cleared every removal flag (and kept differences) on any track still on the source, leaving one-sided rows that later removals never reached. Each side now clears only the flags it answers. `DeltaEngine.isRemoved` asks again about rows earlier versions left one-sided. Rows the old Inspector "Keep" dismissed in two-way seams are asked about once more; that's intended.
+- **Apple Music lists added songs after a few seconds** (measured 3 s), and lists songs already in the library under an equivalent catalog ID (added 1831584253, listed 193613943). After every add, `LibraryAnchor` re-reads the playlist and stores the library ID, matching by catalog ID, then title, artist and length. Anything still unlisted gets `DeltaEngine.appleMusicReadGrace` (15 min) before it counts as removed.
+- **The safety threshold counted old questions and kept differences**, so one real removal in a small playlist stopped the sync. `RemovalSafety` counts only this sync's new removals, from 3 up.
+- **Putting a track back** uses `ReleaseResolver` (same original-album ranking as syncing) instead of the first ISRC hit.

@@ -13,6 +13,20 @@ struct CacheAligner {
         return direction != .appleToSpotify
     }
     
+    /// The track is on `platform` again: clear only the removals that this
+    /// answers. A removal on the other side stays a question (or a kept
+    /// difference) until the track is back there too.
+    static func clearRemoval(of track: CachedTrack, presentOn platform: Platform) {
+        let answered: Set<RemovalFlag> = switch platform {
+        case .spotify: [.removedFromSpotify, .removedFromSource, .extraOnDestination]
+        case .appleMusic: [.removedFromAppleMusic, .removedFromSource, .extraOnDestination]
+        }
+        guard let flag = track.removalFlag, answered.contains(flag) else { return }
+        track.removalFlag = nil
+        track.removalFlaggedAt = nil
+        track.removalKeptAt = nil
+    }
+
     /// Updates the local cache with the latest state of the source playlist, utilizing O(1) dictionary lookups.
     /// Returns the updated list of cached tracks.
     static func alignCache(
@@ -129,9 +143,7 @@ struct CacheAligner {
                         if existingTrack.source == .appleMusic {
                             existingTrack.source = .both
                         }
-                        existingTrack.removalFlag = nil
-                        existingTrack.removalFlaggedAt = nil
-                        existingTrack.removalKeptAt = nil
+                        clearRemoval(of: existingTrack, presentOn: .spotify)
                         existingTrack.addedAt = baseDate.addingTimeInterval(TimeInterval(index))
                     } else {
                         let isrc = sTrack.isrc ?? "local-\(sTrack.uri)"
@@ -196,9 +208,7 @@ struct CacheAligner {
                         if existingTrack.source == .spotify {
                             existingTrack.source = .both
                         }
-                        existingTrack.removalFlag = nil
-                        existingTrack.removalFlaggedAt = nil
-                        existingTrack.removalKeptAt = nil
+                        clearRemoval(of: existingTrack, presentOn: .appleMusic)
                         existingTrack.addedAt = baseDate.addingTimeInterval(TimeInterval(index))
                     } else {
                         let isrc = appleTrack.isrc ?? "local-\(appleTrack.id)"

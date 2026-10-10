@@ -80,6 +80,7 @@ actor OperationRunner {
                 // Apple Music answers with the ID it added, usually not the one removed.
                 for case let added? in landed where added.kind == .add {
                     if added.platform == .spotify { row.spotifyTrackUri = added.track.id } else { row.appleMusicTrackId = added.track.id }
+                    row.lastSyncAttempt = Date()
                 }
             case .keepDifference:
                 row.removalKeptAt = Date()
@@ -142,6 +143,7 @@ actor OperationRunner {
             outcome.landed = landed
             if let added = landed.first?.track {
                 if added.platform == .spotify { row.spotifyTrackUri = added.id } else { row.appleMusicTrackId = added.id }
+                row.lastSyncAttempt = Date()
                 row.source = .both
                 row.syncState = .synced
                 row.unmatchedPlatform = nil

@@ -17,6 +17,8 @@ enum DebugRoute {
     /// The tab shell on preview data; `shell/library`, `shell/activity`,
     /// `shell/search` pick a tab, `shell/syncing` adds a running sync.
     case shell(String?)
+    /// End-to-end checks on the real accounts: `selftest`, `selftest/twoway`, `selftest/ownam`.
+    case selfTest(String?)
 
     static var current: DebugRoute? {
         guard let value = UserDefaults.standard.string(forKey: "AntiphonScreen") else { return nil }
@@ -26,6 +28,8 @@ enum DebugRoute {
             return .catalog(parts.count > 1 ? ComponentCatalogView.Page(rawValue: parts[1]) : nil)
         case "shell":
             return .shell(parts.count > 1 ? parts[1] : nil)
+        case "selftest":
+            return .selfTest(parts.count > 1 ? parts[1] : nil)
         case "newseam":
             return .shell("newseam/" + (parts.count > 1 ? parts[1] : "pick"))
         default:
@@ -42,6 +46,8 @@ struct DebugRouteView: View {
         switch route {
         case .catalog(let page):
             ComponentCatalogView(initialPage: page)
+        case .selfTest(let scenario):
+            SelfTestView(runner: SelfTestRunner(scenario: scenario))
         case .shell(let option):
             AppShell(model: Self.shellModel(option))
                 .tint(.thread)

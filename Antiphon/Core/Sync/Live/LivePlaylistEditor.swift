@@ -23,10 +23,16 @@ struct LivePlaylistEditor: PlaylistEditor {
                     underlying: underlying
                 )
             }
-            if songs.count < tracks.count {
-                throw PlaylistEditError.partial(landed: songs.map(CatalogTrack.init), underlying: OperationRunner.Failure.trackNotFound)
+            let anchors = await appleMusicManager.libraryIDs(for: songs, in: playlist)
+            let landed = songs.map { song in
+                var track = CatalogTrack(song)
+                if let libraryID = anchors[track.id] { track.id = libraryID }
+                return track
             }
-            return songs.map(CatalogTrack.init)
+            if songs.count < tracks.count {
+                throw PlaylistEditError.partial(landed: landed, underlying: OperationRunner.Failure.trackNotFound)
+            }
+            return landed
         }
     }
 

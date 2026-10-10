@@ -117,6 +117,7 @@ struct OperationRunnerTests {
         let row = try #require(try rows(f).first)
         #expect(row.removalFlag == nil, "the question is answered")
         #expect(row.appleMusicTrackId == "catalog-Holocene")
+        #expect(row.lastSyncAttempt != nil, "the write time lets the next sync wait for Apple Music to list it")
     }
 
     @Test("Removing on the other side removes it on Spotify and forgets the row")

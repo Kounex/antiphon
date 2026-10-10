@@ -3,6 +3,32 @@ import SwiftData
 
 /// Computes differences and matches target remote tracks with cached tracks using O(1) dictionary lookups.
 struct DeltaEngine {
+
+    /// How long a track Antiphon added may be missing from Apple Music's
+    /// playlist reads before it counts as removed.
+    static let appleMusicReadGrace: TimeInterval = 15 * 60
+
+    /// The row's track was on `platform` and isn't any more.
+    ///
+    /// Besides rows on both sides, this catches rows an earlier version left
+    /// one-sided without a question (it cleared the flag on the next sync),
+    /// so their removal is asked about again instead of passing as in sync.
+    ///
+    /// Apple Music lists a track in playlist reads some time after it was
+    /// added. A row that still carries the catalog ID it was added with has
+    /// never been seen there, so it isn't called removed until
+    /// `appleMusicReadGrace` after the write.
+    static func isRemoved(_ cached: CachedTrack, from platform: Platform, live: Set<String>, now: Date = Date()) -> Bool {
+        let id = platform == .spotify ? cached.spotifyTrackUri : cached.appleMusicTrackId
+        guard let id, !live.contains(id) else { return false }
+        if platform == .appleMusic, !id.hasPrefix("i."), let written = cached.lastSyncAttempt,
+           now.timeIntervalSince(written) < appleMusicReadGrace {
+            return false
+        }
+        if cached.source == .both { return true }
+        let otherSide: TrackSource = platform == .spotify ? .appleMusic : .spotify
+        return cached.source == otherSide && cached.removalFlag == nil && cached.removalKeptAt == nil
+    }
     
     /// Points cached rows whose `appleMusicTrackId` is not among the live
     /// playlist IDs back at the live library track they correspond to.
@@ -192,10 +218,7 @@ struct DeltaEngine {
             // Detect removals on target (Apple Music) for delta sync
             if !isInitialSync {
                 let liveAppleIDs = Set(appleMusicTracks.map { $0.id })
-                let appleRemoved = cachedTracks.filter { cached in
-                    (cached.source == .both) &&
-                    (cached.appleMusicTrackId != nil && !liveAppleIDs.contains(cached.appleMusicTrackId!))
-                }
+                let appleRemoved = cachedTracks.filter { isRemoved($0, from: .appleMusic, live: liveAppleIDs) }
                 for cached in appleRemoved {
                     cached.source = .spotify
                     cached.removalFlag = .removedFromAppleMusic
@@ -326,10 +349,7 @@ struct DeltaEngine {
             // Detect removals on target (Spotify) for delta sync
             if !isInitialSync {
                 let liveSpotifyURIs = Set(spotifyTracks.compactMap { $0.track?.uri })
-                let spotifyRemoved = cachedTracks.filter { cached in
-                    (cached.source == .both) &&
-                    (cached.spotifyTrackUri != nil && !liveSpotifyURIs.contains(cached.spotifyTrackUri!))
-                }
+                let spotifyRemoved = cachedTracks.filter { isRemoved($0, from: .spotify, live: liveSpotifyURIs) }
                 for cached in spotifyRemoved {
                     cached.source = .appleMusic
                     cached.removalFlag = .removedFromSpotify

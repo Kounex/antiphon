@@ -326,6 +326,9 @@ actor SyncEngine {
                 // ── Step 2: Populate cache with source tracks immediately ──
                 let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty || pair.needsRebuild
                 
+                // Rows flagged from here on are this sync's new removals.
+                let alignStartedAt = Date()
+
                 // Rows matched in Stage B (or manually) may hold a catalog Song ID
                 // rather than the playlist's library ID. Re-anchor them before
                 // any step compares against the live library IDs.
@@ -398,20 +401,17 @@ actor SyncEngine {
                 )
                 
                 // Safety check on removals
-                if !isInitialSync && !cachedTracks.isEmpty {
-                    let totalRemovals = cachedTracks.filter { $0.removalFlag == .removedFromSpotify || $0.removalFlag == .removedFromAppleMusic || $0.removalFlag == .removedFromSource }.count
+                if !isInitialSync && RemovalSafety.shouldStop(cachedTracks, since: alignStartedAt) {
+                    let totalRemovals = RemovalSafety.newRemovals(in: cachedTracks, since: alignStartedAt)
                     let removalPercentage = Double(totalRemovals) / Double(cachedTracks.count)
-                    
-                    if removalPercentage > AppConstants.Sync.safetyThresholdPercentage {
-                        let message = "Safety threshold triggered: \(totalRemovals) tracks would be removed (\(Int(removalPercentage * 100))%). Sync aborted."
-                        pair.lastSyncResult = .failed
-                        pair.lastSyncMessage = message
-                        logSync(pair: pair, context: context, action: action, run: run,
-                               result: .failed,
-                               tracksAdded: 0, tracksRemoved: 0, tracksFailed: 0,
-                               tracksMatched: cachedTracks.count, details: message)
-                        return SyncResult(pairId: pair.id, status: .failed, message: message)
-                    }
+                    let message = "Safety threshold triggered: \(totalRemovals) tracks would be removed (\(Int(removalPercentage * 100))%). Sync aborted."
+                    pair.lastSyncResult = .failed
+                    pair.lastSyncMessage = message
+                    logSync(pair: pair, context: context, action: action, run: run,
+                           result: .failed,
+                           tracksAdded: 0, tracksRemoved: 0, tracksFailed: 0,
+                           tracksMatched: cachedTracks.count, details: message)
+                    return SyncResult(pairId: pair.id, status: .failed, message: message)
                 }
                 
                 // ══════════════════════════════════════════════════
@@ -869,6 +869,10 @@ actor SyncEngine {
                     )
                     for write in queuedAppleMusicWrites {
                         run.recordAdd(of: write.track, on: .appleMusic, id: write.songId)
+                    }
+                    let anchors = await appleMusicManager.libraryIDs(for: appleMusicSongsToAdd, in: amPlaylist)
+                    for write in queuedAppleMusicWrites {
+                        if let libraryID = anchors[write.songId] { write.track.appleMusicTrackId = libraryID }
                     }
                 } catch {
                     // Songs are added one at a time, so only roll back the ones
