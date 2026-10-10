@@ -400,3 +400,6 @@ Differences left, and why:
 - The Syncing sheet says "Progress stays above the tab bar" until the Live Activity lands in M9.
 - "Put new tracks: At the end" is informational; it's the only placement until order sync exists.
 - Review buttons open the seam filtered to its close matches until the review queue (M5).
+
+### Parked questions
+- **Apple Music library and downloads (2026-10-10, device test).** Tracks Antiphon added via `MusicLibrary.add(_:to:)` landed in the library and auto-downloaded (Add Playlist Songs and Automatic Downloads are on). The 7 tracks already in the test playlist, added from the suggestions while creating the playlist in Music and not in the library before, didn't download. Likely the Music app's creation-sheet suggestions skip the library add. That's Apple-side behavior Antiphon can't control; the preview notes the settings. Revisit only if users report surprises.
