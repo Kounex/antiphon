@@ -289,17 +289,11 @@ actor SyncEngine {
                 let appleMusicTracks = appleMusicTracksResult
                 
                 // Determine isSpotifySource dynamically for bidirectional initial sync
-                let isSpotifySource: Bool
-                if pair.syncDirection == .bidirectional {
-                    if spotifyTracks.isEmpty && !appleMusicTracks.isEmpty {
-                        isSpotifySource = false
-                    } else {
-                        // Default to Spotify if Spotify has tracks, or if both are empty/non-empty
-                        isSpotifySource = true
-                    }
-                } else {
-                    isSpotifySource = pair.syncDirection != .appleToSpotify
-                }
+                let isSpotifySource = CacheAligner.isSpotifySource(
+                    direction: pair.syncDirection,
+                    spotifyCount: spotifyTracks.count,
+                    appleMusicCount: appleMusicTracks.count
+                )
                 
                 // ── Step 2: Populate cache with source tracks immediately ──
                 let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty

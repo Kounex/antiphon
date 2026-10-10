@@ -3,6 +3,15 @@ import SwiftData
 
 /// Aligns the local database cache with the source playlist, updating existing tracks and inserting new ones.
 struct CacheAligner {
+
+    /// Which side Stage A aligns from. Two-way seams use Spotify unless it's
+    /// empty and Apple Music isn't.
+    static func isSpotifySource(direction: SyncDirection, spotifyCount: Int, appleMusicCount: Int) -> Bool {
+        if direction == .bidirectional {
+            return !(spotifyCount == 0 && appleMusicCount > 0)
+        }
+        return direction != .appleToSpotify
+    }
     
     /// Updates the local cache with the latest state of the source playlist, utilizing O(1) dictionary lookups.
     /// Returns the updated list of cached tracks.
@@ -13,7 +22,8 @@ struct CacheAligner {
         spotifyTracks: [SpotifyPlaylistItem],
         appleMusicTracks: [AppleMusicTrackInfo],
         isInitialSync: Bool,
-        isSpotifySource: Bool
+        isSpotifySource: Bool,
+        persist: Bool = true
     ) -> [CachedTrack] {
         let baseDate = Date()
         
@@ -22,7 +32,7 @@ struct CacheAligner {
             for track in cachedTracks {
                 context.delete(track)
             }
-            try? context.save()
+            if persist { try? context.save() }
             
             var insertedTracks: [CachedTrack] = []
             if isSpotifySource {
@@ -67,7 +77,7 @@ struct CacheAligner {
                     insertedTracks.append(cached)
                 }
             }
-            try? context.save()
+            if persist { try? context.save() }
             return insertedTracks
             
         } else {
@@ -209,7 +219,7 @@ struct CacheAligner {
                     }
                 }
             }
-            try? context.save()
+            if persist { try? context.save() }
             return updatedTracks
         }
     }

@@ -69,7 +69,8 @@ struct DeltaEngine {
         appleMusicTracks: [AppleMusicTrackInfo],
         isInitialSync: Bool,
         isSpotifySource: Bool,
-        trackMatcher: TrackMatcher
+        trackMatcher: TrackMatcher,
+        persist: Bool = true
     ) -> [CachedTrack] {
         
         if isSpotifySource {
@@ -336,7 +337,7 @@ struct DeltaEngine {
             }
         }
         
-        try? context.save()
+        if persist { try? context.save() }
         
         // Fetch the updated cached tracks list from the context
         let pairId = pair.id

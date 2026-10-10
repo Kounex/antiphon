@@ -8,7 +8,8 @@ struct PlaylistCachePruner {
     /// Returns the array of tracks that should be kept.
     static func deduplicate(
         in context: ModelContext,
-        cachedTracksFetch: [CachedTrack]
+        cachedTracksFetch: [CachedTrack],
+        persist: Bool = true
     ) -> [CachedTrack] {
         var deduped = false
         var tracksToKeep: [CachedTrack] = []
@@ -95,7 +96,7 @@ struct PlaylistCachePruner {
             for track in tracksToDelete {
                 context.delete(track)
             }
-            try? context.save()
+            if persist { try? context.save() }
         }
         
         return tracksToKeep
@@ -107,7 +108,8 @@ struct PlaylistCachePruner {
         in context: ModelContext,
         cachedTracks: [CachedTrack],
         liveSpotifyURIs: Set<String>,
-        liveAppleIDs: Set<String>
+        liveAppleIDs: Set<String>,
+        persist: Bool = true
     ) -> [CachedTrack] {
         let goneTracks = cachedTracks.filter { cached in
             let inSpotify = cached.spotifyTrackUri != nil && liveSpotifyURIs.contains(cached.spotifyTrackUri!)
@@ -121,7 +123,7 @@ struct PlaylistCachePruner {
         for cached in goneTracks {
             context.delete(cached)
         }
-        try? context.save()
+        if persist { try? context.save() }
         
         return cachedTracks.filter { cached in !goneTracks.contains(where: { $0.id == cached.id }) }
     }

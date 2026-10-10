@@ -34,6 +34,7 @@
 		7ACD3F63BAC40DA1383ECFE9 /* LinkWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B181E66EAAA52E3FFBDAAFA3 /* LinkWizardView.swift */; };
 		7BF8FE73CCD309CD0BDECA7E /* SpotifyAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */; };
 		7F26ED7D10670AC6DC21E16E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5C2983154729E295C377B4 /* NotificationManager.swift */; };
+		7F2FB1B6284EA521EC2DDDF5 /* DryRunStageATests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */; };
 		8047434859B60B2ED06B14DC /* CatalogTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07320370C8D6024694B6BBD /* CatalogTrack.swift */; };
 		81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */; };
 		862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */; };
@@ -60,6 +61,7 @@
 		C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */; };
 		C34D97E22F1F9C28A69EE4D0 /* AppStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */; };
 		C37CCD209F0537AA78AA08E9 /* AntiphonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4DA604959B36AE69F60434 /* AntiphonApp.swift */; };
+		C7350CA34357FD3818B5F592 /* DryRunStageA.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */; };
 		C8B3B69A6426DE341C5766AC /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3929A08DC28B4A4A936BA809 /* Platform.swift */; };
 		CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */; };
 		CAE76EC2C367EA6D1C5F7800 /* PlaylistCachePruner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25DC6D5E3523C58922E58C6 /* PlaylistCachePruner.swift */; };
@@ -104,6 +106,7 @@
 		3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicyTests.swift; sourceTree = "<group>"; };
 		3929A08DC28B4A4A936BA809 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolverTests.swift; sourceTree = "<group>"; };
+		3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageA.swift; sourceTree = "<group>"; };
 		44FA160B1B3DA6A3592D01DC /* SyncPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPair.swift; sourceTree = "<group>"; };
 		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
@@ -161,6 +164,7 @@
 		F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheAligner.swift; sourceTree = "<group>"; };
 		F47DB7CE3877470178AA994E /* VersionTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTag.swift; sourceTree = "<group>"; };
 		FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStyles.swift; sourceTree = "<group>"; };
+		FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageATests.swift; sourceTree = "<group>"; };
 		FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -235,6 +239,7 @@
 				3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */,
 				B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */,
 				3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */,
+				FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */,
 				21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */,
 				7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */,
 				DAD631A22591B730A3F18737 /* PlanCopyTests.swift */,
@@ -287,6 +292,7 @@
 				12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */,
 				5FC832933336424869C9D99A /* ConfidenceScorer.swift */,
 				F355E49299CC28CD1A183F1E /* ConflictResolver.swift */,
+				3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */,
 				CF989E9D0834914D57852A23 /* MatchFinder.swift */,
 				328E95FD8DB619F55B5CD210 /* PlanBuilder.swift */,
 				1C68001EE22B1D000F6E200B /* PlanCopy.swift */,
@@ -507,7 +513,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -550,6 +556,7 @@
 				DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */,
 				EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */,
 				B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */,
+				7F2FB1B6284EA521EC2DDDF5 /* DryRunStageATests.swift in Sources */,
 				81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */,
 				548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */,
 				4536A14BC6EA4DAC9BEA3A8D /* PlanCopyTests.swift in Sources */,
@@ -583,6 +590,7 @@
 				9E6C54B87172BE0A36B94B4F /* DashboardView.swift in Sources */,
 				B0A3A87472BF17D601D701B9 /* Date+Extensions.swift in Sources */,
 				C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */,
+				C7350CA34357FD3818B5F592 /* DryRunStageA.swift in Sources */,
 				A88337E59B534FF88FBD29B8 /* InspectorTabViews.swift in Sources */,
 				0AEED1F0A37B5209293342FB /* KeychainManager.swift in Sources */,
 				7ACD3F63BAC40DA1383ECFE9 /* LinkWizardView.swift in Sources */,
