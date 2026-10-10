@@ -36,6 +36,7 @@
 		548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */; };
 		5A322C01ABF9485DE2A59502 /* SyncsHomeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C2A5592001819FACCE5550 /* SyncsHomeModel.swift */; };
 		5AD5F665F19D2FC00CEE5B77 /* ManualMatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */; };
+		625625155F423FEED1904B3C /* RateLimitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8784C73C7E1061FE1CA976C7 /* RateLimitPolicy.swift */; };
 		62689AD5006A37E0C66CD20C /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA492BDD94443754A288AA8E /* AppColors.swift */; };
 		63962143772E511CF4DDE635 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67EC887433FA149952795669 /* AppPreferences.swift */; };
 		6AF434B9D75877EEF7ED8FE8 /* SyncChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF368C02A6229077F37D46AB /* SyncChange.swift */; };
@@ -55,6 +56,7 @@
 		81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */; };
 		83CDED5A80279A53FF654F61 /* SyncsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57908CB3D0A95E792C5F0FD9 /* SyncsHomeView.swift */; };
 		84DC72D5F10474F10C85552F /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 56C99A2EA1F2C86AF606A37D /* AppIcon.icon */; };
+		8597A9665CDEE054E2B0ABD5 /* RateLimitPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6C90F3BFC08DF43DBC0D5E /* RateLimitPolicyTests.swift */; };
 		862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */; };
 		87126416F1ECB9099C4DC8AB /* CatalogFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B04EDD38BEACFF70196745 /* CatalogFailure.swift */; };
 		880F1B1C98DFF4B222DD4690 /* SyncsRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1691BDDC0F7D0DE0E12E6CC8 /* SyncsRoot.swift */; };
@@ -193,6 +195,7 @@
 		7E563142628174F1A6C834CF /* SpotifyTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyTokenProvider.swift; sourceTree = "<group>"; };
 		7E7443C3623F7B45E9A17B27 /* OperationRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationRunnerTests.swift; sourceTree = "<group>"; };
 		839CAB12C7238823EEA3F68A /* SyncsScreensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncsScreensTests.swift; sourceTree = "<group>"; };
+		8784C73C7E1061FE1CA976C7 /* RateLimitPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimitPolicy.swift; sourceTree = "<group>"; };
 		8D8018BF827715D0D31E7F59 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualMatchSheet.swift; sourceTree = "<group>"; };
 		90270653595B9E53D243FE15 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
@@ -219,6 +222,7 @@
 		B7308244F79C3986C69C48A5 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		B8179D0F4C44585EC041B8F8 /* TrackMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMatcher.swift; sourceTree = "<group>"; };
 		BA492BDD94443754A288AA8E /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		BD6C90F3BFC08DF43DBC0D5E /* RateLimitPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimitPolicyTests.swift; sourceTree = "<group>"; };
 		BF536925D05D8A83BF622EFF /* DebugRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRouter.swift; sourceTree = "<group>"; };
 		C07320370C8D6024694B6BBD /* CatalogTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogTrack.swift; sourceTree = "<group>"; };
 		C419756E4064CAF1FF4DFC9A /* LibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryService.swift; sourceTree = "<group>"; };
@@ -358,6 +362,7 @@
 				7E7443C3623F7B45E9A17B27 /* OperationRunnerTests.swift */,
 				7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */,
 				DAD631A22591B730A3F18737 /* PlanCopyTests.swift */,
+				BD6C90F3BFC08DF43DBC0D5E /* RateLimitPolicyTests.swift */,
 				AF7E00E687EE41ABFCEDF986 /* SchemaMigrationTests.swift */,
 				A9C3B5C822E9E1C79DBF8DDE /* SeamCountsTests.swift */,
 				E1B72CCE3299789633D50F4C /* SeamRepositoryTests.swift */,
@@ -501,6 +506,7 @@
 		9453319BBE358FF1217389BC /* SpotifyAPI */ = {
 			isa = PBXGroup;
 			children = (
+				8784C73C7E1061FE1CA976C7 /* RateLimitPolicy.swift */,
 				9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */,
 				644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */,
 				1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */,
@@ -719,7 +725,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -777,6 +783,7 @@
 				09EB98FCF1BAA7181E879C78 /* OperationRunnerTests.swift in Sources */,
 				548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */,
 				4536A14BC6EA4DAC9BEA3A8D /* PlanCopyTests.swift in Sources */,
+				8597A9665CDEE054E2B0ABD5 /* RateLimitPolicyTests.swift in Sources */,
 				738D6532F1B0D12BEFCE49E9 /* SchemaMigrationTests.swift in Sources */,
 				77C22D43944EF34227DA0C12 /* SchemaV1.swift in Sources */,
 				77A73070026953328D2B08A0 /* SeamCountsTests.swift in Sources */,
@@ -838,6 +845,7 @@
 				760E29BDA1D6818FFCD731C1 /* PlaylistInspectorView.swift in Sources */,
 				F2361B643C3170927A65B14B /* PreviewServices.swift in Sources */,
 				A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */,
+				625625155F423FEED1904B3C /* RateLimitPolicy.swift in Sources */,
 				D323FB79512021AFF5376A7B /* RelativeTime.swift in Sources */,
 				7E925FCE4C35A03589E2A43B /* RulesCopy.swift in Sources */,
 				CF1524906D3D9AEE9AE5F83B /* RulesModel.swift in Sources */,

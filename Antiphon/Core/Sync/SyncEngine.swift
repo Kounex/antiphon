@@ -357,7 +357,10 @@ actor SyncEngine {
                 ))
                 
                 // ── Step 3b: Sync artwork (Apple Music → Spotify, initial sync only) ──
-                if isInitialSync {
+                // Only onto a Spotify playlist Antiphon created for this seam:
+                // replacing the cover of a playlist the person already had is
+                // a write the preview never shows.
+                if isInitialSync && pair.spotifyCreatedByAntiphon {
                     do {
                         if let base64JPEG = try await appleMusicManager.fetchPlaylistArtworkAsBase64JPEG(for: amPlaylist) {
                             try await spotifyClient.uploadPlaylistImage(

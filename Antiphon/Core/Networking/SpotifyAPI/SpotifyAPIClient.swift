@@ -229,14 +229,12 @@ actor SpotifyAPIClient {
         
         // Handle rate limiting
         if httpResponse.statusCode == 429 {
-            let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
-                .flatMap(TimeInterval.init) ?? 5.0
-            
-            guard retryCount < 3 else {
+            guard let wait = RateLimitPolicy.delay(
+                retryAfterHeader: httpResponse.value(forHTTPHeaderField: "Retry-After"), attempt: retryCount
+            ) else {
                 throw SpotifyAPIError.rateLimited
             }
-            
-            try await Task.sleep(for: .seconds(retryAfter))
+            try await Task.sleep(for: .seconds(wait))
             return try await executeWithRetry(request, retryCount: retryCount + 1)
         }
         
@@ -257,14 +255,12 @@ actor SpotifyAPIClient {
 
         // Handle rate limiting
         if httpResponse.statusCode == 429 {
-            let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
-                .flatMap(TimeInterval.init) ?? 5.0
-
-            guard retryCount < 3 else {
+            guard let wait = RateLimitPolicy.delay(
+                retryAfterHeader: httpResponse.value(forHTTPHeaderField: "Retry-After"), attempt: retryCount
+            ) else {
                 throw SpotifyAPIError.rateLimited
             }
-
-            try await Task.sleep(for: .seconds(retryAfter))
+            try await Task.sleep(for: .seconds(wait))
             return try await executeWithRetryNoContent(request, retryCount: retryCount + 1)
         }
 
