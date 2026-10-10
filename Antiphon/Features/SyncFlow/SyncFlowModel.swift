@@ -97,8 +97,41 @@ final class SyncFlowModel {
         return plan.automaticAddCount + plan.removalCount
     }
 
+    /// What happens once the plan is applied.
+    enum AfterApply: Equatable {
+        /// Tracks were written: show the outcome.
+        case showResult
+        /// Only removals to decide: they're recorded, then asked about.
+        case openConflicts
+        /// Nothing changed: the check is recorded and the flow closes.
+        case dismiss
+    }
+
+    var conflictCount: Int { planned?.plan.conflicts.count ?? 0 }
+
+    var afterApply: AfterApply {
+        if writeCount > 0 { return .showResult }
+        return conflictCount > 0 ? .openConflicts : .dismiss
+    }
+
     var primaryTitle: String {
-        writeCount == 0 ? "Done" : "Sync \(PlanCopy.count(writeCount, "track")) now"
+        switch afterApply {
+        case .showResult: "Sync \(PlanCopy.count(writeCount, "track")) now"
+        case .openConflicts: "Decide about \(PlanCopy.count(conflictCount, "removal"))"
+        case .dismiss: "Done"
+        }
+    }
+
+    var primarySymbol: String {
+        switch afterApply {
+        case .showResult: "arrow.triangle.2.circlepath"
+        case .openConflicts: "questionmark.circle"
+        case .dismiss: "checkmark"
+        }
+    }
+
+    var conflictTitles: [String] {
+        planned?.plan.conflicts.map(\.track.title) ?? []
     }
 
     /// Tracks this run writes, in the order the engine processes them.

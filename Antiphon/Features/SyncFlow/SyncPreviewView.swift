@@ -86,8 +86,11 @@ struct SyncPreviewView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
-            Button(model.primaryTitle, systemImage: model.writeCount > 0 ? "arrow.triangle.2.circlepath" : "checkmark") {
-                if model.writeCount > 0 { model.start(using: coordinator) } else { onDone() }
+            Button(model.primaryTitle, systemImage: model.primarySymbol) {
+                // Always applied, even with nothing to write: the check, any
+                // removals to decide and cover fixes are recorded that way.
+                model.start(using: coordinator)
+                if model.afterApply == .dismiss { onDone() }
             }
             .buttonSizing(.flexible)
             .glassButton(.primary)
@@ -173,6 +176,15 @@ private struct EveryTrackSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if !model.conflictTitles.isEmpty {
+                    Section("Removed on one side, waiting for your call") {
+                        ForEach(Array(model.conflictTitles.enumerated()), id: \.offset) { _, title in
+                            AntiphonDesign.TrackRow(title: title, detail: "Nothing changes until you decide",
+                                                    artwork: CoverArt(seed: title, size: 40), state: .removed)
+                            .listRowBackground(Color.canvasRaised)
+                        }
+                    }
+                }
                 ForEach(model.sides, id: \.platform) { side in
                     section("Added to \(model.playlistName(on: side.platform))", side.automaticAdds.map { ($0.source, Self.matchDetail($0)) }, state: .synced)
                     section("Waiting for you", side.reviewAdds.map { ($0.source, Self.matchDetail($0)) }, state: .review(confidence: 0))

@@ -8,6 +8,7 @@ struct SyncedView: View {
     /// The next queued playlist, when several were picked.
     let nextName: String?
     let onReview: () -> Void
+    var onConflicts: () -> Void = {}
     let onNext: () -> Void
     let onDone: () -> Void
 
@@ -33,6 +34,15 @@ struct SyncedView: View {
                     Banner(tone: .review, symbol: "questionmark.circle.fill",
                            title: "\(PlanCopy.count(model.reviewTitles.count, "close match", "close matches"))",
                            message: "\(Self.list(model.reviewTitles)) \(model.reviewTitles.count == 1 ? "has" : "have") a different version on the other side.")
+                }
+                if model.conflictCount > 0 {
+                    Banner(tone: .review, symbol: "questionmark.circle.fill",
+                           title: "\(PlanCopy.count(model.conflictCount, "removal")) to decide",
+                           message: "Nothing is removed until you choose.") {
+                        Button("Decide", action: onConflicts)
+                            .buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                            .tint(.statusReview).foregroundStyle(Color.canvas)
+                    }
                 }
                 if !model.unavailableTitles.isEmpty {
                     Banner(tone: .neutral, symbol: "circle.slash",

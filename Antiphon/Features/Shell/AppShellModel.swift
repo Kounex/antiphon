@@ -77,6 +77,8 @@ final class AppShellModel {
     var reviewTarget: ReviewTarget?
     /// The open two-way removal question.
     var openConflict: ConflictPresentation?
+    /// A seam whose removal questions open once the sync sheet has closed.
+    var pendingConflictSeam: UUID?
     private(set) var problemCount = 0
 
     struct ReviewTarget: Identifiable, Hashable {
@@ -118,6 +120,12 @@ final class AppShellModel {
         guard let all = try? await reviews.conflicts(seamId: seamId),
               let item = all.first(where: { $0.rowId == rowId }) else { return }
         openConflict = ConflictPresentation(item: item, others: all.filter { $0.rowId != rowId })
+    }
+
+    /// Opens the seam's first removal question, with the rest as "the others".
+    func openFirstConflict(seamId: UUID) async {
+        guard let all = try? await reviews.conflicts(seamId: seamId), let first = all.first else { return }
+        openConflict = ConflictPresentation(item: first, others: Array(all.dropFirst()))
     }
 
     func reviewItem(rowId: UUID, seamId: UUID) async -> ReviewItem? {

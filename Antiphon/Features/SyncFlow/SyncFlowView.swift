@@ -8,6 +8,8 @@ struct SyncFlowView: View {
     let onReview: (UUID) -> Void
     let onNext: () -> Void
     let onDone: () -> Void
+    /// Opens the seam's removal questions.
+    var onConflicts: (UUID) -> Void = { _ in }
 
     @Environment(SyncCoordinator.self) private var coordinator
     @State private var showsSyncing = false
@@ -16,7 +18,8 @@ struct SyncFlowView: View {
         Group {
             if case .done(let result) = model.phase {
                 SyncedView(model: model, result: result, nextName: nextName,
-                           onReview: { onReview(model.seamId) }, onNext: onNext, onDone: onDone)
+                           onReview: { onReview(model.seamId) }, onConflicts: { onConflicts(model.seamId) },
+                           onNext: onNext, onDone: onDone)
             } else {
                 SyncPreviewView(model: model, onDone: onDone)
             }
@@ -27,11 +30,17 @@ struct SyncFlowView: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                 .interactiveDismissDisabled()
         }
-        .onChange(of: isSyncing) { _, syncing in showsSyncing = syncing }
+        .onChange(of: isSyncing) { _, syncing in
+            // Recording a no-change check or removals needs no live sheet.
+            showsSyncing = syncing && model.afterApply == .showResult
+        }
         .onChange(of: coordinator.isSyncing(model.seamId)) { wasSyncing, nowSyncing in
             guard wasSyncing, !nowSyncing, case .syncing = model.phase,
                   let result = coordinator.lastResults[model.seamId] else { return }
-            Task { await model.finished(with: result) }
+            Task {
+                await model.finished(with: result)
+                if model.afterApply == .openConflicts, case .done = model.phase { onConflicts(model.seamId) }
+            }
         }
         .task {
             #if DEBUG

@@ -47,10 +47,22 @@ struct AppShell: View {
         .sheet(isPresented: $model.showsNewSeam, onDismiss: { Task { await model.refresh() } }) {
             NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow, onReview: openSeam)
         }
-        .sheet(item: $model.syncFlowSeamId, onDismiss: { Task { await model.refresh() } }) { seamId in
+        .sheet(item: $model.syncFlowSeamId, onDismiss: {
+            Task {
+                await model.refresh()
+                if let seamId = model.pendingConflictSeam {
+                    model.pendingConflictSeam = nil
+                    await model.openFirstConflict(seamId: seamId)
+                }
+            }
+        }) { seamId in
             NavigationStack {
                 SyncFlowView(model: model.makeSyncFlow(seamId: seamId),
-                             onReview: openSeam, onNext: {}, onDone: { model.syncFlowSeamId = nil })
+                             onReview: openSeam, onNext: {}, onDone: { model.syncFlowSeamId = nil },
+                             onConflicts: { id in
+                                 model.pendingConflictSeam = id
+                                 model.syncFlowSeamId = nil
+                             })
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Close", systemImage: "xmark") { model.syncFlowSeamId = nil }.tint(.ink)
