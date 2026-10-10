@@ -110,3 +110,49 @@ struct DryRunStageATests {
         #expect(result.removalPolicy == .ask)
     }
 }
+
+@Suite("Cover art backfill", .serialized)
+@MainActor
+struct ArtworkBackfillTests {
+
+    private func spotifyItem(uri: String, image: String) throws -> SpotifyPlaylistItem {
+        let json = """
+        {"item": {"id": "x", "name": "Snøfall", "uri": "\(uri)", "duration_ms": 200000, "type": "track",
+                  "external_ids": {"isrc": "NOX001"}, "artists": [{"name": "Trivium"}],
+                  "album": {"id": "a", "name": "Snøfall", "images": [{"url": "\(image)", "height": 640, "width": 640}]}}}
+        """
+        return try JSONDecoder().decode(SpotifyPlaylistItem.self, from: Data(json.utf8))
+    }
+
+    @Test("Library artwork (musicKit://) can't be drawn; it's replaced from the other side")
+    func webArtworkCheck() {
+        let track = CachedTrack(isrc: "I", title: "T", artist: "A", artworkURL: "musicKit://artwork/transient/300x300/abc", source: .appleMusic)
+        #expect(!track.hasWebArtwork)
+        track.adoptArtwork(from: CatalogTrack(platform: .spotify, id: "s", title: "T", artist: "A", artworkURL: "https://i.scdn.co/image/abc"))
+        #expect(track.artworkURL == "https://i.scdn.co/image/abc")
+        // A web cover is never replaced.
+        track.adoptArtwork(from: CatalogTrack(platform: .spotify, id: "s", title: "T", artist: "A", artworkURL: "https://other"))
+        #expect(track.artworkURL == "https://i.scdn.co/image/abc")
+    }
+
+    @Test("A sync fills in the cover for rows that came from Apple Music")
+    func alignBackfills() throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let context = ModelContext(container)
+        let pair = SyncPair(spotifyPlaylistId: "sp", spotifyPlaylistName: "Antiphon Test", appleMusicPlaylistId: "p.am",
+                            appleMusicPlaylistName: "Antiphon Test", syncDirection: .bidirectional)
+        context.insert(pair)
+        let row = CachedTrack(isrc: "NOX001", title: "Snøfall", artist: "Trivium", artworkURL: "musicKit://artwork/x",
+                              spotifyTrackUri: "spotify:track:snow", appleMusicTrackId: "i.snow", source: .both, syncState: .synced)
+        row.syncPair = pair
+        context.insert(row)
+        try context.save()
+
+        let aligned = CacheAligner.alignCache(
+            in: context, pair: pair, cachedTracks: [row],
+            spotifyTracks: [try spotifyItem(uri: "spotify:track:snow", image: "https://i.scdn.co/image/snow")],
+            appleMusicTracks: [], isInitialSync: false, isSpotifySource: true, persist: false
+        )
+        #expect(aligned.first?.artworkURL == "https://i.scdn.co/image/snow")
+    }
+}

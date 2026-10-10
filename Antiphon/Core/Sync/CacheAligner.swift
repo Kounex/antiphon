@@ -125,6 +125,7 @@ struct CacheAligner {
                     if let existingTrack = existing {
                         // Update existing cached track
                         existingTrack.spotifyTrackUri = sTrack.uri
+                        existingTrack.adoptArtwork(url: sTrack.album?.images?.first?.url)
                         if existingTrack.source == .appleMusic {
                             existingTrack.source = .both
                         }
@@ -191,6 +192,7 @@ struct CacheAligner {
                     if let existingTrack = existing {
                         // Update existing cached track
                         existingTrack.appleMusicTrackId = appleTrack.id
+                        existingTrack.adoptArtwork(url: appleTrack.artworkURL)
                         if existingTrack.source == .spotify {
                             existingTrack.source = .both
                         }

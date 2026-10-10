@@ -144,6 +144,7 @@ actor OperationRunner {
                 row.matchConfidence = candidate.confidence
                 row.matchReason = candidate.reason
                 row.counterpartISRC = candidate.track.isrc
+                row.adoptArtwork(from: candidate.track)
             }
             try context.save()
             return outcome

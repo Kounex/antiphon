@@ -228,6 +228,28 @@ final class CachedTrack {
     }
 }
 
+// MARK: - Artwork
+
+extension CachedTrack {
+    /// Whether the cover can be loaded over the web. Apple Music library
+    /// tracks carry `musicKit://` artwork that only MusicKit can draw.
+    var hasWebArtwork: Bool {
+        guard let artworkURL else { return false }
+        return artworkURL.hasPrefix("https://") || artworkURL.hasPrefix("http://")
+    }
+
+    /// Takes a web-loadable cover from the matched track on the other side,
+    /// unless this row already has one.
+    func adoptArtwork(url: String?) {
+        guard !hasWebArtwork, let url, url.hasPrefix("https://") || url.hasPrefix("http://") else { return }
+        artworkURL = url
+    }
+
+    func adoptArtwork(from track: CatalogTrack) {
+        adoptArtwork(url: track.artworkURL)
+    }
+}
+
 // MARK: - Match Candidates
 
 extension CachedTrack {

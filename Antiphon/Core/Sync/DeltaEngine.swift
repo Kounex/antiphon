@@ -234,6 +234,7 @@ struct DeltaEngine {
                 if let spotifyItem = targetByISRC[lowercasedIsrc], let sTrack = spotifyItem.track {
                     cached.source = .both
                     cached.spotifyTrackUri = sTrack.uri
+                    cached.adoptArtwork(url: sTrack.album?.images?.first?.url)
                     cached.syncState = .synced
                     cached.removalFlag = nil
                     cached.removalFlaggedAt = nil

@@ -981,6 +981,7 @@ actor SyncEngine {
     
     private func recordEvidence(_ match: MatchCandidate?, on track: CachedTrack) {
         guard let match else { return }
+        track.adoptArtwork(from: match.track)
         track.matchConfidence = match.confidence
         track.matchReason = match.reason
         track.counterpartISRC = match.track.isrc
