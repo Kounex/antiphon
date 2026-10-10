@@ -8,7 +8,6 @@ struct SeamDetailView: View {
     @State var model: SeamDetailModel
     @Binding var path: [SyncsRoute]
     let onSyncNow: (UUID) -> Void
-    @State private var heroOpacity: Double = 1
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -56,14 +55,9 @@ struct SeamDetailView: View {
         .scrollContentBackground(.hidden)
         .background(alignment: .top) { heroBackground }
         .background(Color.canvas)
-        // A frosted bar once rows scroll under the title; the hero art fades
-        // as the list moves, so it only shows behind the toolbar at the top.
-        .scrollEdgeEffectStyle(.hard, for: .top)
-        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, offset in
-            heroOpacity = max(0, min(1, 1 - offset / 260))
-        }
+        .scrollEdgeEffectStyle(.soft, for: .top)
 
-        .navigationTitle(model.detail?.summary.name ?? "")
+        // Like Apple Music: no title in the bar; the name is in the hero.
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -135,7 +129,6 @@ struct SeamDetailView: View {
         CoverPlaceholder(seed: model.detail?.summary.name ?? "")
             .frame(height: 420)
             .backgroundExtensionEffect()
-            .opacity(heroOpacity)
             .mask(LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom))
             .ignoresSafeArea(edges: .top)
             .accessibilityHidden(true)
