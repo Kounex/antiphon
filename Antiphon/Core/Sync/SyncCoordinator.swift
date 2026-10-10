@@ -159,6 +159,16 @@ final class SyncCoordinator {
     }
 }
 
+#if DEBUG
+extension SyncCoordinator {
+    /// Shows a running sync without running one, for screenshots and previews.
+    func simulateRunning(pairId: UUID, progress: SyncProgress) {
+        syncingPairIds.insert(pairId)
+        syncProgress[pairId] = progress
+    }
+}
+#endif
+
 // MARK: - Sync Progress
 
 /// Real-time progress of a sync operation.

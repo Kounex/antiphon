@@ -166,3 +166,14 @@ actor SwiftDataSeamRepository: SeamRepository {
         )
     }
 }
+
+extension SeamSummary {
+    /// "Spotify → Apple Music" in titles; "Both ways" for two-way seams.
+    var directionText: String {
+        switch direction {
+        case .spotifyToApple: "Spotify → Apple Music"
+        case .appleToSpotify: "Apple Music → Spotify"
+        case .bidirectional: "Both ways"
+        }
+    }
+}

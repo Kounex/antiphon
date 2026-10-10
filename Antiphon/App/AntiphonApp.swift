@@ -1,3 +1,4 @@
+import AntiphonDesign
 import SwiftUI
 import SwiftData
 import BackgroundTasks
@@ -9,6 +10,7 @@ struct AntiphonApp: App {
     let modelContainer: ModelContainer
     let spotifyAuth: SpotifyAuthManager
     let syncCoordinator: SyncCoordinator
+    let shellModel: AppShellModel
 
     /// Unit tests launch the app as their host; keep it away from the real
     /// store and background scheduler while they run.
@@ -32,6 +34,10 @@ struct AntiphonApp: App {
         // Initialize auth managers
         spotifyAuth = SpotifyAuthManager()
         syncCoordinator = SyncCoordinator(modelContainer: modelContainer)
+        shellModel = AppShellModel(
+            seams: SwiftDataSeamRepository(modelContainer: modelContainer),
+            accounts: spotifyAuth
+        )
 
         // Register background tasks (handler creates its own auth instances)
         if !Self.isHostingTests {
@@ -44,6 +50,9 @@ struct AntiphonApp: App {
             #if DEBUG
             if let route = DebugRoute.current {
                 DebugRouteView(route: route)
+                    .environment(spotifyAuth)
+                    .environment(syncCoordinator)
+                    .modelContainer(modelContainer)
             } else {
                 rootView
             }
@@ -69,9 +78,9 @@ struct AntiphonApp: App {
     }
 
     private var rootView: some View {
-        DashboardView()
-            .environment(spotifyAuth)
-            .environment(syncCoordinator)
-            .preferredColorScheme(.dark)
+        AppShell(model: shellModel)
+        .environment(spotifyAuth)
+        .environment(syncCoordinator)
+        .tint(.thread)
     }
 }

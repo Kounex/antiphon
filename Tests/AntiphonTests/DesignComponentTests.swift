@@ -3,6 +3,7 @@ import Testing
 import AntiphonDesign
 
 @Suite("Design components")
+@MainActor
 struct DesignComponentTests {
 
     private let watching = SyncCard.Status(isMonitoring: true)

@@ -348,3 +348,16 @@ D1 result, verified on a device on 2026-10-10 with a separate test app (`com.kou
 `edit(items:)` rewrites the whole playlist, so `PlaylistEntryEdit` refuses unless every entry was read (all pages) and the count matches the playlist's track count, and each removal takes out at most one entry. Reordering is built on the same call but has no caller until "Keep track order" lands.
 
 Cleanup for you: delete the "Antiphon test – delete me" playlist in Music, and the separate test app from Kounex iOS. Your installed Antiphon and its data were not touched.
+
+### M2 App shell: done (2026-10-10)
+
+- `AppShell` is the new root: a system `TabView` with Syncs, Library, Activity, and `Tab(role: .search)` (it morphs into the bottom search field), `.tabBarMinimizeBehavior(.onScrollDown)`, and the thread tint.
+- The Syncs badge counts tracks waiting for review across seams. It's 0 until the review queue ships, because the flag is off.
+- `SyncAccessory` sits in `.tabViewBottomAccessory` while the existing `SyncCoordinator` reports progress: one seam, several ("Syncing 3 playlists" with a combined count), and the write phase ("Adding 5 of 33 to Apple Music"). `isEnabled:` is gated to iOS 26.1, with a conditional-content fallback on 26.0.
+- The account button (Spotify initials) opens Settings. That's still the old `SettingsView` until M8.
+- `AccountsService` protocol; `SpotifyAuthManager` conforms with no change to auth code.
+- 116 tests green. Screenshots: running sync in dark, light and AX5, the Library placeholder, and Search.
+
+Left as is, and why:
+- The Syncs tab still hosts the old dashboard (forced dark) until M3 replaces it. That's why the light screenshot is mostly dark and the accessory's title is low-contrast over it there. I'll recheck the accessory in light mode in M3.
+- Library and Activity show a short placeholder until M6 and M7.
