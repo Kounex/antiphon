@@ -22,7 +22,8 @@ protocol SyncService: Sendable {
 struct LiveSyncService: SyncService {
     let modelContainer: ModelContainer
     var preferences: AppPreferences = .shared
-    var capabilities: PlatformCapabilities = .current
+    /// `nil` uses each seam's own capabilities.
+    var capabilities: PlatformCapabilities? = nil
 
     func preview(seamId: UUID, isFirstSync: Bool,
                  progress: (@Sendable (Int, Int) async -> Void)?) async throws -> PlannedSync {

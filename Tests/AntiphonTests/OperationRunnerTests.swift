@@ -213,6 +213,22 @@ struct OperationRunnerTests {
         #expect(try logs(f).first { $0.id == runId }?.undoneAt == nil, "nothing was undone yet")
     }
 
+    @Test("Undo removes Apple Music adds directly when Antiphon created that playlist")
+    func undoAppleMusicOwnPlaylist() async throws {
+        let f = try makeFixture()
+        let context = ModelContext(f.container)
+        try #require(try context.fetch(FetchDescriptor<SyncPair>()).first).appleMusicCreatedByAntiphon = true
+        try context.save()
+        let runId = try seedRun(f, platform: .appleMusic)
+        let live = (1...2).map { CatalogTrack(platform: .appleMusic, id: "i.n\($0)", title: "New \($0)", artist: "A") }
+        let editor = FakeEditor(live: [.appleMusic: live])
+        let runner = OperationRunner(modelContainer: f.container, editor: editor)
+
+        let outcome = try await runner.undo(runId: runId)
+        #expect(outcome.guided.isEmpty)
+        #expect(editor.edits == [.init(kind: "remove", platform: .appleMusic, playlistId: "p.am", trackIds: ["i.n2", "i.n1"])])
+    }
+
     @Test("A run can only be undone once")
     func undoOnce() async throws {
         let f = try makeFixture()

@@ -44,9 +44,10 @@ actor OperationRunner {
 
     private let modelContainer: ModelContainer
     private let editor: any PlaylistEditor
-    private let capabilities: PlatformCapabilities
+    /// Overrides the per-seam capabilities (tests).
+    private let capabilities: PlatformCapabilities?
 
-    init(modelContainer: ModelContainer, editor: some PlaylistEditor, capabilities: PlatformCapabilities = .current) {
+    init(modelContainer: ModelContainer, editor: some PlaylistEditor, capabilities: PlatformCapabilities? = nil) {
         self.modelContainer = modelContainer
         self.editor = editor
         self.capabilities = capabilities
@@ -254,7 +255,11 @@ actor OperationRunner {
             let playlistId = platform == .spotify ? pair.spotifyPlaylistId : pair.appleMusicPlaylistId
             current[platform] = try await editor.tracks(in: playlistId, on: platform)
         }
-        return UndoPlanner.plan(for: changes, capabilities: capabilities, current: current)
+        return UndoPlanner.plan(for: changes, capabilities: capabilities(for: pair), current: current)
+    }
+
+    private func capabilities(for pair: SyncPair) -> PlatformCapabilities {
+        capabilities ?? .forSeam(appleMusicCreatedByAntiphon: pair.appleMusicCreatedByAntiphon)
     }
 
     private func fetchPair(_ id: UUID, in context: ModelContext) throws -> SyncPair {

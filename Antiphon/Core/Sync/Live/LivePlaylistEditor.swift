@@ -35,8 +35,9 @@ struct LivePlaylistEditor: PlaylistEditor {
         case .spotify:
             try await spotifyClient.removeTracksFromPlaylist(playlistId: playlistId, trackUris: tracks.map(\.id))
         case .appleMusic:
-            // Not verified on a device yet (D1); callers treat these as guided.
-            throw PlaylistEditError.unsupported
+            // Only reached when the seam's capabilities allow it: playlists
+            // Antiphon created (D1). Others are guided.
+            try await appleMusicManager.removeTracks(tracks, from: try await appleMusicPlaylist(playlistId))
         }
     }
 

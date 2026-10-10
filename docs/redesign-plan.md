@@ -341,4 +341,10 @@ Deviations from the plan:
 - **Preview headline counts what's added now** ("35 tracks are added"), not the storyboard's 39, which included 3 close matches and 1 unavailable track that aren't added.
 - **One remaining warning**: `UIWindow()` is deprecated in iOS 26, in `SpotifyAuthManager`'s last-resort presentation anchor. Left alone because it's auth code.
 
-D1 spike result: MusicKit on iOS 16+ has `MusicLibrary.edit(_:name:description:authorDisplayName:items:)`, which replaces a playlist's items. That would make removing and reordering possible. Whether it works on playlists the app didn't create, and whether it keeps library entries intact, can only be checked against a real Apple Music library. Until then `PlatformCapabilities.current` keeps Apple Music removal and reordering guided.
+D1 result, verified on a device on 2026-10-10 with a separate test app (`com.kounex.antiphon.d1spike`) on a scratch playlist: `MusicLibrary.edit(_:items:)` **removes and reorders** tracks in a playlist Antiphon created. Playlists made elsewhere weren't tested, at your request. Capabilities are therefore per seam (`PlatformCapabilities.forSeam`):
+- **Apple Music playlists Antiphon created:** removal and reorder are direct. The engine now sets `appleMusicCreatedByAntiphon` / `spotifyCreatedByAntiphon` when it creates a playlist.
+- **All other Apple Music playlists:** guided, as agreed in D1.
+
+`edit(items:)` rewrites the whole playlist, so `PlaylistEntryEdit` refuses unless every entry was read (all pages) and the count matches the playlist's track count, and each removal takes out at most one entry. Reordering is built on the same call but has no caller until "Keep track order" lands.
+
+Cleanup for you: delete the "Antiphon test – delete me" playlist in Music, and the separate test app from Kounex iOS. Your installed Antiphon and its data were not touched.

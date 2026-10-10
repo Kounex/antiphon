@@ -26,8 +26,15 @@ struct PlatformCapabilities: Sendable, Equatable {
     static let spotifyOnly = PlatformCapabilities(appleMusicCanRemove: false, appleMusicCanReorder: false)
     static let full = PlatformCapabilities(appleMusicCanRemove: true, appleMusicCanReorder: true)
 
-    /// Current knowledge (D1): Apple Music playlist editing isn't verified yet.
+    /// Default when the seam isn't known: Apple Music edits stay guided.
     static let current = spotifyOnly
+
+    /// D1, verified on a device: `MusicLibrary.edit(_:items:)` removes and
+    /// reorders tracks in playlists Antiphon created. Playlists made elsewhere
+    /// weren't tested, so they stay guided.
+    static func forSeam(appleMusicCreatedByAntiphon: Bool) -> PlatformCapabilities {
+        appleMusicCreatedByAntiphon ? .full : .spotifyOnly
+    }
 
     func isGuided(_ kind: SyncOperation.Kind, on platform: Platform) -> Bool {
         guard platform == .appleMusic else { return false }

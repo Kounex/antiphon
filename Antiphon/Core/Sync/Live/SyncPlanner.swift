@@ -32,14 +32,15 @@ actor SyncPlanner {
     private let spotifyClient: SpotifyAPIClient
     private let appleMusicManager: AppleMusicManager
     private let confidence: ConfidencePolicy
-    private let capabilities: PlatformCapabilities
+    /// Overrides the per-seam capabilities (tests, previews).
+    private let capabilities: PlatformCapabilities?
 
     init(
         modelContainer: ModelContainer,
         spotifyClient: SpotifyAPIClient,
         appleMusicManager: AppleMusicManager,
         confidence: ConfidencePolicy,
-        capabilities: PlatformCapabilities = .current
+        capabilities: PlatformCapabilities? = nil
     ) {
         self.modelContainer = modelContainer
         self.spotifyClient = spotifyClient
@@ -87,7 +88,7 @@ actor SyncPlanner {
             confidence: confidence,
             rows: stageA.rows,
             outcomes: outcomes,
-            appleMusicCanRemove: capabilities.appleMusicCanRemove
+            appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove
         ))
 
         return PlannedSync(
@@ -101,13 +102,17 @@ actor SyncPlanner {
 
     /// Same fetches as the engine's Stage A. Playlists still waiting to be
     /// created count as empty.
-    private func fetchLiveTracks(pairId: UUID) async throws -> (spotify: [SpotifyPlaylistItem], appleMusic: [AppleMusicTrackInfo]) {
+    private func fetchLiveTracks(pairId: UUID) async throws -> LiveTracks {
         let context = ModelContext(modelContainer)
         guard let pair = try context.fetch(FetchDescriptor<SyncPair>(predicate: #Predicate { $0.id == pairId })).first else {
             throw DryRunStageA.Failure.pairNotFound
         }
         let spotifyId = pair.spotifyPlaylistId
         let appleId = pair.appleMusicPlaylistId
+        // A playlist Antiphon is about to create counts as Antiphon's.
+        let capabilities = PlatformCapabilities.forSeam(
+            appleMusicCreatedByAntiphon: pair.appleMusicCreatedByAntiphon || appleId.hasPrefix("pending-creation-")
+        )
 
         // Same local ISRC lookup the engine builds, so Apple Music tracks
         // already known to the cache don't need a catalog round trip.
@@ -123,12 +128,20 @@ actor SyncPlanner {
         let spotify = spotifyId.hasPrefix("pending-creation-")
             ? [] : try await spotifyClient.getPlaylistTracks(playlistId: spotifyId)
 
-        guard !appleId.hasPrefix("pending-creation-") else { return (spotify, []) }
+        guard !appleId.hasPrefix("pending-creation-") else {
+            return LiveTracks(spotify: spotify, appleMusic: [], capabilities: capabilities)
+        }
         let playlists = try await appleMusicManager.fetchUserPlaylists()
         guard let playlist = playlists.first(where: { $0.id.rawValue == appleId }) else {
             throw SyncError.appleMusicPlaylistNotFound
         }
         let appleMusic = try await appleMusicManager.fetchPlaylistTracks(for: playlist, localISRCLookup: lookup)
-        return (spotify, appleMusic)
+        return LiveTracks(spotify: spotify, appleMusic: appleMusic, capabilities: capabilities)
+    }
+
+    private struct LiveTracks {
+        let spotify: [SpotifyPlaylistItem]
+        let appleMusic: [AppleMusicTrackInfo]
+        let capabilities: PlatformCapabilities
     }
 }

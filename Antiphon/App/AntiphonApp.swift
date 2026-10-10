@@ -33,13 +33,11 @@ struct AntiphonApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
-                .environment(spotifyAuth)
-                .environment(syncCoordinator)
-                .preferredColorScheme(.dark)
+            rootView
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { oldPhase, newPhase in
+            guard !Self.isHostingTests else { return }
             switch newPhase {
             case .active:
                 NotificationManager.requestPermissionIfNeeded()
@@ -52,5 +50,12 @@ struct AntiphonApp: App {
                 break
             }
         }
+    }
+
+    private var rootView: some View {
+        DashboardView()
+            .environment(spotifyAuth)
+            .environment(syncCoordinator)
+            .preferredColorScheme(.dark)
     }
 }

@@ -267,6 +267,7 @@ actor SyncEngine {
                         description: "Synced from Spotify by Antiphon"
                     )
                     pair.appleMusicPlaylistId = newPlaylist.id.rawValue
+                    pair.appleMusicCreatedByAntiphon = true
                 }
                 
                 if pair.spotifyPlaylistId.hasPrefix("pending-creation-") {
@@ -275,6 +276,7 @@ actor SyncEngine {
                         description: "Synced from Apple Music by Antiphon"
                     )
                     pair.spotifyPlaylistId = newPlaylist.id
+                    pair.spotifyCreatedByAntiphon = true
                     pair.spotifySnapshotId = newPlaylist.snapshotId
                     pair.spotifyImageURL = newPlaylist.images?.first?.url
                 }
@@ -449,7 +451,8 @@ actor SyncEngine {
                 // Mirrored removals the plan showed (Spotify only until Apple
                 // Music editing is verified).
                 if let planned = run.planned {
-                    let removed = try await applyPlannedRemovals(planned.plan, pair: pair, cachedTracks: cachedTracks, run: run)
+                    let removed = try await applyPlannedRemovals(planned.plan, pair: pair, amPlaylist: amPlaylist,
+                                                                 cachedTracks: cachedTracks, run: run)
                     if !removed.isEmpty {
                         let removedIds = Set(removed.map(\.id))
                         cachedTracks.removeAll { removedIds.contains($0.id) }
@@ -997,31 +1000,46 @@ actor SyncEngine {
     }
     
     /// Removes the tracks a plan mirrored, if Stage A still flags them now.
+    /// Apple Music removals only appear here when the seam's playlist was
+    /// created by Antiphon (D1); others were planned as guided.
     /// Returns the cache rows whose tracks are gone from both playlists.
     private func applyPlannedRemovals(
         _ plan: SyncPlan,
         pair: SyncPair,
+        amPlaylist: Playlist,
         cachedTracks: [CachedTrack],
         run: RunContext
     ) async throws -> [CachedTrack] {
-        let planned = plan.side(.spotify).removals.filter { !$0.isGuided }
-        guard !planned.isEmpty else { return [] }
-        
         let stillFlagged = cachedTracks.filter { $0.removalFlag != nil && $0.removalKeptAt == nil }
-        let rowsByUri = Dictionary(stillFlagged.compactMap { row in row.spotifyTrackUri.map { ($0, row) } },
-                                   uniquingKeysWith: { first, _ in first })
-        let removals = planned.filter { rowsByUri[$0.track.id] != nil }
-        guard !removals.isEmpty else { return [] }
+        var removedRows: [CachedTrack] = []
         
-        try await spotifyClient.removeTracksFromPlaylist(
-            playlistId: pair.spotifyPlaylistId,
-            trackUris: removals.map(\.track.id)
-        )
-        for removal in removals {
-            run.changes.append(SyncChange(platform: .spotify, kind: .remove, track: removal.track))
+        for platform in [Platform.spotify, .appleMusic] {
+            let planned = plan.side(platform).removals.filter { !$0.isGuided }
+            guard !planned.isEmpty else { continue }
+            let rowsById = Dictionary(
+                stillFlagged.compactMap { row in
+                    (platform == .spotify ? row.spotifyTrackUri : row.appleMusicTrackId).map { ($0, row) }
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let removals = planned.filter { rowsById[$0.track.id] != nil }
+            guard !removals.isEmpty else { continue }
+            
+            if platform == .spotify {
+                try await spotifyClient.removeTracksFromPlaylist(
+                    playlistId: pair.spotifyPlaylistId,
+                    trackUris: removals.map(\.track.id)
+                )
+            } else {
+                try await appleMusicManager.removeTracks(removals.map(\.track), from: amPlaylist)
+            }
+            for removal in removals {
+                run.changes.append(SyncChange(platform: platform, kind: .remove, track: removal.track))
+            }
+            run.removedCount += removals.count
+            removedRows += removals.compactMap { rowsById[$0.track.id] }
         }
-        run.removedCount += removals.count
-        return removals.compactMap { rowsByUri[$0.track.id] }
+        return removedRows
     }
     
     // MARK: - Interruption Handling
