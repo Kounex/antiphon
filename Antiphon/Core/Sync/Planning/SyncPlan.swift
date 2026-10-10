@@ -71,6 +71,10 @@ struct SyncPlan: Sendable {
         let track: CatalogTrack
         let removedFrom: Platform
         let noticedAt: Date?
+        /// The track on the side that still has it.
+        var remaining: CatalogTrack? = nil
+        /// The track as it was identified on the side it was removed from.
+        var removed: CatalogTrack? = nil
     }
 
     func side(_ platform: Platform) -> Side {

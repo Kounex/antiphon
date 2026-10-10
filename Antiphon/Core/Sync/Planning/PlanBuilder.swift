@@ -121,7 +121,10 @@ enum PlanBuilder {
         case .keep:
             return
         case .ask:
-            conflicts.append(.init(key: row.key, track: row.source, removedFrom: removedFrom, noticedAt: row.removalFlaggedAt))
+            conflicts.append(.init(
+                key: row.key, track: row.source, removedFrom: removedFrom, noticedAt: row.removalFlaggedAt,
+                remaining: track(of: row, on: removedFrom.other), removed: track(of: row, on: removedFrom)
+            ))
         case .mirror:
             let removeOn = removedFrom.other
             guard let trackOnTarget = track(of: row, on: removeOn) else { return }

@@ -20,6 +20,7 @@
 		3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC832933336424869C9D99A /* ConfidenceScorer.swift */; };
 		4536A14BC6EA4DAC9BEA3A8D /* PlanCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD631A22591B730A3F18737 /* PlanCopyTests.swift */; };
 		474BBC1AAD2F606B792EE297 /* CachedTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F3404651655D7A5447EB77 /* CachedTrack.swift */; };
+		48B255EDE92E1BF9835AFEEE /* SyncOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6258FA0FE71955A953CCCD81 /* SyncOperation.swift */; };
 		548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */; };
 		5AD5F665F19D2FC00CEE5B77 /* ManualMatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */; };
 		62689AD5006A37E0C66CD20C /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA492BDD94443754A288AA8E /* AppColors.swift */; };
@@ -35,6 +36,7 @@
 		7F26ED7D10670AC6DC21E16E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5C2983154729E295C377B4 /* NotificationManager.swift */; };
 		8047434859B60B2ED06B14DC /* CatalogTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07320370C8D6024694B6BBD /* CatalogTrack.swift */; };
 		81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */; };
+		862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */; };
 		8B15F21895B495C9BCE5711A /* SpotifyTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E563142628174F1A6C834CF /* SpotifyTokenProvider.swift */; };
 		911B4280DBC64FA23372A249 /* AppFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC1603702ABCF6A475D6F6C /* AppFonts.swift */; };
 		92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47DB7CE3877470178AA994E /* VersionTag.swift */; };
@@ -49,10 +51,12 @@
 		A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2249E6518D74E9E3491CE6D /* PulsingDot.swift */; };
 		AA48A13236914FF423B08D85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D8018BF827715D0D31E7F59 /* Assets.xcassets */; };
 		B0A3A87472BF17D601D701B9 /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270653595B9E53D243FE15 /* Date+Extensions.swift */; };
+		B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */; };
 		B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */; };
 		B673CC4CBC1CE4CA318EC4FE /* BYOKGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AE870733060AFE99AF36B9 /* BYOKGuideView.swift */; };
 		B8BD57AC81645460C2CE9591 /* SyncProblem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66714CB337991AB0E13F3BCA /* SyncProblem.swift */; };
 		BA74C2BAB518A2D47AC3542E /* SpotifyAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */; };
+		BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */; };
 		C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */; };
 		C34D97E22F1F9C28A69EE4D0 /* AppStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */; };
 		C37CCD209F0537AA78AA08E9 /* AntiphonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4DA604959B36AE69F60434 /* AntiphonApp.swift */; };
@@ -67,6 +71,7 @@
 		DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */; };
 		DE57E4F270C13BF11D9CDF2B /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7308244F79C3986C69C48A5 /* String+Extensions.swift */; };
 		DECB4F964B607CDFA47658D9 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14B6C0679C89FC8B4007387 /* BackgroundTaskManager.swift */; };
+		E40C1C023C7E2401E070F816 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F355E49299CC28CD1A183F1E /* ConflictResolver.swift */; };
 		EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */; };
 		F1E396F72898712B6A78BEFC /* ConfirmLinkStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */; };
 		F26DA969C8CE7EBC27031241 /* SyncPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FA160B1B3DA6A3592D01DC /* SyncPair.swift */; };
@@ -98,6 +103,7 @@
 		37F8FBF68C2E348E5EADCDE0 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicyTests.swift; sourceTree = "<group>"; };
 		3929A08DC28B4A4A936BA809 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolverTests.swift; sourceTree = "<group>"; };
 		44FA160B1B3DA6A3592D01DC /* SyncPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPair.swift; sourceTree = "<group>"; };
 		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
@@ -105,11 +111,13 @@
 		5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetPlaylistStep.swift; sourceTree = "<group>"; };
 		5FC832933336424869C9D99A /* ConfidenceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidenceScorer.swift; sourceTree = "<group>"; };
 		60A3AD9FE96B71E8F3A377CA /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
+		6258FA0FE71955A953CCCD81 /* SyncOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncOperation.swift; sourceTree = "<group>"; };
 		644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAuthManager.swift; sourceTree = "<group>"; };
 		652E661E77A42F95F038ABBD /* SharedModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedModelContainer.swift; sourceTree = "<group>"; };
 		66714CB337991AB0E13F3BCA /* SyncProblem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProblem.swift; sourceTree = "<group>"; };
 		6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmLinkStep.swift; sourceTree = "<group>"; };
 		6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
+		77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoPlannerTests.swift; sourceTree = "<group>"; };
 		783AC2466C7B861B46004A94 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlaylistsIntent.swift; sourceTree = "<group>"; };
 		7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeltaEngine.swift; sourceTree = "<group>"; };
@@ -120,6 +128,7 @@
 		8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualMatchSheet.swift; sourceTree = "<group>"; };
 		90270653595B9E53D243FE15 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
 		90AE870733060AFE99AF36B9 /* BYOKGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BYOKGuideView.swift; sourceTree = "<group>"; };
+		997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoPlanner.swift; sourceTree = "<group>"; };
 		9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAPIClient.swift; sourceTree = "<group>"; };
 		9BA205BB6A5401C9E7BD36CE /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
 		9BC1603702ABCF6A475D6F6C /* AppFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFonts.swift; sourceTree = "<group>"; };
@@ -147,6 +156,7 @@
 		E8BC9147487C1DED6DA49EA2 /* SyncLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLog.swift; sourceTree = "<group>"; };
 		EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F29ED926CE54319E765566B5 /* SyncStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusIndicator.swift; sourceTree = "<group>"; };
+		F355E49299CC28CD1A183F1E /* ConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolver.swift; sourceTree = "<group>"; };
 		F3BE3E06AB4F730E040CA107 /* ConnectionCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionCards.swift; sourceTree = "<group>"; };
 		F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheAligner.swift; sourceTree = "<group>"; };
 		F47DB7CE3877470178AA994E /* VersionTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTag.swift; sourceTree = "<group>"; };
@@ -224,10 +234,12 @@
 			children = (
 				3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */,
 				B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */,
+				3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */,
 				21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */,
 				7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */,
 				DAD631A22591B730A3F18737 /* PlanCopyTests.swift */,
 				AF7E00E687EE41ABFCEDF986 /* SchemaMigrationTests.swift */,
+				77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */,
 				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
 				FC7978E6553415361166F294 /* Fixtures */,
 			);
@@ -274,10 +286,13 @@
 				C07320370C8D6024694B6BBD /* CatalogTrack.swift */,
 				12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */,
 				5FC832933336424869C9D99A /* ConfidenceScorer.swift */,
+				F355E49299CC28CD1A183F1E /* ConflictResolver.swift */,
 				CF989E9D0834914D57852A23 /* MatchFinder.swift */,
 				328E95FD8DB619F55B5CD210 /* PlanBuilder.swift */,
 				1C68001EE22B1D000F6E200B /* PlanCopy.swift */,
+				6258FA0FE71955A953CCCD81 /* SyncOperation.swift */,
 				22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */,
+				997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */,
 				F47DB7CE3877470178AA994E /* VersionTag.swift */,
 			);
 			path = Planning;
@@ -492,7 +507,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -534,11 +549,13 @@
 			files = (
 				DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */,
 				EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */,
+				B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */,
 				81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */,
 				548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */,
 				4536A14BC6EA4DAC9BEA3A8D /* PlanCopyTests.swift in Sources */,
 				738D6532F1B0D12BEFCE49E9 /* SchemaMigrationTests.swift in Sources */,
 				77C22D43944EF34227DA0C12 /* SchemaV1.swift in Sources */,
+				BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */,
 				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -561,6 +578,7 @@
 				B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */,
 				3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */,
 				F1E396F72898712B6A78BEFC /* ConfirmLinkStep.swift in Sources */,
+				E40C1C023C7E2401E070F816 /* ConflictResolver.swift in Sources */,
 				DAC478F127A84ECB29D8A50A /* ConnectionCards.swift in Sources */,
 				9E6C54B87172BE0A36B94B4F /* DashboardView.swift in Sources */,
 				B0A3A87472BF17D601D701B9 /* Date+Extensions.swift in Sources */,
@@ -592,6 +610,7 @@
 				6D8DD5353B6DAC8756659AD6 /* SyncCoordinator.swift in Sources */,
 				A0FC04A023D9B9C29B8D1CA7 /* SyncEngine.swift in Sources */,
 				2373E98A4E8D40BB9ABD6175 /* SyncLog.swift in Sources */,
+				48B255EDE92E1BF9835AFEEE /* SyncOperation.swift in Sources */,
 				F26DA969C8CE7EBC27031241 /* SyncPair.swift in Sources */,
 				FA995B60398FD6014B7BFBFD /* SyncPlan.swift in Sources */,
 				3B650BB91CF54466B3354592 /* SyncPlaylistsIntent.swift in Sources */,
@@ -601,6 +620,7 @@
 				3B1D7FF5109EB562927FEB28 /* TargetPlaylistStep.swift in Sources */,
 				CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */,
 				016AE988C2EA08BB5841B16D /* TrackMatcher.swift in Sources */,
+				862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */,
 				92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
