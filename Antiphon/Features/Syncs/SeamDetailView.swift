@@ -8,6 +8,8 @@ struct SeamDetailView: View {
     @State var model: SeamDetailModel
     @Binding var path: [SyncsRoute]
     let onSyncNow: (UUID) -> Void
+    var onReview: () -> Void = {}
+    var onOpenTrack: (SeamTrack) -> Void = { _ in }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -37,6 +39,7 @@ struct SeamDetailView: View {
                 ChipBar(model.chips, selection: $model.filter).plainRow()
                 Section {
                     ForEach(model.visibleTracks) { track in
+                        Button { onOpenTrack(track) } label: {
                         AntiphonDesign.TrackRow(
                             title: track.title,
                             detail: SeamPresentation.trackDetail(track),
@@ -46,6 +49,8 @@ struct SeamDetailView: View {
                             isNew: track.isNew
                         )
                         .accessibilityLabel("\(track.title), \(SeamPresentation.trackDetail(track)), from \(track.origin.rawValue)")
+                        }
+                        .buttonStyle(.plain)
                         .listRowBackground(Color.canvasRaised)
                     }
                 }
@@ -108,9 +113,7 @@ struct SeamDetailView: View {
     @ViewBuilder
     private func primary(_ seam: SeamSummary) -> some View {
         if seam.counts.review > 0 {
-            Button("Review \(PlanCopy.count(seam.counts.review, "track"))", systemImage: "questionmark.circle.fill") {
-                model.filter = .toReview
-            }
+            Button("Review \(PlanCopy.count(seam.counts.review, "track"))", systemImage: "questionmark.circle.fill", action: onReview)
             .buttonSizing(.flexible)
             .glassButton(.primary)
         } else {

@@ -21,7 +21,8 @@ extension CatalogTrack {
             album: song.albumTitle, durationMs: song.duration.map { Int($0 * 1000) }, isrc: song.isrc,
             isExplicit: song.contentRating.map { $0 == .explicit },
             releaseYear: song.releaseDate.map { Calendar.current.component(.year, from: $0) },
-            artworkURL: song.artwork?.url(width: 300, height: 300)?.absoluteString
+            artworkURL: song.artwork?.url(width: 300, height: 300)?.absoluteString,
+            previewURL: song.previewAssets?.first?.url?.absoluteString
         )
     }
 

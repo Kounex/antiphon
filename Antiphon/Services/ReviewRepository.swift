@@ -26,6 +26,8 @@ struct ConflictItem: Identifiable, Sendable {
     let remainingPlaylistName: String
     /// Apple Music removals work only on playlists Antiphon created (D1).
     var appleMusicCanRemove: Bool = false
+    /// The cache row, so a tapped track row can open its question.
+    var rowId: UUID? = nil
     var id: TrackKey { conflict.key }
 }
 
@@ -59,19 +61,20 @@ extension SwiftDataSeamRepository: ReviewRepository {
             let flagged = pair.cachedTracks
                 .filter { $0.removalFlag != nil && $0.removalKeptAt == nil }
                 .sorted { $0.addedAt < $1.addedAt }
-                .compactMap { $0.planRow(seamSource: seamSource) }
-            // The same rules a sync uses decide what's a question.
-            let plan = PlanBuilder.build(PlanInput(
-                pairId: pair.id, direction: pair.syncDirection, sourcePlatform: seamSource,
-                removalPolicy: pair.effectiveRemovalPolicy, confidence: ConfidencePolicy(),
-                rows: flagged, outcomes: [:], appleMusicCanRemove: false
-            ))
-            return plan.conflicts.map { conflict in
+            return flagged.compactMap { row -> ConflictItem? in
+                guard let planRow = row.planRow(seamSource: seamSource) else { return nil }
+                // The same rules a sync uses decide what's a question.
+                let plan = PlanBuilder.build(PlanInput(
+                    pairId: pair.id, direction: pair.syncDirection, sourcePlatform: seamSource,
+                    removalPolicy: pair.effectiveRemovalPolicy, confidence: ConfidencePolicy(),
+                    rows: [planRow], outcomes: [:], appleMusicCanRemove: false
+                ))
+                guard let conflict = plan.conflicts.first else { return nil }
                 let remaining = conflict.removedFrom.other
                 return ConflictItem(
                     seamId: pair.id, seamName: Self.name(of: pair), conflict: conflict,
                     remainingPlaylistName: remaining == .spotify ? pair.spotifyPlaylistName : pair.appleMusicPlaylistName,
-                    appleMusicCanRemove: pair.appleMusicCreatedByAntiphon
+                    appleMusicCanRemove: pair.appleMusicCreatedByAntiphon, rowId: row.id
                 )
             }
         }

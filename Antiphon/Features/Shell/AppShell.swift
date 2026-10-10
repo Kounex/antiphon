@@ -18,15 +18,8 @@ struct AppShell: View {
 
         TabView(selection: $model.selectedTab) {
             Tab(AntiphonTab.syncs.title, systemImage: AntiphonTab.syncs.symbol, value: AppShellModel.Tab.syncs) {
-                SyncsRoot(
-                    path: $model.syncsPath,
-                    repository: model.seamRepository,
-                    accounts: model.accounts,
-                    onAccount: { model.showsSettings = true },
-                    onNewSeam: { model.showsNewSeam = true },
-                    // Every sync starts from a preview.
-                    onSyncNow: { model.syncFlowSeamId = $0 }
-                )
+                // Every sync starts from a preview.
+                SyncsRoot(shell: model, onSyncNow: { model.syncFlowSeamId = $0 })
             }
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
 
@@ -66,6 +59,17 @@ struct AppShell: View {
             }
             .tint(.thread)
         }
+        .fullScreenCover(item: $model.reviewTarget, onDismiss: { Task { await model.refresh() } }) { target in
+            ReviewQueueView(model: model.makeReviewQueue(target), makeDetail: model.makeMatchDetail) {
+                model.reviewTarget = nil
+            }
+            .tint(.thread)
+        }
+        .sheet(item: $model.openConflict, onDismiss: { Task { await model.refresh() } }) { presentation in
+            ConflictSheet(model: ConflictModel(item: presentation.item, others: presentation.others, sync: model.sync)) {
+                model.openConflict = nil
+            }
+        }
         .sheet(isPresented: $model.showsSettings) {
             // Replaced by the new Settings in M8.
             SettingsView()
@@ -76,11 +80,13 @@ struct AppShell: View {
 }
 
 extension AppShell {
-    /// Opens a seam's close matches (the review queue arrives in M5).
+    /// Opens a seam's close matches in the review queue.
     func openSeam(_ seamId: UUID) {
         model.syncFlowSeamId = nil
+        model.showsNewSeam = false
         model.selectedTab = .syncs
         model.syncsPath = [.seam(seamId)]
+        model.reviewTarget = .init(seamId: seamId)
     }
 }
 

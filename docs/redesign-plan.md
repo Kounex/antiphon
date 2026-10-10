@@ -419,3 +419,17 @@ Found and fixed during the session:
 5. **Placeholder covers for Apple Music-sourced rows.** Library artwork is `musicKit://`; matched rows now adopt the other side's web cover. Existing rows fill in on their next sync.
 
 Observed, not a bug: Spotify adds are near-instant because they're batched (100 per request), while Apple Music only allows one song at a time for library playlists.
+
+### M5 Review queue, match detail, conflicts, problems: done (2026-10-11)
+
+- **Review queue** (5.01): full-screen card stack over the track's art; "1 of n" with Later; the card compares both versions (art, title, artist · year, length), shows the ConfidenceMeter and a plain-language difference ("Same artist and title, but a remastered release"); skip / pick another / add buttons; swipe right to add, left to skip; VoiceOver actions for all three; "All caught up" with a summary. Opened from the home banner (all seams), the seam's "Review n tracks", and the first-sync result.
+- **Match detail** (5.02): field-by-field comparison (title, artist, album, length, explicit, ISRC) with differences in review color; other versions with confidence and a manual Search of the other catalog; "Prefer remasters" saved as a standing rule the scorer uses; Skip track / Use remaster. Opened from "pick another" and by tapping a close-match row.
+- **Two-way conflict** (5.03): three outcomes, "Do the same for n other removals", and the button repeating the choice as a verb; it notes when a removal on Apple Music has to be done in the Music app. Opened by tapping a removed row.
+- **Problems** (5.04): sign-out card with the watched seams it pauses; deleted playlists with Fix; temporary problems with "Antiphon will retry at …". Sync failures are recorded as `SyncProblem`s (sign-outs once for all seams, the rest per seam) and resolved by the next good sync. The home shows a failed-tone banner when something needs fixing.
+- **Confidence bands on**: 60–89% matches now go to the review queue (90+ is still added automatically). Existing users get the same; the threshold stays adjustable (Settings in M8).
+- 187 tests green. Screenshots: all four screens in dark, review and match in light, and review, conflict and match at AX5 (match detail fixed to stack fields and move buttons inline).
+
+Differences left, and why:
+- **"Play both previews"** is "Play Apple Music preview" plus "Open in Spotify": Spotify doesn't give new apps previews (D6).
+- **Review cards** don't include conflicts; removals stay their own question, reached from the seam (and the home banner counts both).
+- **Problems** "Fix" for a deleted playlist opens the seam (its Rules let you unlink); re-creating the playlist automatically isn't built.

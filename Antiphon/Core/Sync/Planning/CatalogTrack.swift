@@ -17,6 +17,19 @@ struct CatalogTrack: Hashable, Sendable, Codable {
     var isExplicit: Bool? = nil
     var releaseYear: Int? = nil
     var artworkURL: String? = nil
+    /// A short audio preview (Apple Music catalog songs only).
+    var previewURL: String? = nil
+
+    /// A web link to the track on its platform, when one can be built.
+    var webURL: URL? {
+        switch platform {
+        case .spotify:
+            guard let id = id.split(separator: ":").last, id != Substring(self.id) else { return nil }
+            return URL(string: "https://open.spotify.com/track/\(id)")
+        case .appleMusic:
+            return nil
+        }
+    }
 }
 
 /// Why Antiphon thinks two tracks are the same recording, strongest first.

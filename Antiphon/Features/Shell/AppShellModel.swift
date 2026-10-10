@@ -68,14 +68,60 @@ final class AppShellModel {
     let accounts: AccountsService
     let sync: SyncService
     let library: LibraryService
+    let reviews: ReviewRepository
+    let problems: ProblemsRepository
+    let catalogSearch: CatalogSearchService
     /// The seam whose preview → sync flow is open.
     var syncFlowSeamId: UUID?
+    /// The open review queue: one seam, or every seam.
+    var reviewTarget: ReviewTarget?
+    /// The open two-way removal question.
+    var openConflict: ConflictPresentation?
+    private(set) var problemCount = 0
 
-    init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService) {
+    struct ReviewTarget: Identifiable, Hashable {
+        let seamId: UUID?
+        var id: String { seamId?.uuidString ?? "all" }
+    }
+
+    struct ConflictPresentation: Identifiable {
+        let item: ConflictItem
+        let others: [ConflictItem]
+        var id: TrackKey { item.id }
+    }
+
+    init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService,
+         reviews: ReviewRepository, problems: ProblemsRepository, catalogSearch: CatalogSearchService) {
         self.seamRepository = seams
         self.accounts = accounts
         self.sync = sync
         self.library = library
+        self.reviews = reviews
+        self.problems = problems
+        self.catalogSearch = catalogSearch
+    }
+
+    func makeReviewQueue(_ target: ReviewTarget) -> ReviewQueueModel {
+        ReviewQueueModel(seamId: target.seamId, reviews: reviews, sync: sync)
+    }
+
+    func makeMatchDetail(_ item: ReviewItem) -> MatchDetailModel {
+        MatchDetailModel(item: item, search: catalogSearch)
+    }
+
+    func makeProblems() -> ProblemsModel {
+        ProblemsModel(seams: seamRepository, problems: problems, accounts: accounts)
+    }
+
+    /// Opens the removal question for a row, with the seam's other removals.
+    func openConflict(rowId: UUID, seamId: UUID) async {
+        guard let all = try? await reviews.conflicts(seamId: seamId),
+              let item = all.first(where: { $0.rowId == rowId }) else { return }
+        openConflict = ConflictPresentation(item: item, others: all.filter { $0.rowId != rowId })
+    }
+
+    func reviewItem(rowId: UUID, seamId: UUID) async -> ReviewItem? {
+        try? await reviews.reviewItems(seamId: seamId).first { $0.id == rowId }
     }
 
     func makeSyncFlow(seamId: UUID) -> SyncFlowModel {
@@ -94,6 +140,9 @@ final class AppShellModel {
         guard let seams = try? await seamRepository.seams() else { return }
         self.seams = seams
         reviewCount = seams.reduce(0) { $0 + $1.counts.review }
+        let problemsModel = makeProblems()
+        await problemsModel.load()
+        problemCount = problemsModel.count
     }
 
     func runningSync(_ progress: [UUID: SyncProgress]) -> RunningSync? {

@@ -8,9 +8,11 @@ struct SyncsHomeView: View {
     let model: SyncsHomeModel
     @Binding var path: [SyncsRoute]
     let accountInitials: String?
+    let problemCount: Int
     let onAccount: () -> Void
     let onNewSeam: () -> Void
     let onSyncNow: (UUID) -> Void
+    let onReviewAll: () -> Void
 
     @Environment(SyncCoordinator.self) private var syncCoordinator
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -23,9 +25,19 @@ struct SyncsHomeView: View {
                 emptyState.plainRow()
             } else {
                 hero.plainRow()
+                if problemCount > 0 {
+                    Banner(tone: .failed, symbol: "exclamationmark.triangle.fill",
+                           title: problemCount == 1 ? "Something needs fixing" : "\(problemCount) things need fixing",
+                           message: "See what broke and what it affects.") {
+                        Button("Open") { path.append(.problems) }
+                            .buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                            .tint(.statusFailed).foregroundStyle(Color.canvas)
+                    }
+                    .plainRow()
+                }
                 if let banner = model.reviewBanner {
                     Banner(tone: .review, symbol: "questionmark.circle.fill", title: banner.title, message: banner.message) {
-                        Button("Review") { path.append(.seam(banner.firstSeamId)) }
+                        Button("Review", action: onReviewAll)
                             .buttonStyle(.borderedProminent)
                             .buttonBorderShape(.capsule)
                             .tint(.statusReview)

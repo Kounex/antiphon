@@ -58,8 +58,12 @@ struct DebugRouteView: View {
 
     @MainActor
     private static func shellModel(_ option: String?) -> AppShellModel {
-        let model = AppShellModel(seams: PreviewSeamRepository(), accounts: PreviewAccounts(),
-                                  sync: PreviewSyncService(), library: PreviewLibraryService())
+        let repository = PreviewSeamRepository()
+        let accounts = PreviewAccounts()
+        accounts.isSpotifyConnected = option != "problems"
+        let model = AppShellModel(seams: repository, accounts: accounts,
+                                  sync: PreviewSyncService(), library: PreviewLibraryService(),
+                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService())
         switch option {
         case "library": model.selectedTab = .library
         case "activity": model.selectedTab = .activity
@@ -69,6 +73,13 @@ struct DebugRouteView: View {
             model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
             DebugRoute.startScrolled = true
         case "rules": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id), .rules(PreviewFixtures.lateNightDrive.id)]
+        case "review": model.reviewTarget = .init(seamId: nil)
+        case "match":
+            model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id),
+                               .match(seamId: PreviewFixtures.lateNightDrive.id, rowId: PreviewFixtures.reviewItems[0].id)]
+        case "conflict":
+            model.openConflict = .init(item: PreviewFixtures.conflicts[0], others: [PreviewFixtures.conflicts[1]])
+        case "problems": model.syncsPath = [.problems]
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))

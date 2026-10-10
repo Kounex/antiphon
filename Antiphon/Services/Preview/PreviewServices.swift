@@ -83,6 +83,57 @@ enum PreviewFixtures {
     }
 }
 
+extension PreviewFixtures {
+    static let reviewItems: [ReviewItem] = {
+        func item(_ title: String, _ artist: String, candidate: String, confidence: Int, seconds: Int, year: Int) -> ReviewItem {
+            let source = CatalogTrack(platform: .spotify, id: "spotify:track:\(title)", title: title, artist: artist,
+                                      album: "Original album", durationMs: 243_000, isrc: "PRV\(title.count)", isExplicit: false, releaseYear: 2011)
+            let best = CatalogTrack(platform: .appleMusic, id: "am-\(title)", title: candidate, artist: artist,
+                                    album: "\(candidate) (\(year))", durationMs: seconds * 1000, isrc: "PRV\(title.count)9",
+                                    isExplicit: false, releaseYear: year)
+            let live = CatalogTrack(platform: .appleMusic, id: "am-live-\(title)", title: "\(title) (Live)", artist: artist,
+                                    album: "Live album", durationMs: 262_000, releaseYear: 2012)
+            return ReviewItem(id: UUID(), seamId: lateNightDrive.id, seamName: lateNightDrive.name,
+                              key: TrackKey(source), source: source,
+                              candidates: [MatchCandidate(track: best, confidence: confidence, reason: .versionDifference),
+                                           MatchCandidate(track: live, confidence: 41, reason: .versionDifference)])
+        }
+        return [
+            item("Midnight City", "M83", candidate: "Midnight City (Remaster)", confidence: 86, seconds: 244, year: 2018),
+            item("Pump It", "Black Eyed Peas", candidate: "Pump It (Radio Edit)", confidence: 84, seconds: 213, year: 2005),
+            item("Lose Yourself", "Eminem", candidate: "Lose Yourself (Clean)", confidence: 76, seconds: 326, year: 2002)
+        ]
+    }()
+
+    static let conflicts: [ConflictItem] = ["Holocene", "Towers"].map { title in
+        let spotify = CatalogTrack(platform: .spotify, id: "spotify:track:\(title)", title: title, artist: "Bon Iver", album: "Bon Iver, Bon Iver")
+        var apple = spotify
+        apple.platform = .appleMusic
+        apple.id = "i.\(title)"
+        return ConflictItem(
+            seamId: gardenSundays.id, seamName: gardenSundays.name,
+            conflict: SyncPlan.Conflict(key: TrackKey(spotify), track: spotify, removedFrom: .appleMusic,
+                                        noticedAt: Date().addingTimeInterval(-26 * 3600), remaining: spotify, removed: apple),
+            remainingPlaylistName: gardenSundays.name, appleMusicCanRemove: false, rowId: UUID()
+        )
+    }
+}
+
+extension PreviewSeamRepository: ReviewRepository, ProblemsRepository {
+    func reviewItems(seamId: UUID?) async throws -> [ReviewItem] {
+        PreviewFixtures.reviewItems.filter { seamId == nil || $0.seamId == seamId }
+    }
+    func conflicts(seamId: UUID?) async throws -> [ConflictItem] {
+        PreviewFixtures.conflicts.filter { seamId == nil || $0.seamId == seamId }
+    }
+    func problems() async throws -> [ProblemRecord] {
+        [ProblemRecord(id: UUID(), kind: .playlistDeleted, platform: .appleMusic, seamId: PreviewFixtures.vinylRips.id,
+                       message: "Vinyl Rips was deleted", firstSeenAt: Date().addingTimeInterval(-2 * 86_400), retryAt: nil),
+         ProblemRecord(id: UUID(), kind: .rateLimited, platform: .appleMusic, seamId: nil, message: "Apple Music is busy",
+                       firstSeenAt: Date(), retryAt: Date().addingTimeInterval(20 * 60))]
+    }
+}
+
 /// In-memory `SeamRepository` for previews.
 actor PreviewSeamRepository: SeamRepository {
     private var summaries: [SeamSummary]
