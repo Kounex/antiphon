@@ -32,7 +32,11 @@ targets:
           - "**/.DS_Store"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.kounex.antiphon
+        # Override ANTIPHON_BUNDLE_ID (not PRODUCT_BUNDLE_IDENTIFIER) for side-by-side
+        # dev installs: a command-line PRODUCT_BUNDLE_IDENTIFIER also renames the
+        # AntiphonDesign resource bundle, and its colors stop resolving.
+        ANTIPHON_BUNDLE_ID: com.kounex.antiphon
+        PRODUCT_BUNDLE_IDENTIFIER: $(ANTIPHON_BUNDLE_ID)
         DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_KEY_CFBundleDisplayName: Antiphon

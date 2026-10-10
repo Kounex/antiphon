@@ -889,6 +889,7 @@
 		0C54C1AC49D802D6F21E89FD /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -908,7 +909,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kounex.antiphon;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ANTIPHON_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -938,6 +939,7 @@
 		46A98AEC19FB3436CF50BA66 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -957,7 +959,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kounex.antiphon;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ANTIPHON_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_STRICT_CONCURRENCY = complete;
