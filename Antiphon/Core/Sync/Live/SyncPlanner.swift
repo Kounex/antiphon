@@ -32,6 +32,7 @@ actor SyncPlanner {
     private let spotifyClient: SpotifyAPIClient
     private let appleMusicManager: AppleMusicManager
     private let confidence: ConfidencePolicy
+    private let versionPreferences: VersionPreferences
     /// Overrides the per-seam capabilities (tests, previews).
     private let capabilities: PlatformCapabilities?
 
@@ -40,8 +41,10 @@ actor SyncPlanner {
         spotifyClient: SpotifyAPIClient,
         appleMusicManager: AppleMusicManager,
         confidence: ConfidencePolicy,
+        versionPreferences: VersionPreferences = .standard,
         capabilities: PlatformCapabilities? = nil
     ) {
+        self.versionPreferences = versionPreferences
         self.modelContainer = modelContainer
         self.spotifyClient = spotifyClient
         self.appleMusicManager = appleMusicManager
@@ -77,8 +80,8 @@ actor SyncPlanner {
             await progress?(index, toMatch.count)
             do {
                 let outcome = row.source.platform == .spotify
-                    ? try await MatchFinder.find(row.source, in: appleCatalog, targetPlaylist: applePlaylist)
-                    : try await MatchFinder.find(row.source, in: spotifyCatalog, targetPlaylist: spotifyPlaylist)
+                    ? try await MatchFinder.find(row.source, in: appleCatalog, targetPlaylist: applePlaylist, preferences: versionPreferences)
+                    : try await MatchFinder.find(row.source, in: spotifyCatalog, targetPlaylist: spotifyPlaylist, preferences: versionPreferences)
                 outcomes[row.key] = outcome
                 #if DEBUG
                 let candidates = ([outcome.best].compactMap { $0 } + outcome.alternatives)

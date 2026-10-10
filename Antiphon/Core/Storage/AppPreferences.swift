@@ -18,6 +18,7 @@ final class AppPreferences: @unchecked Sendable {
     private enum Key {
         static let autoAddThreshold = "autoAddThreshold"
         static let reviewQueueEnabled = "reviewQueueEnabled"
+        static let acceptRemasters = "acceptRemasters"
         static let newSeamRemovalPolicy = "newSeamRemovalPolicy"
         static let newSeamMonitoring = "newSeamMonitoring"
         static let monitorIntervalMinutes = "monitorIntervalMinutes"
@@ -34,11 +35,21 @@ final class AppPreferences: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.autoAddThreshold) }
     }
 
-    /// Off until the review queue ships (D7b). While off, matches from 60%
+    /// On since the review queue shipped (M5). While off, matches from 60%
     /// up are added automatically, exactly as before the redesign.
     var reviewQueueEnabled: Bool {
-        get { defaults.bool(forKey: Key.reviewQueueEnabled) }
+        get { defaults.object(forKey: Key.reviewQueueEnabled) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.reviewQueueEnabled) }
+    }
+
+    /// "Prefer remasters" from a track's match detail.
+    var acceptRemasters: Bool {
+        get { defaults.bool(forKey: Key.acceptRemasters) }
+        set { defaults.set(newValue, forKey: Key.acceptRemasters) }
+    }
+
+    var versionPreferences: VersionPreferences {
+        VersionPreferences(acceptRemasters: acceptRemasters)
     }
 
     var confidencePolicy: ConfidencePolicy {

@@ -21,8 +21,13 @@ enum MatchFinder {
     static func find(
         _ source: CatalogTrack,
         in catalog: some TrackCatalog,
-        targetPlaylist: [CatalogTrack]
+        targetPlaylist: [CatalogTrack],
+        preferences: VersionPreferences = .standard
     ) async throws -> MatchOutcome {
+        func candidate(_ source: CatalogTrack, _ track: CatalogTrack) -> MatchCandidate {
+            Self.candidate(source, track, preferences: preferences)
+        }
+
         var found: [CatalogTrack] = []
 
         if let isrc = source.isrc, !isrc.isEmpty, !isrc.hasPrefix("local-") {
@@ -84,8 +89,8 @@ enum MatchFinder {
         return score.reason == .isrc || (score.reason == .titleArtistDuration && score.confidence >= 90)
     }
 
-    private static func candidate(_ source: CatalogTrack, _ track: CatalogTrack) -> MatchCandidate {
-        let score = ConfidenceScorer.score(source: source, candidate: track)
+    private static func candidate(_ source: CatalogTrack, _ track: CatalogTrack, preferences: VersionPreferences) -> MatchCandidate {
+        let score = ConfidenceScorer.score(source: source, candidate: track, preferences: preferences)
         return MatchCandidate(track: track, confidence: score.confidence, reason: score.reason)
     }
 }

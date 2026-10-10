@@ -30,7 +30,7 @@ struct LiveSyncService: SyncService {
         let planner = SyncPlanner(
             modelContainer: modelContainer, spotifyClient: SpotifyAPIClient(),
             appleMusicManager: AppleMusicManager(), confidence: preferences.confidencePolicy,
-            capabilities: capabilities
+            versionPreferences: preferences.versionPreferences, capabilities: capabilities
         )
         return try await planner.plan(pairId: seamId, action: isFirstSync ? .initialSync : .manualSync, progress: progress)
     }

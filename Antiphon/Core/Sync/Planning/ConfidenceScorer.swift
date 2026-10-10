@@ -6,9 +6,17 @@ import Foundation
 /// points for partial title or artist matches, a duration more than 2 s off,
 /// an explicit/clean mismatch, and each kind of version difference (remaster,
 /// live, remix…). Bands are applied separately by `ConfidencePolicy`.
+/// Standing rules the person set ("Prefer remasters").
+struct VersionPreferences: Equatable, Sendable {
+    /// Treat a remaster as the same recording as the original.
+    var acceptRemasters = false
+
+    static let standard = VersionPreferences()
+}
+
 enum ConfidenceScorer {
 
-    static func score(source: CatalogTrack, candidate: CatalogTrack) -> MatchScore {
+    static func score(source: CatalogTrack, candidate: CatalogTrack, preferences: VersionPreferences = .standard) -> MatchScore {
         if let a = realISRC(source.isrc), let b = realISRC(candidate.isrc), a == b {
             return MatchScore(confidence: 100, reason: .isrc)
         }
@@ -45,7 +53,8 @@ enum ConfidenceScorer {
             isVersionDifference = true
         }
 
-        let differingKinds = Set(sourceTitle.tags.symmetricDifference(candidateTitle.tags).map(Kind.init))
+        var differingKinds = Set(sourceTitle.tags.symmetricDifference(candidateTitle.tags).map(Kind.init))
+        if preferences.acceptRemasters { differingKinds.remove(.remaster) }
         if !differingKinds.isEmpty {
             confidence -= differingKinds.reduce(0) { $0 + $1.penalty }
             isVersionDifference = true
