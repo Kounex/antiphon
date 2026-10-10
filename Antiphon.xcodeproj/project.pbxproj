@@ -60,6 +60,7 @@
 		A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2249E6518D74E9E3491CE6D /* PulsingDot.swift */; };
 		AA48A13236914FF423B08D85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D8018BF827715D0D31E7F59 /* Assets.xcassets */; };
 		B0A3A87472BF17D601D701B9 /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270653595B9E53D243FE15 /* Date+Extensions.swift */; };
+		B12C1741CBDCDCDFA6692FEF /* AntiphonDesign in Frameworks */ = {isa = PBXBuildFile; productRef = BC543D8617A8CB7E66A5FFBF /* AntiphonDesign */; };
 		B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */; };
 		B44377775CE115EE6AEFE6B5 /* AppleMusicEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D53D13097A21C7D4F4D2374 /* AppleMusicEditTests.swift */; };
 		B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */; };
@@ -81,6 +82,7 @@
 		D78A1F182316CFE52A2F6D88 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */; };
 		DA5C09288CC930214AACD42C /* MatchFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF989E9D0834914D57852A23 /* MatchFinder.swift */; };
 		DAC478F127A84ECB29D8A50A /* ConnectionCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BE3E06AB4F730E040CA107 /* ConnectionCards.swift */; };
+		DACCD72D3DDFE64218BD1F1F /* AntiphonDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 003C774C286BFE9FC96F6C72 /* AntiphonDesign */; };
 		DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */; };
 		DE57E4F270C13BF11D9CDF2B /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7308244F79C3986C69C48A5 /* String+Extensions.swift */; };
 		DECB4F964B607CDFA47658D9 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14B6C0679C89FC8B4007387 /* BackgroundTaskManager.swift */; };
@@ -93,6 +95,7 @@
 		F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291636D886E30D528329E146 /* SeamValues.swift */; };
 		F34175A2334B7EF41B5409AE /* OperationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75340A5AC68EB42570B931B2 /* OperationRunner.swift */; };
 		F5847AB37BEF40D8D5620A80 /* AppPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4987EAE27BB0FCACD3F2C72F /* AppPreferencesTests.swift */; };
+		F60A528030762805709F8651 /* DesignComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773B87050646909E8EFEC9C6 /* DesignComponentTests.swift */; };
 		FA995B60398FD6014B7BFBFD /* SyncPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */; };
 		FB6CEF5154BB2C4550C50E3C /* CatalogAdapters.swift in Sources */ = {isa = PBXBuildFile; fileRef = D339CB7E6B12990033C6C83B /* CatalogAdapters.swift */; };
 /* End PBXBuildFile section */
@@ -148,6 +151,7 @@
 		6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmLinkStep.swift; sourceTree = "<group>"; };
 		6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
 		75340A5AC68EB42570B931B2 /* OperationRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationRunner.swift; sourceTree = "<group>"; };
+		773B87050646909E8EFEC9C6 /* DesignComponentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignComponentTests.swift; sourceTree = "<group>"; };
 		77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoPlannerTests.swift; sourceTree = "<group>"; };
 		783AC2466C7B861B46004A94 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlaylistsIntent.swift; sourceTree = "<group>"; };
@@ -199,8 +203,28 @@
 		F47DB7CE3877470178AA994E /* VersionTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTag.swift; sourceTree = "<group>"; };
 		FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStyles.swift; sourceTree = "<group>"; };
 		FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageATests.swift; sourceTree = "<group>"; };
+		FD7D726A61158FC00C54F4C6 /* AntiphonDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AntiphonDesign; path = Packages/AntiphonDesign; sourceTree = SOURCE_ROOT; };
 		FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4413BF46C4AE4732123B117E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B12C1741CBDCDCDFA6692FEF /* AntiphonDesign in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6AD7AA22AEE562085669A16F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DACCD72D3DDFE64218BD1F1F /* AntiphonDesign in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0B3CF8E6B85CCB7A9EB972D8 /* Features */ = {
@@ -286,6 +310,7 @@
 				3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */,
 				B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */,
 				3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */,
+				773B87050646909E8EFEC9C6 /* DesignComponentTests.swift */,
 				FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */,
 				21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */,
 				7E7443C3623F7B45E9A17B27 /* OperationRunnerTests.swift */,
@@ -314,6 +339,7 @@
 			isa = PBXGroup;
 			children = (
 				83CB5F7EE232FB0F5042B431 /* Antiphon */,
+				AA7A4AAA7E3EA40ED891D449 /* Packages */,
 				5A46916FF2F79E8BC3D3D2F0 /* Tests */,
 				31BAC7EEACF65DCBDAD4CD97 /* Products */,
 			);
@@ -468,6 +494,14 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		AA7A4AAA7E3EA40ED891D449 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				FD7D726A61158FC00C54F4C6 /* AntiphonDesign */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
 		AC76ADAE2E31C6E6C1F60B3F /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
@@ -541,6 +575,7 @@
 			buildConfigurationList = 504D061C37A47D6EC1C58BE7 /* Build configuration list for PBXNativeTarget "AntiphonTests" */;
 			buildPhases = (
 				AFF54099F429BB4857D526A8 /* Sources */,
+				4413BF46C4AE4732123B117E /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -549,6 +584,7 @@
 			);
 			name = AntiphonTests;
 			packageProductDependencies = (
+				BC543D8617A8CB7E66A5FFBF /* AntiphonDesign */,
 			);
 			productName = AntiphonTests;
 			productReference = E60E3F532588828E69E64D65 /* AntiphonTests.xctest */;
@@ -560,6 +596,7 @@
 			buildPhases = (
 				DD443268A8BFF0617A03B8BE /* Sources */,
 				C0EFA19A7323E173DDB7FD79 /* Resources */,
+				6AD7AA22AEE562085669A16F /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -567,6 +604,7 @@
 			);
 			name = Antiphon;
 			packageProductDependencies = (
+				003C774C286BFE9FC96F6C72 /* AntiphonDesign */,
 			);
 			productName = Antiphon;
 			productReference = 453FEEF1C0450C8067712B3B /* Antiphon.app */;
@@ -588,7 +626,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -601,6 +639,9 @@
 			);
 			mainGroup = 55C7827FA2DD4D7FA6FF3C89;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D2C5F4A763E4356A5D6CF137 /* XCLocalSwiftPackageReference "Packages/AntiphonDesign" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 31BAC7EEACF65DCBDAD4CD97 /* Products */;
 			projectDirPath = "";
@@ -634,6 +675,7 @@
 				DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */,
 				EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */,
 				B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */,
+				F60A528030762805709F8651 /* DesignComponentTests.swift in Sources */,
 				7F2FB1B6284EA521EC2DDDF5 /* DryRunStageATests.swift in Sources */,
 				81570096ACC4E7F573C684BA /* MatchFinderTests.swift in Sources */,
 				09EB98FCF1BAA7181E879C78 /* OperationRunnerTests.swift in Sources */,
@@ -994,6 +1036,24 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		D2C5F4A763E4356A5D6CF137 /* XCLocalSwiftPackageReference "Packages/AntiphonDesign" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/AntiphonDesign;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		003C774C286BFE9FC96F6C72 /* AntiphonDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AntiphonDesign;
+		};
+		BC543D8617A8CB7E66A5FFBF /* AntiphonDesign */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AntiphonDesign;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3D3D39326DA63C43D1CC688E /* Project object */;
 }
