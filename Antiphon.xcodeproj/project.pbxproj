@@ -16,6 +16,7 @@
 		365A4A2F7D195C80A78F646D /* AppleMusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */; };
 		3B1D7FF5109EB562927FEB28 /* TargetPlaylistStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */; };
 		3B650BB91CF54466B3354592 /* SyncPlaylistsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */; };
+		3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC832933336424869C9D99A /* ConfidenceScorer.swift */; };
 		474BBC1AAD2F606B792EE297 /* CachedTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F3404651655D7A5447EB77 /* CachedTrack.swift */; };
 		5AD5F665F19D2FC00CEE5B77 /* ManualMatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */; };
 		62689AD5006A37E0C66CD20C /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA492BDD94443754A288AA8E /* AppColors.swift */; };
@@ -26,8 +27,11 @@
 		7ACD3F63BAC40DA1383ECFE9 /* LinkWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B181E66EAAA52E3FFBDAAFA3 /* LinkWizardView.swift */; };
 		7BF8FE73CCD309CD0BDECA7E /* SpotifyAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */; };
 		7F26ED7D10670AC6DC21E16E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5C2983154729E295C377B4 /* NotificationManager.swift */; };
+		8047434859B60B2ED06B14DC /* CatalogTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C07320370C8D6024694B6BBD /* CatalogTrack.swift */; };
 		8B15F21895B495C9BCE5711A /* SpotifyTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E563142628174F1A6C834CF /* SpotifyTokenProvider.swift */; };
 		911B4280DBC64FA23372A249 /* AppFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC1603702ABCF6A475D6F6C /* AppFonts.swift */; };
+		92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47DB7CE3877470178AA994E /* VersionTag.swift */; };
+		9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006B0451A9774141C73C2102 /* VersionTagTests.swift */; };
 		997D241E5D4EBD9F534E22A5 /* PlatformBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDF4FF41058D8B34C54A917 /* PlatformBadge.swift */; };
 		9E6C54B87172BE0A36B94B4F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D75CF7AEBFF6531D6F7F46B /* DashboardView.swift */; };
 		A0FC04A023D9B9C29B8D1CA7 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9B25DC54871EE65CB43951 /* SyncEngine.swift */; };
@@ -37,35 +41,54 @@
 		A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2249E6518D74E9E3491CE6D /* PulsingDot.swift */; };
 		AA48A13236914FF423B08D85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8D8018BF827715D0D31E7F59 /* Assets.xcassets */; };
 		B0A3A87472BF17D601D701B9 /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90270653595B9E53D243FE15 /* Date+Extensions.swift */; };
+		B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */; };
 		B673CC4CBC1CE4CA318EC4FE /* BYOKGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AE870733060AFE99AF36B9 /* BYOKGuideView.swift */; };
 		BA74C2BAB518A2D47AC3542E /* SpotifyAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */; };
 		C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */; };
 		C34D97E22F1F9C28A69EE4D0 /* AppStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */; };
 		C37CCD209F0537AA78AA08E9 /* AntiphonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4DA604959B36AE69F60434 /* AntiphonApp.swift */; };
+		C8B3B69A6426DE341C5766AC /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3929A08DC28B4A4A936BA809 /* Platform.swift */; };
 		CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */; };
 		CAE76EC2C367EA6D1C5F7800 /* PlaylistCachePruner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25DC6D5E3523C58922E58C6 /* PlaylistCachePruner.swift */; };
 		CE7D493CDCE3B53ADDE2803F /* PlatformPickerStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA521ECBABD5A4E3EF4549BE /* PlatformPickerStep.swift */; };
 		D5BED70AA85F2997B78D8516 /* CacheAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */; };
 		D78A1F182316CFE52A2F6D88 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */; };
 		DAC478F127A84ECB29D8A50A /* ConnectionCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BE3E06AB4F730E040CA107 /* ConnectionCards.swift */; };
+		DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */; };
 		DE57E4F270C13BF11D9CDF2B /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7308244F79C3986C69C48A5 /* String+Extensions.swift */; };
 		DECB4F964B607CDFA47658D9 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14B6C0679C89FC8B4007387 /* BackgroundTaskManager.swift */; };
+		EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */; };
 		F1E396F72898712B6A78BEFC /* ConfirmLinkStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */; };
 		F26DA969C8CE7EBC27031241 /* SyncPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FA160B1B3DA6A3592D01DC /* SyncPair.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		2ABFCEC599D97CF9E644A3CE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3D3D39326DA63C43D1CC688E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EA8C6988C8C873B417A7B008;
+			remoteInfo = Antiphon;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		006B0451A9774141C73C2102 /* VersionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTagTests.swift; sourceTree = "<group>"; };
 		0E5C2983154729E295C377B4 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicy.swift; sourceTree = "<group>"; };
 		1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyEndpoints.swift; sourceTree = "<group>"; };
 		1F9E5378BE7D55B1A4A7FAF0 /* SpotifyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyModels.swift; sourceTree = "<group>"; };
 		23F3404651655D7A5447EB77 /* CachedTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedTrack.swift; sourceTree = "<group>"; };
 		24BF0F41B9859583635C70A7 /* InspectorTabViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorTabViews.swift; sourceTree = "<group>"; };
 		37F8FBF68C2E348E5EADCDE0 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
+		3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicyTests.swift; sourceTree = "<group>"; };
+		3929A08DC28B4A4A936BA809 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
 		44FA160B1B3DA6A3592D01DC /* SyncPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPair.swift; sourceTree = "<group>"; };
 		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
 		5A4DA604959B36AE69F60434 /* AntiphonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiphonApp.swift; sourceTree = "<group>"; };
 		5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetPlaylistStep.swift; sourceTree = "<group>"; };
+		5FC832933336424869C9D99A /* ConfidenceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidenceScorer.swift; sourceTree = "<group>"; };
 		60A3AD9FE96B71E8F3A377CA /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
 		644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAuthManager.swift; sourceTree = "<group>"; };
 		652E661E77A42F95F038ABBD /* SharedModelContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedModelContainer.swift; sourceTree = "<group>"; };
@@ -89,18 +112,22 @@
 		B25DC6D5E3523C58922E58C6 /* PlaylistCachePruner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCachePruner.swift; sourceTree = "<group>"; };
 		B2F38004660D6053523AD713 /* PlaylistPickerStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistPickerStep.swift; sourceTree = "<group>"; };
 		B44555A4D1FC05272BC09979 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
+		B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidenceScorerTests.swift; sourceTree = "<group>"; };
 		B7308244F79C3986C69C48A5 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		B8179D0F4C44585EC041B8F8 /* TrackMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMatcher.swift; sourceTree = "<group>"; };
 		BA492BDD94443754A288AA8E /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		BA521ECBABD5A4E3EF4549BE /* PlatformPickerStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformPickerStep.swift; sourceTree = "<group>"; };
+		C07320370C8D6024694B6BBD /* CatalogTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogTrack.swift; sourceTree = "<group>"; };
 		D34108F79E2F83236C431CA9 /* PlaylistInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistInspectorView.swift; sourceTree = "<group>"; };
 		DA9B25DC54871EE65CB43951 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		DCD0ED0D277361A17FFD1592 /* Antiphon.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Antiphon.entitlements; sourceTree = "<group>"; };
+		E60E3F532588828E69E64D65 /* AntiphonTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AntiphonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E8BC9147487C1DED6DA49EA2 /* SyncLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLog.swift; sourceTree = "<group>"; };
 		EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F29ED926CE54319E765566B5 /* SyncStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusIndicator.swift; sourceTree = "<group>"; };
 		F3BE3E06AB4F730E040CA107 /* ConnectionCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionCards.swift; sourceTree = "<group>"; };
 		F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheAligner.swift; sourceTree = "<group>"; };
+		F47DB7CE3877470178AA994E /* VersionTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTag.swift; sourceTree = "<group>"; };
 		FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStyles.swift; sourceTree = "<group>"; };
 		FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -120,6 +147,7 @@
 		0D20E7DA37194B50DEE629C0 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				3929A08DC28B4A4A936BA809 /* Platform.swift */,
 				4C731D65061A60CD54D9B115 /* Background */,
 				BD0C943C340D242D3BA330C0 /* Extensions */,
 				9E26CD42F40BA4F95876AF52 /* Networking */,
@@ -164,8 +192,19 @@
 			isa = PBXGroup;
 			children = (
 				453FEEF1C0450C8067712B3B /* Antiphon.app */,
+				E60E3F532588828E69E64D65 /* AntiphonTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		440FA78B7C8B5333ABB26675 /* AntiphonTests */ = {
+			isa = PBXGroup;
+			children = (
+				3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */,
+				B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */,
+				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
+			);
+			path = AntiphonTests;
 			sourceTree = "<group>";
 		};
 		4C731D65061A60CD54D9B115 /* Background */ = {
@@ -181,8 +220,17 @@
 			isa = PBXGroup;
 			children = (
 				83CB5F7EE232FB0F5042B431 /* Antiphon */,
+				5A46916FF2F79E8BC3D3D2F0 /* Tests */,
 				31BAC7EEACF65DCBDAD4CD97 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		5A46916FF2F79E8BC3D3D2F0 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				440FA78B7C8B5333ABB26675 /* AntiphonTests */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		5DBBEAED6EBB59869B35BCC4 /* AppleMusic */ = {
@@ -191,6 +239,17 @@
 				FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */,
 			);
 			path = AppleMusic;
+			sourceTree = "<group>";
+		};
+		630D2B4DBEE0123F41237D5A /* Planning */ = {
+			isa = PBXGroup;
+			children = (
+				C07320370C8D6024694B6BBD /* CatalogTrack.swift */,
+				12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */,
+				5FC832933336424869C9D99A /* ConfidenceScorer.swift */,
+				F47DB7CE3877470178AA994E /* VersionTag.swift */,
+			);
+			path = Planning;
 			sourceTree = "<group>";
 		};
 		83CB5F7EE232FB0F5042B431 /* Antiphon */ = {
@@ -248,6 +307,7 @@
 				DA9B25DC54871EE65CB43951 /* SyncEngine.swift */,
 				53FC25BE39A53A258D51EC28 /* SyncResult.swift */,
 				B8179D0F4C44585EC041B8F8 /* TrackMatcher.swift */,
+				630D2B4DBEE0123F41237D5A /* Planning */,
 			);
 			path = Sync;
 			sourceTree = "<group>";
@@ -339,6 +399,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		871CCB658F424BD0EC52F719 /* AntiphonTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 504D061C37A47D6EC1C58BE7 /* Build configuration list for PBXNativeTarget "AntiphonTests" */;
+			buildPhases = (
+				AFF54099F429BB4857D526A8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2BB0A164C4A88E653D21C908 /* PBXTargetDependency */,
+			);
+			name = AntiphonTests;
+			packageProductDependencies = (
+			);
+			productName = AntiphonTests;
+			productReference = E60E3F532588828E69E64D65 /* AntiphonTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		EA8C6988C8C873B417A7B008 /* Antiphon */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7AE8D7DAE081DEA9C0DABCD4 /* Build configuration list for PBXNativeTarget "Antiphon" */;
@@ -364,12 +442,16 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					871CCB658F424BD0EC52F719 = {
+						DevelopmentTeam = 2CCV4GWY52;
+						ProvisioningStyle = Automatic;
+					};
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -388,6 +470,7 @@
 			projectRoot = "";
 			targets = (
 				EA8C6988C8C873B417A7B008 /* Antiphon */,
+				871CCB658F424BD0EC52F719 /* AntiphonTests */,
 			);
 		};
 /* End PBXProject section */
@@ -404,6 +487,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AFF54099F429BB4857D526A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */,
+				EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */,
+				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DD443268A8BFF0617A03B8BE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -418,6 +511,9 @@
 				DECB4F964B607CDFA47658D9 /* BackgroundTaskManager.swift in Sources */,
 				D5BED70AA85F2997B78D8516 /* CacheAligner.swift in Sources */,
 				474BBC1AAD2F606B792EE297 /* CachedTrack.swift in Sources */,
+				8047434859B60B2ED06B14DC /* CatalogTrack.swift in Sources */,
+				B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */,
+				3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */,
 				F1E396F72898712B6A78BEFC /* ConfirmLinkStep.swift in Sources */,
 				DAC478F127A84ECB29D8A50A /* ConnectionCards.swift in Sources */,
 				9E6C54B87172BE0A36B94B4F /* DashboardView.swift in Sources */,
@@ -428,6 +524,7 @@
 				7ACD3F63BAC40DA1383ECFE9 /* LinkWizardView.swift in Sources */,
 				5AD5F665F19D2FC00CEE5B77 /* ManualMatchSheet.swift in Sources */,
 				7F26ED7D10670AC6DC21E16E /* NotificationManager.swift in Sources */,
+				C8B3B69A6426DE341C5766AC /* Platform.swift in Sources */,
 				997D241E5D4EBD9F534E22A5 /* PlatformBadge.swift in Sources */,
 				CE7D493CDCE3B53ADDE2803F /* PlatformPickerStep.swift in Sources */,
 				CAE76EC2C367EA6D1C5F7800 /* PlaylistCachePruner.swift in Sources */,
@@ -452,10 +549,19 @@
 				3B1D7FF5109EB562927FEB28 /* TargetPlaylistStep.swift in Sources */,
 				CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */,
 				016AE988C2EA08BB5841B16D /* TrackMatcher.swift in Sources */,
+				92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2BB0A164C4A88E653D21C908 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EA8C6988C8C873B417A7B008 /* Antiphon */;
+			targetProxy = 2ABFCEC599D97CF9E644A3CE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0C54C1AC49D802D6F21E89FD /* Release */ = {
@@ -475,7 +581,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -485,6 +591,25 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		342733F0DAA18A88F261BDF0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kounex.antiphon.tests;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Antiphon.app/Antiphon";
 			};
 			name = Release;
 		};
@@ -505,7 +630,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -573,7 +698,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.2.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -583,6 +708,25 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A7633E8BB7FF952EDDFA101F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kounex.antiphon.tests;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Antiphon.app/Antiphon";
 			};
 			name = Debug;
 		};
@@ -635,7 +779,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.2.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -650,6 +794,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		504D061C37A47D6EC1C58BE7 /* Build configuration list for PBXNativeTarget "AntiphonTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7633E8BB7FF952EDDFA101F /* Debug */,
+				342733F0DAA18A88F261BDF0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		7AE8D7DAE081DEA9C0DABCD4 /* Build configuration list for PBXNativeTarget "Antiphon" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

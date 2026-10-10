@@ -2,8 +2,8 @@ name: Antiphon
 options:
   bundleIdPrefix: com.kounex
   deploymentTarget:
-    iOS: "17.0"
-  xcodeVersion: "16.0"
+    iOS: "26.0"
+  xcodeVersion: "26.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
   defaultConfig: Debug
@@ -21,7 +21,7 @@ targets:
   Antiphon:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.0"
     sources:
       - path: Antiphon
         excludes:
@@ -64,13 +64,32 @@ targets:
           enabled: true
     dependencies: []
 
+  AntiphonTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Tests/AntiphonTests
+    dependencies:
+      - target: Antiphon
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kounex.antiphon.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+
 schemes:
   Antiphon (Debug):
     build:
       targets:
         Antiphon: all
+        AntiphonTests: [test]
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - AntiphonTests
     profile:
       config: Debug
     archive:

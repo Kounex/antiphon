@@ -69,11 +69,7 @@ enum AppGradients {
 
 // MARK: - Platform-Specific Colors
 
-/// Represents a music streaming platform supported by Antiphon.
-enum Platform: String, CaseIterable, Codable {
-    case spotify = "Spotify"
-    case appleMusic = "Apple Music"
-
+extension Platform {
     /// The brand color for this platform.
     var color: Color {
         switch self {

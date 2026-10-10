@@ -1,6 +1,6 @@
 # Antiphon redesign plan (Phase 0)
 
-Status: **waiting for approval.** No code has changed yet. This document is the audit and plan for the iOS 26 / Liquid Glass rebuild against the Antiphon design system (`TXKAkq1pkYhFFF593kxH63`) and the storyboard (`BF77MNwKAG2ZbZNv6mL15Q`).
+Status: **approved 2026-10-10 — all recommendations (D1–D7) accepted.** Work happens on `redesign/ios26`. This document is the audit and plan for the iOS 26 / Liquid Glass rebuild against the Antiphon design system (`TXKAkq1pkYhFFF593kxH63`) and the storyboard (`BF77MNwKAG2ZbZNv6mL15Q`).
 
 Effort scale used throughout: **S** ≤ half a day, **M** 1–2 days, **L** 3+ days.
 

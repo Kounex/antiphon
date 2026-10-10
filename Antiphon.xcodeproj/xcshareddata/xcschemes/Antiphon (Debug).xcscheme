@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1600"
+   LastUpgradeVersion = "2600"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -18,6 +18,20 @@
                BlueprintIdentifier = "EA8C6988C8C873B417A7B008"
                BuildableName = "Antiphon.app"
                BlueprintName = "Antiphon"
+               ReferencedContainer = "container:Antiphon.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "871CCB658F424BD0EC52F719"
+               BuildableName = "AntiphonTests.xctest"
+               BlueprintName = "AntiphonTests"
                ReferencedContainer = "container:Antiphon.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -39,7 +53,20 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "871CCB658F424BD0EC52F719"
+               BuildableName = "AntiphonTests.xctest"
+               BlueprintName = "AntiphonTests"
+               ReferencedContainer = "container:Antiphon.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
