@@ -15,6 +15,8 @@ protocol TrackCatalog: Sendable {
 /// runners-up instead of returning only the best result.
 enum MatchFinder {
     static let searchLimit = 5
+    /// Same title, artist and length (or same ISRC): interchangeable recordings.
+    static let strongMatch = 90
 
     static func find(
         _ source: CatalogTrack,
@@ -34,14 +36,30 @@ enum MatchFinder {
             scored += results.map { candidate(source, $0) }
         }
 
+        // The same recording often has a different ISRC on its original album
+        // than on compilations. If no solid match is on the source's album,
+        // look for the album version too.
+        if let album = source.album,
+           !scored.contains(where: { $0.confidence >= strongMatch && ReleasePreference.albumMatch($0.track, source) > 0 }) {
+            let query = "\(source.artist.normalizedForMatching) \(source.title.normalizedForMatching) \(ReleasePreference.baseAlbum(album))"
+            let results = try await catalog.search(query, limit: searchLimit)
+            scored += results.map { candidate(source, $0) }
+        }
+
         var seen = Set<String>()
         let ranked = scored
             .sorted { a, b in
-                // Equal confidence (e.g. one ISRC on the original album and on
-                // compilations): prefer the original release.
-                a.confidence != b.confidence
-                    ? a.confidence > b.confidence
-                    : ReleasePreference.prefers(a.track, over: b.track, for: source)
+                // Every solid match is the same recording for practical
+                // purposes, so among those the release decides (original
+                // album over compilations); otherwise confidence decides.
+                let strongA = a.confidence >= strongMatch, strongB = b.confidence >= strongMatch
+                if strongA != strongB { return strongA }
+                let releaseA = ReleasePreference.rank(a.track, for: source)
+                let releaseB = ReleasePreference.rank(b.track, for: source)
+                if strongA {
+                    return releaseA != releaseB ? releaseA > releaseB : a.confidence > b.confidence
+                }
+                return a.confidence != b.confidence ? a.confidence > b.confidence : releaseA > releaseB
             }
             .filter { seen.insert($0.track.id).inserted }
             .prefix(searchLimit)

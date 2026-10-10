@@ -76,9 +76,15 @@ actor SyncPlanner {
             try Task.checkCancellation()
             await progress?(index, toMatch.count)
             do {
-                outcomes[row.key] = row.source.platform == .spotify
+                let outcome = row.source.platform == .spotify
                     ? try await MatchFinder.find(row.source, in: appleCatalog, targetPlaylist: applePlaylist)
                     : try await MatchFinder.find(row.source, in: spotifyCatalog, targetPlaylist: spotifyPlaylist)
+                outcomes[row.key] = outcome
+                #if DEBUG
+                let candidates = ([outcome.best].compactMap { $0 } + outcome.alternatives)
+                    .map { "\($0.track.album ?? "?") (\($0.track.releaseYear.map(String.init) ?? "?")) \($0.confidence)% \($0.track.isrc ?? "-")" }
+                print("[SyncPlanner] '\(row.source.title)' from [\(row.source.album ?? "?")] isrc \(row.source.isrc ?? "-") → \(candidates.joined(separator: " | "))")
+                #endif
             } catch {
                 switch CatalogFailure.classify(error) {
                 case .cancelled: throw error

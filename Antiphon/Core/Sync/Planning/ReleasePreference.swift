@@ -8,32 +8,32 @@ import Foundation
 /// is on one), then the earliest release year.
 enum ReleasePreference {
 
-    /// Whether `a` should be preferred over `b` for `source`. Only consulted
-    /// when both match equally well.
-    static func prefers(_ a: CatalogTrack, over b: CatalogTrack, for source: CatalogTrack) -> Bool {
-        let albumA = sameAlbum(a, source), albumB = sameAlbum(b, source)
-        if albumA != albumB { return albumA }
-
+    /// Sort key for a release, higher is better: album match strength,
+    /// then not a compilation (unless the source is one), then earlier year.
+    static func rank(_ candidate: CatalogTrack, for source: CatalogTrack) -> (Int, Int, Int) {
         let sourceIsCompilation = source.album.map(isCompilation) ?? false
-        if !sourceIsCompilation {
-            let compA = a.album.map(isCompilation) ?? false
-            let compB = b.album.map(isCompilation) ?? false
-            if compA != compB { return !compA }
-        }
-
-        switch (a.releaseYear, b.releaseYear) {
-        case let (x?, y?) where x != y: return x < y
-        case (.some, nil): return true
-        default: return false
-        }
+        let isComp = candidate.album.map(isCompilation) ?? false
+        return (albumMatch(candidate, source), sourceIsCompilation || !isComp ? 1 : 0, -(candidate.releaseYear ?? 9999))
     }
 
-    /// Album titles match once edition suffixes are stripped
-    /// ("Hybrid Theory (Bonus Edition)" ~ "Hybrid Theory").
-    static func sameAlbum(_ candidate: CatalogTrack, _ source: CatalogTrack) -> Bool {
-        guard let a = candidate.album, let b = source.album else { return false }
+    /// Whether `a` should be preferred over `b` for `source`, as releases.
+    static func prefers(_ a: CatalogTrack, over b: CatalogTrack, for source: CatalogTrack) -> Bool {
+        rank(a, for: source) > rank(b, for: source)
+    }
+
+    /// 3: the same album title. 2: the same album in another edition
+    /// ("Meteora" for "Meteora (Bonus Edition)"). 0: a different album.
+    static func albumMatch(_ candidate: CatalogTrack, _ source: CatalogTrack) -> Int {
+        guard let a = candidate.album, let b = source.album else { return 0 }
+        if collapse(a) == collapse(b) { return 3 }
         let x = baseAlbum(a), y = baseAlbum(b)
-        return !x.isEmpty && (x == y || x.hasPrefix(y) || y.hasPrefix(x))
+        guard !x.isEmpty, !y.isEmpty else { return 0 }
+        return x == y || x.hasPrefix(y + " ") || y.hasPrefix(x + " ") ? 2 : 0
+    }
+
+    /// Kept for callers that only need yes/no.
+    static func sameAlbum(_ candidate: CatalogTrack, _ source: CatalogTrack) -> Bool {
+        albumMatch(candidate, source) > 0
     }
 
     private static let compilationMarkers = [
@@ -47,7 +47,12 @@ enum ReleasePreference {
         return compilationMarkers.contains { title.contains($0) }
     }
 
-    private static func baseAlbum(_ album: String) -> String {
+    private static func collapse(_ text: String) -> String {
+        text.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    /// The album title without edition words, normalized for matching.
+    static func baseAlbum(_ album: String) -> String {
         VersionTag.parse(album).baseTitle
             .replacingOccurrences(of: #"\b(bonus|deluxe|expanded|anniversary|edition|version|remastered|remaster)\b"#,
                                   with: "", options: .regularExpression)

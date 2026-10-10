@@ -87,6 +87,9 @@ final class AppleMusicTrackCatalog: TrackCatalog, Sendable {
         for batch in Array(wanted).chunked(into: 25) {
             do {
                 let response = try await MusicCatalogResourceRequest<Song>(matching: \.isrc, memberOf: batch).response()
+                #if DEBUG
+                print("[AppleMusicTrackCatalog] Prefetch: \(batch.count) ISRCs → \(response.items.count) songs, more: \(response.items.hasNextBatch)")
+                #endif
                 var found: [String: [CatalogTrack]] = Dictionary(uniqueKeysWithValues: batch.map { ($0.lowercased(), []) })
                 for song in response.items {
                     guard let isrc = song.isrc?.lowercased() else { continue }
