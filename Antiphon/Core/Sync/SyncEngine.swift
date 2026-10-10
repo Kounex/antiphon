@@ -50,7 +50,7 @@ actor SyncEngine {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
-            predicate: #Predicate { $0.isMonitored == true }
+            predicate: #Predicate { $0.isMonitored == true && $0.pausedAt == nil }
         )
         
         guard let monitoredPairs = try? context.fetch(descriptor) else {
@@ -187,6 +187,7 @@ actor SyncEngine {
             // A plan was made from a full Stage A, so applying one never takes
             // the resume shortcut.
             let isResume = run.planned == nil
+                && !pair.needsRebuild
                 && pair.lastInterruptedAt != nil
                 && !cachedTracks.isEmpty
                 && cachedTracks.contains(where: { $0.syncState == .pending || $0.syncState == .syncing })
@@ -321,7 +322,7 @@ actor SyncEngine {
                 run.seamSource = isSpotifySource ? .spotify : .appleMusic
                 
                 // ── Step 2: Populate cache with source tracks immediately ──
-                let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty
+                let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty || pair.needsRebuild
                 
                 // Rows matched in Stage B (or manually) may hold a catalog Song ID
                 // rather than the playlist's library ID. Re-anchor them before
@@ -475,6 +476,7 @@ actor SyncEngine {
             )
             
             pair.lastSyncedAt = Date()
+            pair.needsRebuild = false
             pair.lastSyncResult = resultStatus
             pair.lastSyncMessage = message
             pair.lastInterruptedAt = nil

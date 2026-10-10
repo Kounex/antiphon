@@ -7,6 +7,8 @@ public struct StatusPill: View {
         case inSync
         case syncing
         case monitoring
+        /// "Watching 7" on the Syncs hero.
+        case watching(Int)
         case review(Int)
         /// "Failed" or "Sign in".
         case failed(String)
@@ -51,6 +53,7 @@ public struct StatusPill: View {
         case .inSync: "In sync"
         case .syncing: "Syncing"
         case .monitoring: "Watching"
+        case .watching(let n): "Watching \(n)"
         case .review(let n): "Review \(n)"
         case .failed(let text): text
         case .missing(let service): "Not on \(service.name)"
@@ -61,6 +64,7 @@ public struct StatusPill: View {
     private var accessibilityText: String {
         switch state {
         case .review(let n): "\(n) to review"
+        case .watching(let n): "Watching \(n) seams"
         default: label
         }
     }
@@ -69,7 +73,7 @@ public struct StatusPill: View {
         switch state {
         case .inSync: "checkmark.circle.fill"
         case .syncing: "arrow.triangle.2.circlepath"
-        case .monitoring: "eye"
+        case .monitoring, .watching: "eye"
         case .review: "questionmark.circle.fill"
         case .failed: "exclamationmark.triangle.fill"
         case .missing: "circle.slash"
@@ -92,7 +96,7 @@ public struct StatusPill: View {
     private var foreground: Color {
         switch state {
         case .inSync: .statusSynced
-        case .syncing, .monitoring: .thread
+        case .syncing, .monitoring, .watching: .thread
         case .review: .statusReview
         case .failed: .statusFailed
         case .missing, .paused: .statusMissing
@@ -102,7 +106,7 @@ public struct StatusPill: View {
     private var background: Color {
         switch state {
         case .inSync: .statusSyncedSoft
-        case .syncing, .monitoring: .threadSoft
+        case .syncing, .monitoring, .watching: .threadSoft
         case .review: .statusReviewSoft
         case .failed: .statusFailedSoft
         case .missing, .paused: .clear

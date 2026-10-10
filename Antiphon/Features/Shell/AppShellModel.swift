@@ -57,12 +57,15 @@ final class AppShellModel {
 
     var selectedTab: Tab = .syncs
     var showsSettings = false
+    var showsNewSeam = false
+    /// Where the Syncs stack starts (DEBUG screenshot routes).
+    var syncsInitialPath: [SyncsRoute] = []
     var searchText = ""
     private(set) var reviewCount = 0
     private(set) var seams: [SeamSummary] = []
 
-    private let seamRepository: SeamRepository
-    private let accounts: AccountsService
+    let seamRepository: SeamRepository
+    let accounts: AccountsService
 
     init(seams: SeamRepository, accounts: AccountsService) {
         self.seamRepository = seams

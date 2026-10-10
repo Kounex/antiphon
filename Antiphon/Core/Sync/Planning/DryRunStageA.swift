@@ -47,7 +47,7 @@ enum DryRunStageA {
             spotifyCount: spotifyTracks.count,
             appleMusicCount: appleMusicTracks.count
         )
-        let isInitialSync = action == .initialSync || action == .fullRebuild || cached.isEmpty
+        let isInitialSync = action == .initialSync || action == .fullRebuild || cached.isEmpty || pair.needsRebuild
 
         if !isInitialSync {
             DeltaEngine.reanchorAppleMusicIds(cachedTracks: cached, appleMusicTracks: appleMusicTracks, trackMatcher: trackMatcher)

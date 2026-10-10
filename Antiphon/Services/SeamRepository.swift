@@ -64,6 +64,8 @@ protocol SeamRepository: Sendable {
     func update(_ rules: SeamRules, for id: UUID) async throws
     /// Removes the seam from Antiphon. Both playlists stay exactly as they are.
     func unlink(_ id: UUID) async throws
+    /// The person opened the seam; resets what counts as "New".
+    func markViewed(_ id: UUID) async throws
 }
 
 /// `SeamRepository` over the shared SwiftData store.
@@ -125,6 +127,7 @@ actor SwiftDataSeamRepository: SeamRepository {
     func update(_ rules: SeamRules, for id: UUID) async throws {
         let context = ModelContext(modelContainer)
         guard let pair = try fetch(id, in: context) else { return }
+        if rules.direction != pair.syncDirection { pair.needsRebuild = true }
         pair.syncDirection = rules.direction
         pair.removalPolicy = rules.removalPolicy
         pair.isMonitored = rules.isMonitored
@@ -140,6 +143,13 @@ actor SwiftDataSeamRepository: SeamRepository {
         let context = ModelContext(modelContainer)
         guard let pair = try fetch(id, in: context) else { return }
         context.delete(pair)
+        try context.save()
+    }
+
+    func markViewed(_ id: UUID) async throws {
+        let context = ModelContext(modelContainer)
+        guard let pair = try fetch(id, in: context) else { return }
+        pair.lastViewedAt = Date()
         try context.save()
     }
 

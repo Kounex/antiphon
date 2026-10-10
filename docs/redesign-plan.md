@@ -361,3 +361,17 @@ Cleanup for you: delete the "Antiphon test – delete me" playlist in Music, and
 Left as is, and why:
 - The Syncs tab still hosts the old dashboard (forced dark) until M3 replaces it. That's why the light screenshot is mostly dark and the accessory's title is low-contrast over it there. I'll recheck the accessory in light mode in M3.
 - Library and Activity show a short placeholder until M6 and M7.
+
+### M3 Syncs home, seam detail, rules: done (2026-10-10)
+
+- **Syncs home** (2.01): metric-xl hero ("tracks in sync") with a Watching pill and freshness; review banner; filter chips (All / Watching / Needs review / Paused); `SyncCard`s in a plain `List`. Swipe leading Sync now, trailing Pause/Resume and Unlink (Unlink confirms and never deletes a playlist). Long-press shows a seam preview with actions. Reloads whenever the store saves. Empty state uses the design copy.
+- **Seam detail** (2.02): hero `SeamLine` with a glass knot; cover colors under the glass toolbar via `backgroundExtensionEffect`, with `scrollEdgeEffectStyle(.soft, for: .top)`; three tiles; one prominent action (Review n tracks, or Sync now); chips (All / To review / New / Missing); track rows. Opening a seam resets "New".
+- **Rules** (2.03): direction (One way / Both ways, Swap direction), removal policy (keep / mirror, plus ask for two-way), monitoring (watch, check every 15 min / hourly / twice a day / daily / only when I ask, notify about new tracks), Pause/Resume with the glass toast, and Unlink with its footer. Every consequence line comes from `RulesCopy` and rewrites itself as the choice changes.
+- **Safety**: changing a seam's direction sets `needsRebuild`, so the next sync realigns from scratch instead of reading the old cache as removals. Monitoring and the Shortcuts intent skip paused seams.
+- 130 tests green. Screenshots of home, detail and rules in dark, light and AX5 (the hero number and the Rules platform row were fixed for AX5).
+
+Differences left, and why:
+- **Sync now** runs the existing coordinator path until the preview flow lands in M4. **New seam** opens the old link wizard until M4. **Review** on the banner and the detail's "Review n tracks" open the seam filtered to its close matches until the review queue lands in M5.
+- **"Keep track order"** is omitted from Rules. Reordering is verified for Antiphon-created Apple Music playlists, but order sync isn't built yet; I'd rather not show a switch that does nothing.
+- **Two-way card subtitle** shows "Both ways · checked 4 min ago" rather than "2 added on Spotify today"; that needs Activity's per-day changes (M7).
+- **Toolbar icons** use ink, not the app's gold tint, so the screen's single primary action is the only gold element.

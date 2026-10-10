@@ -110,6 +110,7 @@ actor PreviewSeamRepository: SeamRepository {
 
     func update(_ rules: SeamRules, for id: UUID) async throws { rulesById[id] = rules }
     func unlink(_ id: UUID) async throws { summaries.removeAll { $0.id == id } }
+    func markViewed(_ id: UUID) async throws {}
 }
 
 /// `SyncService` that never touches a platform.

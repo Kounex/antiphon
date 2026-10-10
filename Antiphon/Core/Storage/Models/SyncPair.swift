@@ -54,6 +54,9 @@ final class SyncPair {
     var appleMusicCreatedByAntiphon: Bool = false
     /// Drives the "New" filter on seam detail.
     var lastViewedAt: Date?
+    /// The direction changed: the next sync realigns from scratch (like a
+    /// first sync) instead of reading the old cache as removals.
+    var needsRebuild: Bool = false
 
     // MARK: - Relationships
 

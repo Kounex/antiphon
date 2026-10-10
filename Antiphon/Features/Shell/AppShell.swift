@@ -18,9 +18,16 @@ struct AppShell: View {
 
         TabView(selection: $model.selectedTab) {
             Tab(AntiphonTab.syncs.title, systemImage: AntiphonTab.syncs.symbol, value: AppShellModel.Tab.syncs) {
-                // Replaced by the new Syncs home in M3.
-                DashboardView()
-                    .environment(\.colorScheme, .dark)
+                SyncsRoot(
+                    initialPath: model.syncsInitialPath,
+                    repository: model.seamRepository,
+                    accounts: model.accounts,
+                    onAccount: { model.showsSettings = true },
+                    onNewSeam: { model.showsNewSeam = true },
+                    // Until the preview flow lands in M4, Sync now runs the
+                    // existing coordinator path.
+                    onSyncNow: { syncCoordinator.startSync(pairId: $0, action: .manualSync) }
+                )
             }
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
 
@@ -45,6 +52,11 @@ struct AppShell: View {
         }
         .antiphonTabBar()
         .modifier(SyncAccessoryModifier(running: running))
+        .sheet(isPresented: $model.showsNewSeam) {
+            // Replaced by the new seam flow in M4.
+            LinkWizardView()
+                .environment(\.colorScheme, .dark)
+        }
         .sheet(isPresented: $model.showsSettings) {
             // Replaced by the new Settings in M8.
             SettingsView()

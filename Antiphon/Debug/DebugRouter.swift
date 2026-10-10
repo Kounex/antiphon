@@ -54,6 +54,8 @@ struct DebugRouteView: View {
         case "library": model.selectedTab = .library
         case "activity": model.selectedTab = .activity
         case "search": model.selectedTab = .search
+        case "detail": model.syncsInitialPath = [.seam(PreviewFixtures.lateNightDrive.id)]
+        case "rules": model.syncsInitialPath = [.seam(PreviewFixtures.lateNightDrive.id), .rules(PreviewFixtures.lateNightDrive.id)]
         default: break
         }
         return model

@@ -25,7 +25,7 @@ struct SyncPlaylistsIntent: AppIntent {
         
         // Count monitored pairs
         let descriptor = FetchDescriptor<SyncPair>(
-            predicate: #Predicate { $0.isMonitored == true }
+            predicate: #Predicate { $0.isMonitored == true && $0.pausedAt == nil }
         )
         
         let monitoredPairs = try context.fetch(descriptor)
