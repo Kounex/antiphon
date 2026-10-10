@@ -9,6 +9,9 @@ import SwiftData
 final class SyncChange {
     var id: UUID
     var run: SyncLog?
+    /// Order within the run. Relationship arrays are unordered, and undo
+    /// must revert newest first.
+    var sequence: Int = 0
     /// Where the write landed.
     var platform: Platform
     var kind: ChangeKind

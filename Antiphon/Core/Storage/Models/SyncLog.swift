@@ -33,6 +33,11 @@ final class SyncLog {
     @Relationship(deleteRule: .cascade, inverse: \SyncChange.run)
     var changes: [SyncChange] = []
 
+    /// Changes in the order they were made.
+    var orderedChanges: [SyncChange] {
+        changes.sorted { $0.sequence < $1.sequence }
+    }
+
     init(
         action: SyncAction,
         result: SyncResultStatus = .success,

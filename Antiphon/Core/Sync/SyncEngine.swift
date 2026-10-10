@@ -1098,7 +1098,8 @@ actor SyncEngine {
         log.startedAt = run.startedAt
         log.duration = Date().timeIntervalSince(run.startedAt)
         context.insert(log)
-        for change in run.changes {
+        for (index, change) in run.changes.enumerated() {
+            change.sequence = index
             change.run = log
             context.insert(change)
         }
