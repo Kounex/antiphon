@@ -63,3 +63,15 @@ struct PlanCopyTests {
                 == "Adds nothing to Garden Sundays on Apple Music. Removes 1 track.")
     }
 }
+
+@Suite("Preview fixtures")
+struct PreviewFixtureTests {
+    @Test("The preview plan matches the storyboard's first sync")
+    func firstSyncFixture() {
+        let plan = PreviewFixtures.firstSyncPlan().plan
+        #expect(plan.side(.appleMusic).missingCount == 33)
+        #expect(plan.side(.spotify).missingCount == 6)
+        #expect(plan.automaticAddCount == 35)
+        #expect(PlanCopy.headline(for: plan) == "Nothing is removed. 35 tracks are added.")
+    }
+}

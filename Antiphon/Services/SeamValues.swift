@@ -1,7 +1,7 @@
 import Foundation
 
 /// How a seam's tracks stand, for the sync card's health bar and pills.
-struct SeamCounts: Equatable, Sendable {
+struct SeamCounts: Hashable, Sendable {
     var synced: Int
     var review: Int
     var missing: Int
@@ -50,7 +50,7 @@ extension SeamCounts {
 }
 
 /// What a track row shows on its trailing edge and second line.
-enum TrackRowState: Equatable, Sendable {
+enum TrackRowState: Hashable, Sendable {
     case synced
     case syncing
     /// Not processed yet.

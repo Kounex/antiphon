@@ -10,15 +10,25 @@ struct AntiphonApp: App {
     let spotifyAuth: SpotifyAuthManager
     let syncCoordinator: SyncCoordinator
 
+    /// Unit tests launch the app as their host; keep it away from the real
+    /// store and background scheduler while they run.
+    private static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     init() {
-        modelContainer = SharedModelContainer.container
+        if Self.isHostingTests, let inMemory = try? SharedModelContainer.make(inMemory: true) {
+            modelContainer = inMemory
+        } else {
+            modelContainer = SharedModelContainer.container
+        }
 
         // Initialize auth managers
         spotifyAuth = SpotifyAuthManager()
         syncCoordinator = SyncCoordinator(modelContainer: modelContainer)
 
         // Register background tasks (handler creates its own auth instances)
-        BackgroundTaskManager.registerTasks(modelContainer: modelContainer)
+        if !Self.isHostingTests {
+            BackgroundTaskManager.registerTasks(modelContainer: modelContainer)
+        }
     }
 
     var body: some Scene {

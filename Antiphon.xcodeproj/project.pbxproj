@@ -48,6 +48,7 @@
 		9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006B0451A9774141C73C2102 /* VersionTagTests.swift */; };
 		997D241E5D4EBD9F534E22A5 /* PlatformBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDF4FF41058D8B34C54A917 /* PlatformBadge.swift */; };
 		9E6C54B87172BE0A36B94B4F /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D75CF7AEBFF6531D6F7F46B /* DashboardView.swift */; };
+		9F336423E88805CE0B750167 /* SeamRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B72CCE3299789633D50F4C /* SeamRepositoryTests.swift */; };
 		9F8282B5A28CCA4DD9128FD9 /* PlanBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 328E95FD8DB619F55B5CD210 /* PlanBuilder.swift */; };
 		A0FC04A023D9B9C29B8D1CA7 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9B25DC54871EE65CB43951 /* SyncEngine.swift */; };
 		A1C6BC95091097CB5D23A324 /* SpotifyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9E5378BE7D55B1A4A7FAF0 /* SpotifyModels.swift */; };
@@ -69,6 +70,7 @@
 		C8B3B69A6426DE341C5766AC /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3929A08DC28B4A4A936BA809 /* Platform.swift */; };
 		CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */; };
 		CAE76EC2C367EA6D1C5F7800 /* PlaylistCachePruner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25DC6D5E3523C58922E58C6 /* PlaylistCachePruner.swift */; };
+		CD7B725994820A4E9693211E /* SeamRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078EC87AC7467C0116F9D2AE /* SeamRepository.swift */; };
 		CE7D493CDCE3B53ADDE2803F /* PlatformPickerStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA521ECBABD5A4E3EF4549BE /* PlatformPickerStep.swift */; };
 		D39F4A6C402FF6C751720021 /* SyncPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461C0753DAE985F5A01BAA86 /* SyncPlanner.swift */; };
 		D5BED70AA85F2997B78D8516 /* CacheAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */; };
@@ -79,8 +81,10 @@
 		DE57E4F270C13BF11D9CDF2B /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7308244F79C3986C69C48A5 /* String+Extensions.swift */; };
 		DECB4F964B607CDFA47658D9 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14B6C0679C89FC8B4007387 /* BackgroundTaskManager.swift */; };
 		E40C1C023C7E2401E070F816 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F355E49299CC28CD1A183F1E /* ConflictResolver.swift */; };
+		E5F6AEB807218CECD02D544D /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D70BADB8E6EE6E25C849F1D /* SyncService.swift */; };
 		EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */; };
 		F1E396F72898712B6A78BEFC /* ConfirmLinkStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B25C8394923E263D8AEF2DA /* ConfirmLinkStep.swift */; };
+		F2361B643C3170927A65B14B /* PreviewServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33A71F53544E17783660BC /* PreviewServices.swift */; };
 		F26DA969C8CE7EBC27031241 /* SyncPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FA160B1B3DA6A3592D01DC /* SyncPair.swift */; };
 		F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291636D886E30D528329E146 /* SeamValues.swift */; };
 		F34175A2334B7EF41B5409AE /* OperationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75340A5AC68EB42570B931B2 /* OperationRunner.swift */; };
@@ -101,10 +105,12 @@
 
 /* Begin PBXFileReference section */
 		006B0451A9774141C73C2102 /* VersionTagTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTagTests.swift; sourceTree = "<group>"; };
+		078EC87AC7467C0116F9D2AE /* SeamRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeamRepository.swift; sourceTree = "<group>"; };
 		0E5C2983154729E295C377B4 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicy.swift; sourceTree = "<group>"; };
 		1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyEndpoints.swift; sourceTree = "<group>"; };
 		1C68001EE22B1D000F6E200B /* PlanCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCopy.swift; sourceTree = "<group>"; };
+		1D70BADB8E6EE6E25C849F1D /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		1F9E5378BE7D55B1A4A7FAF0 /* SpotifyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyModels.swift; sourceTree = "<group>"; };
 		21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchFinderTests.swift; sourceTree = "<group>"; };
 		22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlan.swift; sourceTree = "<group>"; };
@@ -121,6 +127,7 @@
 		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		461C0753DAE985F5A01BAA86 /* SyncPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlanner.swift; sourceTree = "<group>"; };
 		4987EAE27BB0FCACD3F2C72F /* AppPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferencesTests.swift; sourceTree = "<group>"; };
+		4B33A71F53544E17783660BC /* PreviewServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewServices.swift; sourceTree = "<group>"; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
 		5A4DA604959B36AE69F60434 /* AntiphonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiphonApp.swift; sourceTree = "<group>"; };
 		5CEF66E905749399037FA409 /* TargetPlaylistStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetPlaylistStep.swift; sourceTree = "<group>"; };
@@ -172,6 +179,7 @@
 		DA9B25DC54871EE65CB43951 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		DAD631A22591B730A3F18737 /* PlanCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCopyTests.swift; sourceTree = "<group>"; };
 		DCD0ED0D277361A17FFD1592 /* Antiphon.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Antiphon.entitlements; sourceTree = "<group>"; };
+		E1B72CCE3299789633D50F4C /* SeamRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeamRepositoryTests.swift; sourceTree = "<group>"; };
 		E60E3F532588828E69E64D65 /* AntiphonTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AntiphonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6CBAE7CCF387EDC7FBA2BC5 /* LivePlaylistEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePlaylistEditor.swift; sourceTree = "<group>"; };
 		E8BC9147487C1DED6DA49EA2 /* SyncLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncLog.swift; sourceTree = "<group>"; };
@@ -225,7 +233,10 @@
 		247A405D3C20E293ACEE945F /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				078EC87AC7467C0116F9D2AE /* SeamRepository.swift */,
 				291636D886E30D528329E146 /* SeamValues.swift */,
+				1D70BADB8E6EE6E25C849F1D /* SyncService.swift */,
+				8AB9291FCC656D369150FEBC /* Preview */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -273,6 +284,7 @@
 				DAD631A22591B730A3F18737 /* PlanCopyTests.swift */,
 				AF7E00E687EE41ABFCEDF986 /* SchemaMigrationTests.swift */,
 				A9C3B5C822E9E1C79DBF8DDE /* SeamCountsTests.swift */,
+				E1B72CCE3299789633D50F4C /* SeamRepositoryTests.swift */,
 				77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */,
 				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
 				FC7978E6553415361166F294 /* Fixtures */,
@@ -356,6 +368,14 @@
 				23421F4AC6C00FCB254715A3 /* Theme */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		8AB9291FCC656D369150FEBC /* Preview */ = {
+			isa = PBXGroup;
+			children = (
+				4B33A71F53544E17783660BC /* PreviewServices.swift */,
+			);
+			path = Preview;
 			sourceTree = "<group>";
 		};
 		9220DBD87A6C6D01C953A2A3 /* Inspector */ = {
@@ -608,6 +628,7 @@
 				738D6532F1B0D12BEFCE49E9 /* SchemaMigrationTests.swift in Sources */,
 				77C22D43944EF34227DA0C12 /* SchemaV1.swift in Sources */,
 				77A73070026953328D2B08A0 /* SeamCountsTests.swift in Sources */,
+				9F336423E88805CE0B750167 /* SeamRepositoryTests.swift in Sources */,
 				BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */,
 				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
 			);
@@ -655,7 +676,9 @@
 				CAE76EC2C367EA6D1C5F7800 /* PlaylistCachePruner.swift in Sources */,
 				760E29BDA1D6818FFCD731C1 /* PlaylistInspectorView.swift in Sources */,
 				0E7E05B76CEA9B92F8DB61E9 /* PlaylistPickerStep.swift in Sources */,
+				F2361B643C3170927A65B14B /* PreviewServices.swift in Sources */,
 				A900114C988E59CD76F75820 /* PulsingDot.swift in Sources */,
+				CD7B725994820A4E9693211E /* SeamRepository.swift in Sources */,
 				F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */,
 				D78A1F182316CFE52A2F6D88 /* SettingsView.swift in Sources */,
 				20791B3B827E37B4214C1FBC /* SharedModelContainer.swift in Sources */,
@@ -676,6 +699,7 @@
 				3B650BB91CF54466B3354592 /* SyncPlaylistsIntent.swift in Sources */,
 				B8BD57AC81645460C2CE9591 /* SyncProblem.swift in Sources */,
 				A360D3CA7435E74B953A4BBD /* SyncResult.swift in Sources */,
+				E5F6AEB807218CECD02D544D /* SyncService.swift in Sources */,
 				6DAAF1F6A2051A98EB15E108 /* SyncStatusIndicator.swift in Sources */,
 				3B1D7FF5109EB562927FEB28 /* TargetPlaylistStep.swift in Sources */,
 				CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */,
