@@ -46,7 +46,7 @@ actor SyncEngine {
     /// Performs a delta sync for all monitored SyncPairs.
     /// Called by foreground sync, AppIntent, and BGAppRefreshTask.
     @discardableResult
-    func syncAllMonitored() async -> [SyncResult] {
+    func syncAllMonitored(trigger: SyncTrigger = .monitor) async -> [SyncResult] {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
@@ -76,7 +76,7 @@ actor SyncEngine {
                 continue
             }
             
-            let result = await syncSinglePair(pair, context: context, action: .monitorSync)
+            let result = await syncSinglePair(pair, context: context, action: .monitorSync, run: RunContext(trigger: trigger))
             results.append(result)
         }
         
@@ -91,6 +91,9 @@ actor SyncEngine {
     func syncPair(
         _ pairId: UUID,
         action: SyncAction = .manualSync,
+        trigger: SyncTrigger? = nil,
+        planned: PlannedSync? = nil,
+        approving approved: Set<TrackKey> = [],
         progressCallback: SyncProgressCallback? = nil
     ) async -> SyncResult {
         let context = ModelContext(modelContainer)
@@ -105,6 +108,7 @@ actor SyncEngine {
         
         let result = await syncSinglePair(
             pair, context: context, action: action,
+            run: RunContext(trigger: trigger ?? SyncTrigger(action), planned: planned, approved: approved),
             progressCallback: progressCallback
         )
         try? context.save()
@@ -125,6 +129,7 @@ actor SyncEngine {
         _ pair: SyncPair,
         context: ModelContext,
         action: SyncAction,
+        run: RunContext,
         progressCallback: SyncProgressCallback? = nil
     ) async -> SyncResult {
         
@@ -141,6 +146,8 @@ actor SyncEngine {
         }
         defer { _ = inProgressSyncPairs.withLock { $0.remove(pairId) } }
         
+        let previousResult = pair.lastSyncResult
+        let previousMessage = pair.lastSyncMessage
         pair.lastSyncResult = .inProgress
         pair.lastSyncMessage = nil
         
@@ -177,7 +184,10 @@ actor SyncEngine {
                 return result
             }
             
-            let isResume = pair.lastInterruptedAt != nil
+            // A plan was made from a full Stage A, so applying one never takes
+            // the resume shortcut.
+            let isResume = run.planned == nil
+                && pair.lastInterruptedAt != nil
                 && !cachedTracks.isEmpty
                 && cachedTracks.contains(where: { $0.syncState == .pending || $0.syncState == .syncing })
             
@@ -232,6 +242,7 @@ actor SyncEngine {
                     action: action,
                     totalTracks: totalTracks,
                     alreadyCompleted: alreadyCompleted,
+                    run: run,
                     progressCallback: progressCallback
                 )
                 
@@ -242,7 +253,7 @@ actor SyncEngine {
                 if Task.isCancelled {
                     return handleInterruption(pair: pair, context: context, action: action,
                                             tracksAdded: tracksAdded, tracksFailed: tracksFailed,
-                                            cachedTracks: cachedTracks)
+                                            cachedTracks: cachedTracks, run: run)
                 }
                 
             } else {
@@ -287,6 +298,17 @@ actor SyncEngine {
                 let (spotifyTracksResult, appleMusicTracksResult) = try await (spotifyTracksFetch, appleMusicTracksFetch)
                 let spotifyTracks = spotifyTracksResult
                 let appleMusicTracks = appleMusicTracksResult
+
+                // Either playlist changed since the preview: don't apply a plan
+                // the person didn't see. The caller previews again.
+                if let planned = run.planned,
+                   PlaylistFingerprint(spotifyTracks: spotifyTracks, appleMusicTracks: appleMusicTracks) != planned.fingerprint {
+                    pair.lastSyncResult = previousResult
+                    pair.lastSyncMessage = previousMessage
+                    var result = SyncResult(pairId: pair.id, status: .partial, message: "Playlists changed since the preview")
+                    result.isStale = true
+                    return result
+                }
                 
                 // Determine isSpotifySource dynamically for bidirectional initial sync
                 let isSpotifySource = CacheAligner.isSpotifySource(
@@ -294,6 +316,7 @@ actor SyncEngine {
                     spotifyCount: spotifyTracks.count,
                     appleMusicCount: appleMusicTracks.count
                 )
+                run.seamSource = isSpotifySource ? .spotify : .appleMusic
                 
                 // ── Step 2: Populate cache with source tracks immediately ──
                 let isInitialSync = action == .initialSync || action == .fullRebuild || cachedTracks.isEmpty
@@ -375,7 +398,7 @@ actor SyncEngine {
                         let message = "Safety threshold triggered: \(totalRemovals) tracks would be removed (\(Int(removalPercentage * 100))%). Sync aborted."
                         pair.lastSyncResult = .failed
                         pair.lastSyncMessage = message
-                        logSync(pair: pair, context: context, action: action,
+                        logSync(pair: pair, context: context, action: action, run: run,
                                result: .failed,
                                tracksAdded: 0, tracksRemoved: 0, tracksFailed: 0,
                                tracksMatched: cachedTracks.count, details: message)
@@ -409,6 +432,7 @@ actor SyncEngine {
                     action: action,
                     totalTracks: totalTracks,
                     alreadyCompleted: alreadyCompleted,
+                    run: run,
                     progressCallback: progressCallback
                 )
                 
@@ -419,7 +443,19 @@ actor SyncEngine {
                 if Task.isCancelled {
                     return handleInterruption(pair: pair, context: context, action: action,
                                             tracksAdded: tracksAdded, tracksFailed: tracksFailed,
-                                            cachedTracks: cachedTracks)
+                                            cachedTracks: cachedTracks, run: run)
+                }
+                
+                // Mirrored removals the plan showed (Spotify only until Apple
+                // Music editing is verified).
+                if let planned = run.planned {
+                    let removed = try await applyPlannedRemovals(planned.plan, pair: pair, cachedTracks: cachedTracks, run: run)
+                    if !removed.isEmpty {
+                        let removedIds = Set(removed.map(\.id))
+                        cachedTracks.removeAll { removedIds.contains($0.id) }
+                        removed.forEach(context.delete)
+                        try? context.save()
+                    }
                 }
             }
             
@@ -441,9 +477,10 @@ actor SyncEngine {
             pair.lastInterruptedAt = nil
             
             logSync(
-                pair: pair, context: context, action: action,
+                pair: pair, context: context, action: action, run: run,
                 result: resultStatus,
-                tracksAdded: tracksAdded, tracksRemoved: totalRemovalFlags,
+                tracksAdded: tracksAdded,
+                tracksRemoved: run.planned == nil ? totalRemovalFlags : run.removedCount,
                 tracksFailed: totalUnmatched, tracksMatched: totalMatched - totalRemovalFlags - totalUnmatched,
                 details: message
             )
@@ -463,13 +500,13 @@ actor SyncEngine {
             // rolled back to .pending inside matchTracksOneByOne.
             return handleInterruption(pair: pair, context: context, action: action,
                                       tracksAdded: tracksAdded, tracksFailed: tracksFailed,
-                                      cachedTracks: cachedTracks)
+                                      cachedTracks: cachedTracks, run: run)
         } catch {
             let message = "Sync failed: \(error.localizedDescription)"
             pair.lastSyncResult = .failed
             pair.lastSyncMessage = message
             
-            logSync(pair: pair, context: context, action: action,
+            logSync(pair: pair, context: context, action: action, run: run,
                    result: .failed,
                    tracksAdded: tracksAdded, tracksRemoved: 0,
                    tracksFailed: tracksFailed, tracksMatched: 0,
@@ -513,6 +550,7 @@ actor SyncEngine {
         action: SyncAction,
         totalTracks: Int,
         alreadyCompleted: Int,
+        run: RunContext,
         progressCallback: SyncProgressCallback?
     ) async throws -> MatchResult {
         var added = 0
@@ -533,7 +571,9 @@ actor SyncEngine {
         // Pre-resolve Apple Music catalog songs by ISRC in batches to avoid sequential network requests
         var resolvedSongsByISRC: [String: Song] = [:]
         let appleMatchTracks = pendingTracks.filter { $0.source == .spotify && pair.syncDirection != .appleToSpotify }
-        let isrcsToResolve = appleMatchTracks.map { $0.isrc }.filter { !$0.isEmpty && !$0.hasPrefix("local-") }
+        // A plan already chose each match, so only its songs need resolving.
+        let isrcsToResolve = run.planned != nil ? [] : appleMatchTracks.map { $0.isrc }.filter { !$0.isEmpty && !$0.hasPrefix("local-") }
+        let plannedSongs = await resolvePlannedSongs(run)
         
         if !isrcsToResolve.isEmpty {
             let batches = isrcsToResolve.chunked(into: 25)
@@ -573,16 +613,31 @@ actor SyncEngine {
                 currentTrackName: track.title
             ))
             
+            // Applying a plan: do what the preview showed, nothing else.
+            var plannedMatch: MatchCandidate?
+            if run.planned != nil {
+                switch applyDecision(to: track, run: run) {
+                case .write(let match):
+                    plannedMatch = match
+                case .settled(let didFail):
+                    if didFail { failed += 1 }
+                    completed += 1
+                    try? context.save()
+                    continue
+                }
+            }
+            
             do {
                 // Determine which direction to match
                 let needsAppleMatch = track.source == .spotify && pair.syncDirection != .appleToSpotify
                 let needsSpotifyMatch = track.source == .appleMusic && pair.syncDirection != .spotifyToApple
                 
                 if needsAppleMatch {
-                    // Try pre-resolved song first
-                    var song: Song? = resolvedSongsByISRC[track.isrc.lowercased()]
+                    // Try the planned or pre-resolved song first
+                    var song: Song? = plannedMatch.flatMap { plannedSongs[$0.track.id] }
+                        ?? resolvedSongsByISRC[track.isrc.lowercased()]
                     
-                    if song == nil {
+                    if song == nil && plannedMatch == nil {
                         if track.isrc.hasPrefix("local-") {
                             // Synthetic 'local-' ISRC — catalog ISRC lookup can't succeed
                             song = try await trackMatcher.findAppleMusicTrack(
@@ -627,6 +682,7 @@ actor SyncEngine {
                         track.syncState = .synced
                         track.source = .both
                         track.unmatchedPlatform = nil
+                        recordEvidence(plannedMatch, on: track)
                     } else {
                         track.syncState = .failed
                         track.unmatchedPlatform = .appleMusic
@@ -635,7 +691,9 @@ actor SyncEngine {
                     }
                 } else if needsSpotifyMatch {
                     // Find on Spotify
-                    let lookup: SpotifyTrack? = if track.isrc.hasPrefix("local-") {
+                    let lookup: SpotifyTrack? = if let plannedMatch {
+                        SpotifyTrack(catalog: plannedMatch.track)
+                    } else if track.isrc.hasPrefix("local-") {
                         // Synthetic 'local-' ISRC — catalog ISRC lookup can't succeed
                         try await trackMatcher.findSpotifyTrack(
                             title: track.title,
@@ -673,6 +731,7 @@ actor SyncEngine {
                         track.syncState = .synced
                         track.source = .both
                         track.unmatchedPlatform = nil
+                        recordEvidence(plannedMatch, on: track)
                     } else {
                         track.syncState = .failed
                         track.unmatchedPlatform = .spotify
@@ -731,6 +790,9 @@ actor SyncEngine {
                     playlistId: pair.spotifyPlaylistId,
                     trackUris: spotifyUrisToAdd
                 )
+                for write in queuedSpotifyWrites {
+                    run.recordAdd(of: write.track, on: .spotify, id: write.uri)
+                }
             } catch {
                 // Roll affected tracks back to .pending and fail the sync instead
                 // of silently reporting success for writes that never landed. The
@@ -791,6 +853,9 @@ actor SyncEngine {
                         to: amPlaylist,
                         onSongAdded: reportAdded
                     )
+                    for write in queuedAppleMusicWrites {
+                        run.recordAdd(of: write.track, on: .appleMusic, id: write.songId)
+                    }
                 } catch {
                     // Songs are added one at a time, so only roll back the ones
                     // that never reached the playlist.
@@ -799,6 +864,9 @@ actor SyncEngine {
                     if case AppleMusicError.partialAdd(let addedSongIds, let partialError) = error {
                         unwrittenSongIds.subtract(addedSongIds)
                         underlying = partialError
+                        for write in queuedAppleMusicWrites where addedSongIds.contains(write.songId) {
+                            run.recordAdd(of: write.track, on: .appleMusic, id: write.songId)
+                        }
                     }
                     let rolledBack = rollbackUnwrittenWrites(
                         spotifyWrites: [],
@@ -856,6 +924,106 @@ actor SyncEngine {
         return rolledBack
     }
     
+    // MARK: - Applying a Plan
+    
+    private enum PlannedStep {
+        /// Queue a write for this match, exactly as Stage B would.
+        case write(MatchCandidate)
+        /// Nothing to write; the row's state is final for this run.
+        case settled(failed: Bool)
+    }
+    
+    /// Applies the plan's decision for one pending row.
+    private func applyDecision(to track: CachedTrack, run: RunContext) -> PlannedStep {
+        guard let key = track.planKey(seamSource: run.seamSource), let decision = run.decisions[key] else {
+            // Appeared after the preview: wait for the next one.
+            track.syncState = .pending
+            return .settled(failed: false)
+        }
+        switch decision {
+        case .add(let match):
+            return .write(match)
+        case .review(let best, let alternatives):
+            track.syncState = .needsReview
+            track.candidates = [best] + alternatives
+            recordEvidence(best, on: track)
+            return .settled(failed: false)
+        case .unavailable(let alternatives):
+            track.syncState = .failed
+            track.unmatchedPlatform = key.platform == .spotify ? .appleMusic : .spotify
+            track.unavailableReason = .notInCatalog
+            track.candidates = alternatives
+            track.retryCount += 1
+            return .settled(failed: true)
+        case .alreadyPresent(let match):
+            if match.track.platform == .appleMusic {
+                track.appleMusicTrackId = match.track.id
+            } else {
+                track.spotifyTrackUri = match.track.id
+            }
+            track.source = .both
+            track.syncState = .synced
+            track.unmatchedPlatform = nil
+            recordEvidence(match, on: track)
+            return .settled(failed: false)
+        }
+    }
+    
+    private func recordEvidence(_ match: MatchCandidate?, on track: CachedTrack) {
+        guard let match else { return }
+        track.matchConfidence = match.confidence
+        track.matchReason = match.reason
+        track.counterpartISRC = match.track.isrc
+    }
+    
+    /// Resolves the Apple Music songs a plan chose, by catalog ID, 25 per request.
+    private func resolvePlannedSongs(_ run: RunContext) async -> [String: Song] {
+        let ids: [String] = run.decisions.values.compactMap {
+            if case .add(let match) = $0, match.track.platform == .appleMusic { return match.track.id }
+            return nil
+        }
+        var songs: [String: Song] = [:]
+        for batch in ids.chunked(into: 25) {
+            do {
+                let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: batch.map { MusicItemID($0) })
+                for song in try await request.response().items {
+                    songs[song.id.rawValue] = song
+                }
+            } catch {
+                print("[SyncEngine] Planned song resolve failed: \(error.localizedDescription)")
+            }
+        }
+        return songs
+    }
+    
+    /// Removes the tracks a plan mirrored, if Stage A still flags them now.
+    /// Returns the cache rows whose tracks are gone from both playlists.
+    private func applyPlannedRemovals(
+        _ plan: SyncPlan,
+        pair: SyncPair,
+        cachedTracks: [CachedTrack],
+        run: RunContext
+    ) async throws -> [CachedTrack] {
+        let planned = plan.side(.spotify).removals.filter { !$0.isGuided }
+        guard !planned.isEmpty else { return [] }
+        
+        let stillFlagged = cachedTracks.filter { $0.removalFlag != nil && $0.removalKeptAt == nil }
+        let rowsByUri = Dictionary(stillFlagged.compactMap { row in row.spotifyTrackUri.map { ($0, row) } },
+                                   uniquingKeysWith: { first, _ in first })
+        let removals = planned.filter { rowsByUri[$0.track.id] != nil }
+        guard !removals.isEmpty else { return [] }
+        
+        try await spotifyClient.removeTracksFromPlaylist(
+            playlistId: pair.spotifyPlaylistId,
+            trackUris: removals.map(\.track.id)
+        )
+        for removal in removals {
+            run.changes.append(SyncChange(platform: .spotify, kind: .remove, track: removal.track))
+        }
+        run.removedCount += removals.count
+        return removals.compactMap { rowsByUri[$0.track.id] }
+    }
+    
     // MARK: - Interruption Handling
     
     private func handleInterruption(
@@ -864,7 +1032,8 @@ actor SyncEngine {
         action: SyncAction,
         tracksAdded: Int,
         tracksFailed: Int,
-        cachedTracks: [CachedTrack]
+        cachedTracks: [CachedTrack],
+        run: RunContext
     ) -> SyncResult {
         pair.lastInterruptedAt = Date()
         pair.lastSyncResult = .partial
@@ -877,7 +1046,7 @@ actor SyncEngine {
         
         try? context.save()
         
-        logSync(pair: pair, context: context, action: action,
+        logSync(pair: pair, context: context, action: action, run: run,
                result: .partial,
                tracksAdded: tracksAdded, tracksRemoved: 0,
                tracksFailed: tracksFailed, tracksMatched: cachedTracks.count,
@@ -907,6 +1076,7 @@ actor SyncEngine {
         pair: SyncPair,
         context: ModelContext,
         action: SyncAction,
+        run: RunContext,
         result: SyncResultStatus = .success,
         tracksAdded: Int,
         tracksRemoved: Int,
@@ -924,7 +1094,15 @@ actor SyncEngine {
             details: details
         )
         log.syncPair = pair
+        log.trigger = run.trigger
+        log.startedAt = run.startedAt
+        log.duration = Date().timeIntervalSince(run.startedAt)
         context.insert(log)
+        for change in run.changes {
+            change.run = log
+            context.insert(change)
+        }
+        run.changes = []
     }
     
     private func buildSyncMessage(flagged: Int, unmatched: Int, total: Int) -> String {
@@ -970,6 +1148,49 @@ enum SyncError: LocalizedError {
             return "A sync operation is already in progress."
         case .safetyThresholdExceeded(let percentage):
             return "Safety threshold exceeded: \(percentage)% of tracks would be removed."
+        }
+    }
+}
+
+// MARK: - Run Context
+
+/// Per-run state: what started the run, the plan being applied (if any),
+/// and the changes that landed. Lives only inside one `syncSinglePair` call.
+private final class RunContext {
+    let trigger: SyncTrigger
+    let startedAt = Date()
+    let planned: PlannedSync?
+    let decisions: [TrackKey: PlannedDecision]
+    /// Set once Stage A decides which side is the source.
+    var seamSource: Platform
+    var changes: [SyncChange] = []
+    var removedCount = 0
+
+    init(trigger: SyncTrigger, planned: PlannedSync? = nil, approved: Set<TrackKey> = []) {
+        self.trigger = trigger
+        self.planned = planned
+        self.decisions = planned?.plan.decisions(approving: approved) ?? [:]
+        self.seamSource = planned?.sourcePlatform ?? .spotify
+    }
+
+    func recordAdd(of track: CachedTrack, on platform: Platform, id: String) {
+        let landed = CatalogTrack(
+            platform: platform, id: id, title: track.title, artist: track.artist, album: track.albumName,
+            durationMs: track.durationMs, isrc: track.counterpartISRC ?? (track.isrc.hasPrefix("local-") ? nil : track.isrc),
+            artworkURL: track.artworkURL
+        )
+        changes.append(SyncChange(platform: platform, kind: .add, track: landed,
+                                  confidence: track.matchConfidence, reason: track.matchReason))
+    }
+}
+
+extension SyncTrigger {
+    /// The trigger implied by a legacy `SyncAction`.
+    init(_ action: SyncAction) {
+        switch action {
+        case .initialSync: self = .firstSync
+        case .monitorSync: self = .monitor
+        case .manualSync, .deltaSync, .fullRebuild: self = .manual
         }
     }
 }

@@ -33,6 +33,20 @@ extension CatalogTrack {
     }
 }
 
+extension SpotifyTrack {
+    /// A minimal track for a planned match: the engine only needs the URI
+    /// (and ISRC/name for its already-in-playlist check).
+    init(catalog track: CatalogTrack) {
+        self.init(
+            id: track.id.components(separatedBy: ":").last, name: track.title, uri: track.id,
+            durationMs: track.durationMs ?? 0, explicit: track.isExplicit, popularity: nil, album: nil,
+            artists: [SpotifyArtist(id: nil, name: track.artist)],
+            externalIds: SpotifyExternalIds(isrc: track.isrc, ean: nil, upc: nil),
+            externalUrls: nil, type: "track"
+        )
+    }
+}
+
 // MARK: - Spotify
 
 /// `TrackCatalog` over the existing `SpotifyAPIClient`.

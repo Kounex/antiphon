@@ -8,6 +8,8 @@ struct SyncResult: Sendable {
     var tracksAdded: Int = 0
     var tracksFlagged: Int = 0
     var tracksFailed: Int = 0
+    /// The playlists changed after the preview; nothing was applied.
+    var isStale: Bool = false
     
     var isSuccess: Bool { status == .success }
     
