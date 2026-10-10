@@ -36,7 +36,9 @@ struct AntiphonApp: App {
         syncCoordinator = SyncCoordinator(modelContainer: modelContainer)
         shellModel = AppShellModel(
             seams: SwiftDataSeamRepository(modelContainer: modelContainer),
-            accounts: spotifyAuth
+            accounts: spotifyAuth,
+            sync: LiveSyncService(modelContainer: modelContainer),
+            library: LiveLibraryService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
         )
 
         // Register background tasks (handler creates its own auth instances)

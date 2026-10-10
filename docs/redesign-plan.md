@@ -375,3 +375,28 @@ Differences left, and why:
 - **"Keep track order"** is omitted from Rules. Reordering is verified for Antiphon-created Apple Music playlists, but order sync isn't built yet; I'd rather not show a switch that does nothing.
 - **Two-way card subtitle** shows "Both ways · checked 4 min ago" rather than "2 added on Spotify today"; that needs Activity's per-day changes (M7).
 - **Toolbar icons** use ink, not the app's gold tint, so the screen's single primary action is the only gold element.
+
+### M4 New seam flow, preview, first sync: done (2026-10-10)
+
+- **New seam** (3.01–3.04), behind `NewSeamModel` over the `LibraryService` and `SeamRepository` protocols:
+  - **Pick:** from either side, multi-select queue, search, "Already in a seam" and Spotify-blocked playlists shown but disabled.
+  - **Find its twin:** link existing, ranked by tracks already shared (for the six closest names; the rest by name), with the best one pre-selected; or create new.
+  - **Compare:** Venn counts, region chips, track lists.
+  - **How to sync:** one way by default, the arrow morphs in the stitch knot, the consequence sentence counts real tracks, ask-before-removing / remove-too, keep watching, interval chips, order note.
+- "Preview changes" creates the seam (the twin is created on the first sync, as before). **Monitoring never runs a seam's first sync**: the person always previews it.
+- **Preview** (4.01): the worst-case headline, per-side cards (+33 / +6 with exact / close / unavailable and removals, including guided ones), "See every track", "Sync N tracks now". If the playlists changed after the preview, it re-plans and says so instead of writing.
+- **Syncing** (4.02): partial-height glass sheet with a live count, ETA, landing rows, Pause, and Hide. It runs through `SyncCoordinator` (now plan-aware), so the accessory and cancellation keep working.
+- **Synced** (4.03): outcome tiles, close-match and unavailable callouts, then Review / Next queued playlist / Done.
+- "Sync now" everywhere (home swipe, context menu, detail) opens the same preview flow. The old `LinkWizard` and `Dashboard` are deleted.
+- `.buttonSizing(.flexible)` replaces hand-made full-width buttons. Sheet close buttons use ink, so the primary action is the only gold element.
+- 147 tests green. Screenshots: all seven screens in dark, Preview in light, and twin and preview at AX5 (fixed: the "+33" count and the step bar).
+
+Not verified yet, and why:
+- **A real first sync end to end with real accounts.** The simulator has no Apple Music library, and Spotify sign-in is interactive. The planner, decisions, dry-run guarantee, runner and engine glue are covered by tests and builds, but the live path still needs one run on a device with two throwaway playlists. I'd like to do that with you before M5's review queue turns the confidence bands on.
+
+Differences left, and why:
+- Apple Music playlists show no track count in pickers; MusicKit only knows it after loading every track.
+- "Create a new playlist" says "same name and description": MusicKit can't set artwork.
+- The Syncing sheet says "Progress stays above the tab bar" until the Live Activity lands in M9.
+- "Put new tracks: At the end" is informational; it's the only placement until order sync exists.
+- Review buttons open the seam filtered to its close matches until the review queue (M5).

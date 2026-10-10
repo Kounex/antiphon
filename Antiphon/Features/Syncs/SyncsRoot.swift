@@ -15,10 +15,10 @@ struct SyncsRoot: View {
     let onNewSeam: () -> Void
     let onSyncNow: (UUID) -> Void
 
-    @State private var path: [SyncsRoute] = []
+    @Binding var path: [SyncsRoute]
     @State private var home: SyncsHomeModel
 
-    init(initialPath: [SyncsRoute] = [], repository: SeamRepository, accounts: AccountsService,
+    init(path: Binding<[SyncsRoute]>, repository: SeamRepository, accounts: AccountsService,
          onAccount: @escaping () -> Void, onNewSeam: @escaping () -> Void, onSyncNow: @escaping (UUID) -> Void) {
         self.repository = repository
         self.accounts = accounts
@@ -26,7 +26,7 @@ struct SyncsRoot: View {
         self.onNewSeam = onNewSeam
         self.onSyncNow = onSyncNow
         _home = State(initialValue: SyncsHomeModel(seams: repository, accounts: accounts))
-        _path = State(initialValue: initialPath)
+        _path = path
     }
 
     var body: some View {

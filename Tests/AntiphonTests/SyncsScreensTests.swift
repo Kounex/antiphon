@@ -202,6 +202,7 @@ actor StubDetailRepository: SeamRepository {
     let stored: SeamDetail
     init(detail: SeamDetail) { stored = detail }
     func seams() async throws -> [SeamSummary] { [stored.summary] }
+    func create(_ draft: SeamDraft) async throws -> UUID { stored.summary.id }
     func detail(for id: UUID) async throws -> SeamDetail? { stored }
     func rules(for id: UUID) async throws -> SeamRules? { nil }
     func update(_ rules: SeamRules, for id: UUID) async throws {}

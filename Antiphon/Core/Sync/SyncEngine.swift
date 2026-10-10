@@ -50,7 +50,9 @@ actor SyncEngine {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
-            predicate: #Predicate { $0.isMonitored == true && $0.pausedAt == nil }
+            // A seam's first sync is always previewed by the person, never run
+            // by monitoring.
+            predicate: #Predicate { $0.isMonitored == true && $0.pausedAt == nil && $0.lastSyncedAt != nil }
         )
         
         guard let monitoredPairs = try? context.fetch(descriptor) else {

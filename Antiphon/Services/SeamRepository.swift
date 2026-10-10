@@ -56,8 +56,26 @@ struct SeamRules: Equatable, Sendable {
     var isPaused: Bool
 }
 
+/// A seam about to be created.
+struct SeamDraft: Sendable {
+    enum Target: Sendable {
+        case existing(LibraryPlaylist)
+        /// Created on the other platform during the first sync.
+        case new(name: String)
+    }
+
+    let source: LibraryPlaylist
+    let target: Target
+    let direction: SyncDirection
+    let removalPolicy: RemovalPolicy
+    let isMonitored: Bool
+    let monitorIntervalMinutes: Int?
+}
+
 /// Read and edit seams. Views talk to this, never to SwiftData.
 protocol SeamRepository: Sendable {
+    /// Links the two playlists. Nothing syncs until the first preview is approved.
+    func create(_ draft: SeamDraft) async throws -> UUID
     func seams() async throws -> [SeamSummary]
     func detail(for id: UUID) async throws -> SeamDetail?
     func rules(for id: UUID) async throws -> SeamRules?
@@ -78,6 +96,32 @@ actor SwiftDataSeamRepository: SeamRepository {
     init(modelContainer: ModelContainer, preferences: AppPreferences = .shared) {
         self.modelContainer = modelContainer
         self.preferences = preferences
+    }
+
+    func create(_ draft: SeamDraft) async throws -> UUID {
+        let context = ModelContext(modelContainer)
+        let source = draft.source
+        let targetPlatform = source.platform.other
+        let (targetId, targetName, targetArtwork): (String, String, URL?) = switch draft.target {
+        case .existing(let playlist): (playlist.id, playlist.name, playlist.artworkURL)
+        case .new(let name): ("pending-creation-\(UUID().uuidString)", name, nil)
+        }
+        let spotify = source.platform == .spotify ? (source.id, source.name, source.artworkURL) : (targetId, targetName, targetArtwork)
+        let apple = targetPlatform == .appleMusic ? (targetId, targetName, targetArtwork) : (source.id, source.name, source.artworkURL)
+
+        let pair = SyncPair(
+            spotifyPlaylistId: spotify.0, spotifyPlaylistName: spotify.1,
+            appleMusicPlaylistId: apple.0, appleMusicPlaylistName: apple.1,
+            syncDirection: draft.direction
+        )
+        pair.spotifyImageURL = spotify.2?.absoluteString
+        pair.appleMusicImageURL = apple.2?.absoluteString
+        pair.removalPolicy = draft.removalPolicy
+        pair.isMonitored = draft.isMonitored
+        pair.monitorIntervalMinutes = draft.monitorIntervalMinutes
+        context.insert(pair)
+        try context.save()
+        return pair.id
     }
 
     func seams() async throws -> [SeamSummary] {

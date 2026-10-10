@@ -19,14 +19,13 @@ struct AppShell: View {
         TabView(selection: $model.selectedTab) {
             Tab(AntiphonTab.syncs.title, systemImage: AntiphonTab.syncs.symbol, value: AppShellModel.Tab.syncs) {
                 SyncsRoot(
-                    initialPath: model.syncsInitialPath,
+                    path: $model.syncsPath,
                     repository: model.seamRepository,
                     accounts: model.accounts,
                     onAccount: { model.showsSettings = true },
                     onNewSeam: { model.showsNewSeam = true },
-                    // Until the preview flow lands in M4, Sync now runs the
-                    // existing coordinator path.
-                    onSyncNow: { syncCoordinator.startSync(pairId: $0, action: .manualSync) }
+                    // Every sync starts from a preview.
+                    onSyncNow: { model.syncFlowSeamId = $0 }
                 )
             }
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
@@ -52,10 +51,20 @@ struct AppShell: View {
         }
         .antiphonTabBar()
         .modifier(SyncAccessoryModifier(running: running))
-        .sheet(isPresented: $model.showsNewSeam) {
-            // Replaced by the new seam flow in M4.
-            LinkWizardView()
-                .environment(\.colorScheme, .dark)
+        .sheet(isPresented: $model.showsNewSeam, onDismiss: { Task { await model.refresh() } }) {
+            NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow, onReview: openSeam)
+        }
+        .sheet(item: $model.syncFlowSeamId, onDismiss: { Task { await model.refresh() } }) { seamId in
+            NavigationStack {
+                SyncFlowView(model: model.makeSyncFlow(seamId: seamId),
+                             onReview: openSeam, onNext: {}, onDone: { model.syncFlowSeamId = nil })
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close", systemImage: "xmark") { model.syncFlowSeamId = nil }.tint(.ink)
+                        }
+                    }
+            }
+            .tint(.thread)
         }
         .sheet(isPresented: $model.showsSettings) {
             // Replaced by the new Settings in M8.
@@ -64,6 +73,19 @@ struct AppShell: View {
         }
         .task(id: syncCoordinator.syncingPairIds) { await model.refresh() }
     }
+}
+
+extension AppShell {
+    /// Opens a seam's close matches (the review queue arrives in M5).
+    func openSeam(_ seamId: UUID) {
+        model.syncFlowSeamId = nil
+        model.selectedTab = .syncs
+        model.syncsPath = [.seam(seamId)]
+    }
+}
+
+extension UUID: @retroactive Identifiable {
+    public var id: UUID { self }
 }
 
 /// The account button every tab root shows in its toolbar.

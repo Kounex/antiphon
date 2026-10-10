@@ -70,8 +70,8 @@ enum PreviewFixtures {
     ) -> SeamSummary {
         SeamSummary(
             id: UUID(),
-            spotify: SeamSide(platform: .spotify, playlistId: "sp-\(name)", name: name, artworkURL: nil),
-            appleMusic: SeamSide(platform: .appleMusic, playlistId: "am-\(name)", name: appleMusicName ?? name, artworkURL: nil),
+            spotify: SeamSide(platform: .spotify, playlistId: "Spotify-\(name)", name: name, artworkURL: nil),
+            appleMusic: SeamSide(platform: .appleMusic, playlistId: "Apple Music-\(appleMusicName ?? name)", name: appleMusicName ?? name, artworkURL: nil),
             direction: direction, isMonitored: monitored, isPaused: paused, monitorIntervalMinutes: 15,
             lastCheckedAt: Date().addingTimeInterval(-checkedMinutesAgo * 60), lastResult: .success, counts: counts
         )
@@ -92,6 +92,7 @@ actor PreviewSeamRepository: SeamRepository {
     }
 
     func seams() async throws -> [SeamSummary] { summaries }
+    func create(_ draft: SeamDraft) async throws -> UUID { PreviewFixtures.lateNightDrive.id }
 
     func detail(for id: UUID) async throws -> SeamDetail? {
         guard let summary = summaries.first(where: { $0.id == id }) else { return nil }
@@ -135,5 +136,51 @@ struct PreviewSyncService: SyncService {
     func undo(runId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
     func decide(_ decision: OperationRunner.ReviewDecision, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
+}
+#endif
+
+#if DEBUG
+/// Storyboard-like libraries for previews.
+struct PreviewLibraryService: LibraryService {
+    static func playlist(_ name: String, _ platform: Platform, count: Int?, detail: String, blocked: String? = nil) -> LibraryPlaylist {
+        LibraryPlaylist(platform: platform, id: "\(platform.rawValue)-\(name)", name: name, trackCount: count,
+                        artworkURL: nil, detail: detail, isEditable: blocked == nil, blockedReason: blocked)
+    }
+
+    static let spotify = [
+        playlist("Workout Mix 2026", .spotify, count: 64, detail: "64 tracks · yours"),
+        playlist("Discover Weekly", .spotify, count: 30, detail: "30 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these."),
+        playlist("Road Trip Lisbon", .spotify, count: 112, detail: "112 tracks · collaborative"),
+        playlist("Late Night Drive", .spotify, count: 52, detail: "52 tracks · yours"),
+        playlist("Focus Flow", .spotify, count: 48, detail: "48 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these.")
+    ]
+    static let appleMusic = [
+        playlist("Gym Rotation", .appleMusic, count: 37, detail: "Apple Music"),
+        playlist("Workout", .appleMusic, count: 20, detail: "Apple Music"),
+        playlist("Vinyl Rips", .appleMusic, count: 87, detail: "Apple Music"),
+        playlist("Garden Sundays", .appleMusic, count: 117, detail: "Apple Music")
+    ]
+
+    func playlists(on platform: Platform) async throws -> [LibraryPlaylist] {
+        platform == .spotify ? Self.spotify : Self.appleMusic
+    }
+
+    func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack] {
+        func t(_ n: Int, _ p: Platform) -> CatalogTrack {
+            // Unique titles: a repeated title would match across tracks.
+            let title = n < Self.titles.count ? Self.titles[n] : "\(Self.titles[n % Self.titles.count]) No. \(n)"
+            return CatalogTrack(platform: p, id: "\(p.rawValue)-\(n)", title: title, artist: Self.artists[n % Self.artists.count],
+                                durationMs: 180_000 + n * 7_000, isrc: "PRV\(n)")
+        }
+        switch playlist.name {
+        case "Workout Mix 2026": return (0..<64).map { t($0, .spotify) }
+        case "Gym Rotation": return (33..<64).map { t($0, .appleMusic) } + (100..<106).map { t($0, .appleMusic) }
+        case "Workout": return (52..<64).map { t($0, .appleMusic) }
+        default: return []
+        }
+    }
+
+    static let titles = ["Physical", "Blinding Lights", "Titanium", "Stronger", "Pump It", "Lose Yourself", "Can't Hold Us", "Eye of the Tiger"]
+    static let artists = ["Dua Lipa", "The Weeknd", "David Guetta, Sia", "Kanye West", "Black Eyed Peas", "Eminem", "Macklemore", "Survivor"]
 }
 #endif

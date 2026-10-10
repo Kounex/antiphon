@@ -60,7 +60,15 @@ final class SyncCoordinator {
     
     /// Starts a sync for a given pair in the background.
     /// Returns immediately — observe `syncingPairIds` for progress.
-    func startSync(pairId: UUID, action: SyncAction) {
+    /// Pass `planned` to apply exactly what a preview showed (close matches
+    /// in `approving` are added too).
+    func startSync(
+        pairId: UUID,
+        action: SyncAction,
+        planned: PlannedSync? = nil,
+        approving: Set<TrackKey> = [],
+        trigger: SyncTrigger? = nil
+    ) {
         guard !syncingPairIds.contains(pairId) else { return }
         
         syncingPairIds.insert(pairId)
@@ -88,7 +96,8 @@ final class SyncCoordinator {
                     appleMusicManager: appleMusicManager
                 )
                 
-                result = await engine.syncPair(pairId, action: action) { [weak self] progress in
+                result = await engine.syncPair(pairId, action: action, trigger: trigger, planned: planned,
+                                               approving: approving) { [weak self] progress in
                     await MainActor.run {
                         guard self?.runningTasks[pairId]?.runId == runId,
                               self?.cancelledRunIds.contains(runId) == false else { return }

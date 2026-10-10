@@ -58,18 +58,34 @@ final class AppShellModel {
     var selectedTab: Tab = .syncs
     var showsSettings = false
     var showsNewSeam = false
-    /// Where the Syncs stack starts (DEBUG screenshot routes).
-    var syncsInitialPath: [SyncsRoute] = []
+    /// The Syncs tab's navigation, so other screens can open a seam.
+    var syncsPath: [SyncsRoute] = []
     var searchText = ""
     private(set) var reviewCount = 0
     private(set) var seams: [SeamSummary] = []
 
     let seamRepository: SeamRepository
     let accounts: AccountsService
+    let sync: SyncService
+    let library: LibraryService
+    /// The seam whose preview → sync flow is open.
+    var syncFlowSeamId: UUID?
 
-    init(seams: SeamRepository, accounts: AccountsService) {
+    init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService) {
         self.seamRepository = seams
         self.accounts = accounts
+        self.sync = sync
+        self.library = library
+    }
+
+    func makeSyncFlow(seamId: UUID) -> SyncFlowModel {
+        let isFirst = seams.first { $0.id == seamId }.map { $0.lastCheckedAt == nil } ?? true
+        return SyncFlowModel(seamId: seamId, isFirstSync: isFirst, sync: sync, seams: seamRepository)
+    }
+
+    func makeNewSeam() -> NewSeamModel {
+        let linked = Set(seams.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
+        return NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
     }
 
     var accountInitials: String? { AccountInitials.from(accounts.spotifyDisplayName) }

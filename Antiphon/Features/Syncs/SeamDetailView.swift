@@ -95,11 +95,11 @@ struct SeamDetailView: View {
             Button("Review \(PlanCopy.count(seam.counts.review, "track"))", systemImage: "questionmark.circle.fill") {
                 model.filter = .toReview
             }
-            .frame(maxWidth: .infinity)
+            .buttonSizing(.flexible)
             .glassButton(.primary)
         } else {
             Button("Sync now", systemImage: "arrow.triangle.2.circlepath") { onSyncNow(seam.id) }
-                .frame(maxWidth: .infinity)
+                .buttonSizing(.flexible)
                 .glassButton(.primary)
         }
     }
