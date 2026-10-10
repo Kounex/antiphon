@@ -34,6 +34,8 @@ struct SyncPlan: Sendable {
     let sides: [Platform: Side]
     let conflicts: [Conflict]
     let inSyncCount: Int
+    /// Tracks the planner couldn't look up this time; they stay pending.
+    var uncheckedCount: Int = 0
 
     struct Side: Sendable, Equatable {
         let platform: Platform

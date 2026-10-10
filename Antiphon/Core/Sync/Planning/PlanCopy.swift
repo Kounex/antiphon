@@ -39,6 +39,12 @@ enum PlanCopy {
         return "\(addPart) \(removePart)"
     }
 
+    /// Tracks the planner couldn't look up this time.
+    static func uncheckedNote(_ count: Int) -> String? {
+        guard count > 0 else { return nil }
+        return "\(Self.count(count, "track")) couldn't be checked right now. Antiphon checks \(count == 1 ? "it" : "them") on the next sync."
+    }
+
     static func count(_ n: Int, _ singular: String, _ plural: String? = nil) -> String {
         "\(n) \(n == 1 ? singular : (plural ?? singular + "s"))"
     }

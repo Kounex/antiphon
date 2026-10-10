@@ -56,6 +56,7 @@
 		83CDED5A80279A53FF654F61 /* SyncsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57908CB3D0A95E792C5F0FD9 /* SyncsHomeView.swift */; };
 		84DC72D5F10474F10C85552F /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 56C99A2EA1F2C86AF606A37D /* AppIcon.icon */; };
 		862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */; };
+		87126416F1ECB9099C4DC8AB /* CatalogFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B04EDD38BEACFF70196745 /* CatalogFailure.swift */; };
 		880F1B1C98DFF4B222DD4690 /* SyncsRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1691BDDC0F7D0DE0E12E6CC8 /* SyncsRoot.swift */; };
 		8B15F21895B495C9BCE5711A /* SpotifyTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E563142628174F1A6C834CF /* SpotifyTokenProvider.swift */; };
 		8E186166845694FD6E1499BC /* SeamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C7FCDDBA06A5410AAAE30B /* SeamDetailView.swift */; };
@@ -107,6 +108,7 @@
 		E40C1C023C7E2401E070F816 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F355E49299CC28CD1A183F1E /* ConflictResolver.swift */; };
 		E5F6AEB807218CECD02D544D /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D70BADB8E6EE6E25C849F1D /* SyncService.swift */; };
 		EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */; };
+		EFA9D203DD27EEB15EBF1C07 /* CatalogFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FC625E91CA6E20F5E5F82C /* CatalogFailureTests.swift */; };
 		F2361B643C3170927A65B14B /* PreviewServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33A71F53544E17783660BC /* PreviewServices.swift */; };
 		F26DA969C8CE7EBC27031241 /* SyncPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FA160B1B3DA6A3592D01DC /* SyncPair.swift */; };
 		F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291636D886E30D528329E146 /* SeamValues.swift */; };
@@ -196,6 +198,7 @@
 		90270653595B9E53D243FE15 /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
 		90AE870733060AFE99AF36B9 /* BYOKGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BYOKGuideView.swift; sourceTree = "<group>"; };
 		90C2A5592001819FACCE5550 /* SyncsHomeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncsHomeModel.swift; sourceTree = "<group>"; };
+		97B04EDD38BEACFF70196745 /* CatalogFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogFailure.swift; sourceTree = "<group>"; };
 		997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoPlanner.swift; sourceTree = "<group>"; };
 		9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAPIClient.swift; sourceTree = "<group>"; };
 		9BA205BB6A5401C9E7BD36CE /* SchemaV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaV1.swift; sourceTree = "<group>"; };
@@ -242,6 +245,7 @@
 		F3BE3E06AB4F730E040CA107 /* ConnectionCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionCards.swift; sourceTree = "<group>"; };
 		F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheAligner.swift; sourceTree = "<group>"; };
 		F47DB7CE3877470178AA994E /* VersionTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionTag.swift; sourceTree = "<group>"; };
+		F8FC625E91CA6E20F5E5F82C /* CatalogFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogFailureTests.swift; sourceTree = "<group>"; };
 		FA0C301DD2D7DD396DB8A18E /* AppStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStyles.swift; sourceTree = "<group>"; };
 		FCDE95A642FD96B85994E257 /* DryRunStageATests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageATests.swift; sourceTree = "<group>"; };
 		FD7D726A61158FC00C54F4C6 /* AntiphonDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AntiphonDesign; path = Packages/AntiphonDesign; sourceTree = SOURCE_ROOT; };
@@ -343,6 +347,7 @@
 				5D53D13097A21C7D4F4D2374 /* AppleMusicEditTests.swift */,
 				4987EAE27BB0FCACD3F2C72F /* AppPreferencesTests.swift */,
 				0A2AFB699D8D282B101FC261 /* AppShellTests.swift */,
+				F8FC625E91CA6E20F5E5F82C /* CatalogFailureTests.swift */,
 				3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */,
 				B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */,
 				3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */,
@@ -403,6 +408,7 @@
 		630D2B4DBEE0123F41237D5A /* Planning */ = {
 			isa = PBXGroup;
 			children = (
+				97B04EDD38BEACFF70196745 /* CatalogFailure.swift */,
 				C07320370C8D6024694B6BBD /* CatalogTrack.swift */,
 				12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */,
 				5FC832933336424869C9D99A /* ConfidenceScorer.swift */,
@@ -713,7 +719,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -760,6 +766,7 @@
 				F5847AB37BEF40D8D5620A80 /* AppPreferencesTests.swift in Sources */,
 				B9EFB56A5DA5FDF55F04E57A /* AppShellTests.swift in Sources */,
 				B44377775CE115EE6AEFE6B5 /* AppleMusicEditTests.swift in Sources */,
+				EFA9D203DD27EEB15EBF1C07 /* CatalogFailureTests.swift in Sources */,
 				DB6C3AD066A4E2640DAEACCE /* ConfidencePolicyTests.swift in Sources */,
 				EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */,
 				B1DAA9D029EE9B171507A68F /* ConflictResolverTests.swift in Sources */,
@@ -800,6 +807,7 @@
 				D5BED70AA85F2997B78D8516 /* CacheAligner.swift in Sources */,
 				474BBC1AAD2F606B792EE297 /* CachedTrack.swift in Sources */,
 				FB6CEF5154BB2C4550C50E3C /* CatalogAdapters.swift in Sources */,
+				87126416F1ECB9099C4DC8AB /* CatalogFailure.swift in Sources */,
 				8047434859B60B2ED06B14DC /* CatalogTrack.swift in Sources */,
 				F914BA061A6D0722B455FCAF /* ComponentCatalogView.swift in Sources */,
 				B543621978FF6418F1627935 /* ConfidencePolicy.swift in Sources */,

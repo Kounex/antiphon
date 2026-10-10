@@ -120,7 +120,9 @@ final class SyncFlowModel {
     #endif
 
     static func message(for error: Error) -> String {
-        switch error {
+        if let stopped = error as? PlanningStopped { return stopped.message }
+        if case .stop(let message) = CatalogFailure.classify(error) { return message }
+        return switch error {
         case SyncError.appleMusicPlaylistNotFound: "The Apple Music playlist couldn't be found. It may have been deleted."
         case SyncError.spotifyPlaylistNotFound: "The Spotify playlist couldn't be found. It may have been deleted."
         case AppleMusicError.notAuthorized: "Antiphon can't reach Apple Music. Allow access in Settings › Antiphon."

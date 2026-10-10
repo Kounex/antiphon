@@ -71,16 +71,30 @@ actor SyncPlanner {
         let applePlaylist = live.appleMusic.map(CatalogTrack.init)
 
         var outcomes: [TrackKey: MatchOutcome] = [:]
+        var unchecked = 0
         for (index, row) in toMatch.enumerated() {
             try Task.checkCancellation()
             await progress?(index, toMatch.count)
-            outcomes[row.key] = row.source.platform == .spotify
-                ? try await MatchFinder.find(row.source, in: appleCatalog, targetPlaylist: applePlaylist)
-                : try await MatchFinder.find(row.source, in: spotifyCatalog, targetPlaylist: spotifyPlaylist)
+            do {
+                outcomes[row.key] = row.source.platform == .spotify
+                    ? try await MatchFinder.find(row.source, in: appleCatalog, targetPlaylist: applePlaylist)
+                    : try await MatchFinder.find(row.source, in: spotifyCatalog, targetPlaylist: spotifyPlaylist)
+            } catch {
+                switch CatalogFailure.classify(error) {
+                case .cancelled: throw error
+                case .stop(let message):
+                    print("[SyncPlanner] Stopping preview: \(error)")
+                    throw PlanningStopped(message: message)
+                case .skipTrack:
+                    // Left out of the plan, so it stays pending and is checked next time.
+                    print("[SyncPlanner] Skipping '\(row.source.title)': \(error)")
+                    unchecked += 1
+                }
+            }
         }
         await progress?(toMatch.count, toMatch.count)
 
-        let plan = PlanBuilder.build(PlanInput(
+        var plan = PlanBuilder.build(PlanInput(
             pairId: pairId,
             direction: stageA.direction,
             sourcePlatform: stageA.sourcePlatform,
@@ -90,6 +104,7 @@ actor SyncPlanner {
             outcomes: outcomes,
             appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove
         ))
+        plan.uncheckedCount = unchecked
 
         return PlannedSync(
             plan: plan,

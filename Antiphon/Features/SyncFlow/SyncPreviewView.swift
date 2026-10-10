@@ -61,6 +61,9 @@ struct SyncPreviewView: View {
                 SideCard(side: side, playlistName: model.playlistName(on: side.platform), seed: model.seam?.name ?? "")
                     .plainRow(vertical: Space.s2)
             }
+            if let note = PlanCopy.uncheckedNote(model.planned?.plan.uncheckedCount ?? 0) {
+                Banner(tone: .neutral, symbol: "clock.arrow.circlepath", title: "Some tracks weren't checked", message: note).plainRow()
+            }
             if let conflicts = model.planned?.plan.conflicts, !conflicts.isEmpty {
                 Banner(tone: .review, symbol: "questionmark.circle.fill",
                        title: "\(PlanCopy.count(conflicts.count, "removal")) to decide",
