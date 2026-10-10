@@ -36,7 +36,13 @@ enum MatchFinder {
 
         var seen = Set<String>()
         let ranked = scored
-            .sorted { $0.confidence > $1.confidence }
+            .sorted { a, b in
+                // Equal confidence (e.g. one ISRC on the original album and on
+                // compilations): prefer the original release.
+                a.confidence != b.confidence
+                    ? a.confidence > b.confidence
+                    : ReleasePreference.prefers(a.track, over: b.track, for: source)
+            }
             .filter { seen.insert($0.track.id).inserted }
             .prefix(searchLimit)
 

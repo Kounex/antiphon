@@ -54,8 +54,12 @@ struct SpotifyTrackCatalog: TrackCatalog {
     let client: SpotifyAPIClient
     var platform: Platform { .spotify }
 
+    /// Every release with this ISRC (up to Spotify's Development Mode cap
+    /// of 10), not just the first, so the original album can win.
     func tracks(withISRC isrc: String) async throws -> [CatalogTrack] {
-        try await client.searchByISRC(isrc).map { [CatalogTrack($0)] } ?? []
+        try await client.search(query: "isrc:\(isrc)", limit: 10)
+            .filter { $0.isrc?.lowercased() == isrc.lowercased() }
+            .map(CatalogTrack.init)
     }
 
     func search(_ query: String, limit: Int) async throws -> [CatalogTrack] {
@@ -97,7 +101,7 @@ final class AppleMusicTrackCatalog: TrackCatalog, Sendable {
 
     func tracks(withISRC isrc: String) async throws -> [CatalogTrack] {
         if let cached = prefetched.withLock({ $0[isrc.lowercased()] }) { return cached }
-        return try await manager.searchByISRC(isrc).map { [CatalogTrack($0)] } ?? []
+        return try await manager.searchAllByISRC(isrc).map(CatalogTrack.init)
     }
 
     func search(_ query: String, limit: Int) async throws -> [CatalogTrack] {
