@@ -41,6 +41,8 @@ struct SyncPlan: Sendable {
         var reviewAdds: [Add] = []
         var unavailable: [Unavailable] = []
         var removals: [Removal] = []
+        /// Matched tracks the target playlist already holds: nothing to write.
+        var alreadyPresent: [Add] = []
 
         /// Tracks on the other side that this side doesn't have yet,
         /// whether or not they'll be added now ("+33").
@@ -90,4 +92,36 @@ struct SyncPlan: Sendable {
         sides.values.reduce(0) { $0 + $1.removals.filter { !$0.isGuided }.count }
     }
     var isEmpty: Bool { automaticAddCount == 0 && reviewCount == 0 && removalCount == 0 && conflicts.isEmpty }
+}
+
+// MARK: - Decisions
+
+/// What applying a plan does with one track, keyed by `TrackKey`.
+enum PlannedDecision: Sendable, Equatable {
+    case add(MatchCandidate)
+    case review(MatchCandidate, alternatives: [MatchCandidate])
+    case unavailable(alternatives: [MatchCandidate])
+    case alreadyPresent(MatchCandidate)
+
+    var writesTrack: Bool {
+        if case .add = self { true } else { false }
+    }
+}
+
+extension SyncPlan {
+    /// Decisions for every planned track. Close matches the person approved
+    /// in the preview become adds; the rest wait in the review queue.
+    func decisions(approving approved: Set<TrackKey> = []) -> [TrackKey: PlannedDecision] {
+        var result: [TrackKey: PlannedDecision] = [:]
+        for side in sides.values {
+            for add in side.automaticAdds { result[TrackKey(add.source)] = .add(add.match) }
+            for add in side.reviewAdds {
+                let key = TrackKey(add.source)
+                result[key] = approved.contains(key) ? .add(add.match) : .review(add.match, alternatives: add.alternatives)
+            }
+            for item in side.unavailable { result[TrackKey(item.source)] = .unavailable(alternatives: item.alternatives) }
+            for add in side.alreadyPresent { result[TrackKey(add.source)] = .alreadyPresent(add.match) }
+        }
+        return result
+    }
 }

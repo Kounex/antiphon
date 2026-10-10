@@ -196,3 +196,37 @@ struct PlanBuilderTests {
         #expect(plan.conflicts.isEmpty)
     }
 }
+
+@Suite("Plan decisions")
+struct PlanDecisionTests {
+    private func t(_ n: Int, _ p: Platform) -> CatalogTrack {
+        CatalogTrack(platform: p, id: "\(p)-\(n)", title: "T\(n)", artist: "A")
+    }
+
+    private func plan() -> SyncPlan {
+        var apple = SyncPlan.Side(platform: .appleMusic)
+        let auto = MatchCandidate(track: t(1, .appleMusic), confidence: 100, reason: .isrc)
+        let close = MatchCandidate(track: t(2, .appleMusic), confidence: 84, reason: .versionDifference)
+        let present = MatchCandidate(track: t(4, .appleMusic), confidence: 100, reason: .isrc)
+        apple.automaticAdds = [.init(source: t(1, .spotify), match: auto, alternatives: [])]
+        apple.reviewAdds = [.init(source: t(2, .spotify), match: close, alternatives: [])]
+        apple.unavailable = [.init(source: t(3, .spotify), alternatives: [])]
+        apple.alreadyPresent = [.init(source: t(4, .spotify), match: present, alternatives: [])]
+        return SyncPlan(pairId: UUID(), createdAt: .now, sides: [.appleMusic: apple], conflicts: [], inSyncCount: 1)
+    }
+
+    @Test("Each planned track gets the decision its band calls for")
+    func decisionsByBand() {
+        let decisions = plan().decisions()
+        #expect(decisions[TrackKey(t(1, .spotify))]?.writesTrack == true)
+        #expect(decisions[TrackKey(t(2, .spotify))] == .review(MatchCandidate(track: t(2, .appleMusic), confidence: 84, reason: .versionDifference), alternatives: []))
+        #expect(decisions[TrackKey(t(3, .spotify))] == .unavailable(alternatives: []))
+        #expect(decisions[TrackKey(t(4, .spotify))] == .alreadyPresent(MatchCandidate(track: t(4, .appleMusic), confidence: 100, reason: .isrc)))
+    }
+
+    @Test("Approving a close match turns it into an add")
+    func approvedReview() {
+        let decisions = plan().decisions(approving: [TrackKey(t(2, .spotify))])
+        #expect(decisions[TrackKey(t(2, .spotify))]?.writesTrack == true)
+    }
+}

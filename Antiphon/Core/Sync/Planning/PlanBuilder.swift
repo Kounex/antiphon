@@ -60,6 +60,9 @@ enum PlanBuilder {
 
             if outcome.alreadyInTarget {
                 inSync += 1
+                if let best = outcome.best {
+                    sides[target]?.alreadyPresent.append(.init(source: row.source, match: best, alternatives: []))
+                }
                 continue
             }
 
@@ -84,7 +87,7 @@ enum PlanBuilder {
 
     // MARK: - Private
 
-    private static func allows(_ direction: SyncDirection, from platform: Platform) -> Bool {
+    static func allows(_ direction: SyncDirection, from platform: Platform) -> Bool {
         switch direction {
         case .bidirectional: true
         case .spotifyToApple: platform == .spotify
