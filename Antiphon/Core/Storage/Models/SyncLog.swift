@@ -18,6 +18,21 @@ final class SyncLog {
     var details: String?
     var syncPair: SyncPair?
 
+    // MARK: - Run Details (redesign; optional or defaulted for migration)
+
+    var trigger: SyncTrigger?
+    var startedAt: Date?
+    var duration: TimeInterval?
+    var tracksMoved: Int = 0
+    /// Set when this run was undone.
+    var undoneAt: Date?
+    /// Set on the run that undid another run.
+    var undoOfRunId: UUID?
+
+    /// Every write that landed during this run, for history and undo.
+    @Relationship(deleteRule: .cascade, inverse: \SyncChange.run)
+    var changes: [SyncChange] = []
+
     init(
         action: SyncAction,
         result: SyncResultStatus = .success,
@@ -62,6 +77,20 @@ final class SyncLog {
     var isFailed: Bool {
         effectiveResult == .failed
     }
+}
+
+// MARK: - SyncTrigger
+
+/// What started a sync run.
+enum SyncTrigger: String, Codable, Sendable {
+    case firstSync
+    case manual
+    case monitor
+    case shortcut
+    case widget
+    case review
+    case conflict
+    case undo
 }
 
 // MARK: - SyncAction

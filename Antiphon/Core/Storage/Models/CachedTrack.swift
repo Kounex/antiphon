@@ -47,6 +47,22 @@ final class CachedTrack {
     /// Set when the sync engine failed to find this track on the target platform.
     var unmatchedPlatform: UnmatchedPlatform?
 
+    // MARK: - Match Evidence (redesign; optional for migration)
+
+    /// 0–100, from `ConfidenceScorer`. `nil` for rows matched before the redesign.
+    var matchConfidence: Int?
+    var matchReason: MatchReason?
+    /// ISRC of the matched track on the other side (`isrc` is this side's).
+    var counterpartISRC: String?
+    /// JSON-encoded `[MatchCandidate]`; read through `candidates`.
+    var candidatesData: Data?
+    var unavailableReason: UnavailableReason?
+    /// Storefront country code for `.regionLocked`, e.g. "DE".
+    var unavailableStorefront: String?
+    var nextAvailabilityCheckAt: Date?
+    /// Spotify user who added the track to a collaborative playlist.
+    var addedByUserId: String?
+
     // MARK: - Relationship
 
     var syncPair: SyncPair?
@@ -113,6 +129,8 @@ final class CachedTrack {
             return .synced      // Green — successfully synced
         case .failed:
             return .unmatched   // Red — failed to match
+        case .needsReview:
+            return .flagged     // Yellow — waiting for the person's call
         }
     }
 
@@ -210,6 +228,36 @@ final class CachedTrack {
     }
 }
 
+// MARK: - Match Candidates
+
+extension CachedTrack {
+    /// Up to five scored alternatives on the other side, best first.
+    var candidates: [MatchCandidate] {
+        get {
+            guard let candidatesData else { return [] }
+            return (try? JSONDecoder().decode([MatchCandidate].self, from: candidatesData)) ?? []
+        }
+        set {
+            candidatesData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue)
+        }
+    }
+}
+
+/// A possible counterpart for a track, with how sure Antiphon is.
+struct MatchCandidate: Codable, Hashable, Sendable {
+    var track: CatalogTrack
+    var confidence: Int
+    var reason: MatchReason
+}
+
+/// Why a track can't be added on the other side.
+enum UnavailableReason: String, Codable, Sendable {
+    /// The other catalog doesn't have it at all.
+    case notInCatalog
+    /// It exists, but not in the person's storefront.
+    case regionLocked
+}
+
 // MARK: - TrackSource
 
 /// Indicates which platform(s) a cached track originated from.
@@ -293,4 +341,5 @@ enum TrackSyncState: String, Codable {
     case synced     // Successfully matched and synced
     case failed     // Failed to match
     case skipped    // Skipped (e.g. already exists on both sides)
+    case needsReview // Close match (60–89%) waiting for the person's call
 }

@@ -36,6 +36,25 @@ final class SyncPair {
     var lastInterruptedAt: Date?
     var createdAt: Date
 
+    // MARK: - Rules (redesign; all optional or defaulted for migration)
+
+    /// What happens when a track is removed on one side. `nil` means the
+    /// direction's safe default — see `effectiveRemovalPolicy`.
+    var removalPolicy: RemovalPolicy?
+    /// Minutes between monitoring checks. `nil` uses the app-wide default;
+    /// `0` means "Only when I ask".
+    var monitorIntervalMinutes: Int?
+    /// Which side's order wins. `nil` means the source side.
+    var orderSource: Platform?
+    var newTrackPlacement: TrackPlacement?
+    var notifyNewTracks: Bool = false
+    /// Set by "Pause this seam": no syncs run until cleared.
+    var pausedAt: Date?
+    var spotifyCreatedByAntiphon: Bool = false
+    var appleMusicCreatedByAntiphon: Bool = false
+    /// Drives the "New" filter on seam detail.
+    var lastViewedAt: Date?
+
     // MARK: - Relationships
 
     @Relationship(deleteRule: .cascade, inverse: \CachedTrack.syncPair)
@@ -43,6 +62,9 @@ final class SyncPair {
 
     @Relationship(deleteRule: .cascade, inverse: \SyncLog.syncPair)
     var syncLogs: [SyncLog] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \SyncProblem.pair)
+    var problems: [SyncProblem] = []
 
     init(
         spotifyPlaylistId: String,
@@ -60,6 +82,35 @@ final class SyncPair {
         self.syncDirection = syncDirection
         self.createdAt = Date()
     }
+}
+
+// MARK: - Rule Helpers
+
+extension SyncPair {
+    var isTwoWay: Bool { syncDirection == .bidirectional }
+
+    /// Nothing is removed by default: one-way seams keep removed tracks,
+    /// two-way seams turn a removal into a question.
+    var effectiveRemovalPolicy: RemovalPolicy {
+        removalPolicy ?? (isTwoWay ? .ask : .keep)
+    }
+
+    var isPaused: Bool { pausedAt != nil }
+}
+
+/// What a seam does when a track disappears from one of its playlists.
+enum RemovalPolicy: String, Codable, CaseIterable, Sendable {
+    /// Leave the other playlist alone.
+    case keep
+    /// Remove it from the other playlist too (opt-in, logged, undoable).
+    case mirror
+    /// Ask first. The default for two-way seams.
+    case ask
+}
+
+/// Where tracks Antiphon adds are placed in the target playlist.
+enum TrackPlacement: String, Codable, Sendable {
+    case end
 }
 
 // MARK: - SyncDirection
