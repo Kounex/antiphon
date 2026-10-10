@@ -35,28 +35,39 @@ public struct TrackRow: View {
     }
 
     public var body: some View {
-        HStack(spacing: Space.s3) {
-            if !dynamicTypeSize.isAccessibilitySize { artwork }
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Space.s1 + 2) {
-                    Text(title).font(.headline).foregroundStyle(Color.ink)
-                    if isNew {
-                        Text("NEW")
-                            .font(.statusLabel)
-                            .tracking(TypeMetrics.statusLabelTracking)
-                            .foregroundStyle(Color.thread)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Full width for the words; the state moves under them.
+                VStack(alignment: .leading, spacing: Space.s1) {
+                    text
+                    HStack(spacing: Space.s2) {
+                        symbol
+                        Text(Self.stateDescription(state)).font(.footnote).foregroundStyle(Color.inkMuted)
                     }
                 }
-                Text(detail).font(.subheadline).foregroundStyle(Color.inkMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: Space.s3) {
+                    artwork
+                    text
+                    Spacer(minLength: Space.s2)
+                    symbol
+                }
             }
-            Spacer(minLength: Space.s2)
-            symbol
         }
         .padding(.vertical, Space.s1)
         .opacity(state == .missing ? Opacity.missing : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(title), \(detail)"))
         .accessibilityValue(Text(Self.stateDescription(state)))
+    }
+
+    private var text: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.headline).foregroundStyle(Color.ink)
+                + (isNew ? Text("  NEW").font(.statusLabel).tracking(TypeMetrics.statusLabelTracking).foregroundStyle(Color.thread) : Text(""))
+            Text(detail).font(.subheadline).foregroundStyle(Color.inkMuted)
+        }
     }
 
     @ViewBuilder

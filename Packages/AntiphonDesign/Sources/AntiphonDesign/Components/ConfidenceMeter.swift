@@ -40,15 +40,18 @@ public struct ConfidenceMeter: View {
         .accessibilityValue(isrc.map { "\(reason). ISRC \($0)" } ?? reason)
     }
 
+    /// Grows with text a little, but never crowds out the percentage.
+    private var cappedBarWidth: CGFloat { min(barWidth, 96) }
+
     private func meter(_ band: Band) -> some View {
         HStack(spacing: Space.s2) {
             Capsule()
                 .fill(Color.canvasSunken)
-                .frame(width: barWidth, height: 6)
+                .frame(width: cappedBarWidth, height: 6)
                 .overlay(alignment: .leading) {
-                    Capsule().fill(band.color).frame(width: barWidth * CGFloat(min(100, max(0, confidence))) / 100)
+                    Capsule().fill(band.color).frame(width: cappedBarWidth * CGFloat(min(100, max(0, confidence))) / 100)
                 }
-            Text("\(confidence)%").font(.metricSmall).foregroundStyle(band.color)
+            Text("\(confidence)%").font(.metricSmall).foregroundStyle(band.color).fixedSize()
         }
     }
 

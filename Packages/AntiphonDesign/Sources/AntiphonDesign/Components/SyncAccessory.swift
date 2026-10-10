@@ -38,6 +38,13 @@ public struct SyncAccessory: View {
             ProgressRing(fraction: fraction)
         }
         .padding(.horizontal, Space.s3)
+        // The accessory lives in a fixed-height system capsule, like the tab
+        // bar; cap its text like the system caps tab labels, and offer the
+        // large content viewer for the full text.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .accessibilityShowsLargeContentViewer {
+            Label("\(title), \(done) of \(total)", systemImage: "arrow.triangle.2.circlepath")
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue("\(done) of \(total) tracks")

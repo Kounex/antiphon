@@ -89,8 +89,17 @@ public struct SyncCard: View {
 
     @ViewBuilder
     private var footer: some View {
-        let pills = HStack(spacing: Space.s1 + 2) {
-            ForEach(Self.pills(health: health, status: status), id: \.self) { StatusPill($0) }
+        let states = Self.pills(health: health, status: status)
+        let pills = Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Space.s1 + 2) {
+                    ForEach(states, id: \.self) { StatusPill($0) }
+                }
+            } else {
+                HStack(spacing: Space.s1 + 2) {
+                    ForEach(states, id: \.self) { StatusPill($0) }
+                }
+            }
         }
         let count = Text("\(health.synced) / \(health.total)")
             .font(.metricSmall)

@@ -14,6 +14,14 @@ struct AntiphonApp: App {
     /// store and background scheduler while they run.
     private static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
+    /// A DEBUG screen opened for screenshots: no permission prompts or
+    /// background scheduling.
+    #if DEBUG
+    private static let isDebugRoute = DebugRoute.current != nil
+    #else
+    private static let isDebugRoute = false
+    #endif
+
     init() {
         if Self.isHostingTests, let inMemory = try? SharedModelContainer.make(inMemory: true) {
             modelContainer = inMemory
@@ -33,11 +41,19 @@ struct AntiphonApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if let route = DebugRoute.current {
+                DebugRouteView(route: route)
+            } else {
+                rootView
+            }
+            #else
             rootView
+            #endif
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            guard !Self.isHostingTests else { return }
+            guard !Self.isHostingTests, !Self.isDebugRoute else { return }
             switch newPhase {
             case .active:
                 NotificationManager.requestPermissionIfNeeded()
