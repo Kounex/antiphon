@@ -91,6 +91,7 @@ protocol SeamRepository: Sendable {
 /// `SeamRepository` over the shared SwiftData store.
 actor SwiftDataSeamRepository: SeamRepository {
     private let modelContainer: ModelContainer
+    var modelContainerForReview: ModelContainer { modelContainer }
     private let preferences: AppPreferences
     /// How far back "New" looks when a seam has never been opened.
     private let newWindow: TimeInterval = 7 * 24 * 3600

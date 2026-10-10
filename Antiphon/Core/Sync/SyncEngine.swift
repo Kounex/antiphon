@@ -482,6 +482,7 @@ actor SyncEngine {
             
             pair.lastSyncedAt = Date()
             pair.needsRebuild = false
+            ProblemStore.resolveAll(for: pair, in: context)
             pair.lastSyncResult = resultStatus
             pair.lastSyncMessage = message
             pair.lastInterruptedAt = nil
@@ -515,6 +516,9 @@ actor SyncEngine {
             let message = "Sync failed: \(error.localizedDescription)"
             pair.lastSyncResult = .failed
             pair.lastSyncMessage = message
+            if let problem = ProblemClassifier.problem(for: error, seamName: pair.spotifyPlaylistName) {
+                ProblemStore.record(problem, for: pair, in: context)
+            }
             
             logSync(pair: pair, context: context, action: action, run: run,
                    result: .failed,
