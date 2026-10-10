@@ -138,6 +138,9 @@ private struct SideCard: View {
                 let removals = side.removals.filter { !$0.isGuided }.count
                 let guided = side.removals.filter(\.isGuided).count
                 if removals > 0 { line("minus.circle.fill", .statusFailed, "Removed from \(playlistName)", removals) }
+                if side.platform == .appleMusic && !side.automaticAdds.isEmpty {
+                    Text(PlanCopy.appleMusicLibraryNote).font(.footnote).foregroundStyle(Color.inkMuted)
+                }
                 if guided > 0 {
                     Text("Remove \(PlanCopy.count(guided, "track")) in the Music app yourself. Antiphon can't remove tracks from playlists it didn't create.")
                         .font(.footnote).foregroundStyle(Color.inkMuted)
@@ -171,8 +174,8 @@ private struct EveryTrackSheet: View {
         NavigationStack {
             List {
                 ForEach(model.sides, id: \.platform) { side in
-                    section("Added to \(model.playlistName(on: side.platform))", side.automaticAdds.map { ($0.source, "\($0.match.confidence)% · \(SeamPresentation.reasonPhrase($0.match.reason))") }, state: .synced)
-                    section("Waiting for you", side.reviewAdds.map { ($0.source, "\($0.match.confidence)% match, \(SeamPresentation.reasonPhrase($0.match.reason))") }, state: .review(confidence: 0))
+                    section("Added to \(model.playlistName(on: side.platform))", side.automaticAdds.map { ($0.source, Self.matchDetail($0)) }, state: .synced)
+                    section("Waiting for you", side.reviewAdds.map { ($0.source, Self.matchDetail($0)) }, state: .review(confidence: 0))
                     section("Not on \(side.platform.rawValue)", side.unavailable.map { ($0.source, $0.source.artist) }, state: .missing)
                 }
             }
@@ -184,12 +187,19 @@ private struct EveryTrackSheet: View {
         }
     }
 
+    /// "Hybrid Theory (2000) · 100% · ISRC match": which release will be used.
+    static func matchDetail(_ add: SyncPlan.Add) -> String {
+        let release = add.match.track.album.map { album in add.match.track.releaseYear.map { "\(album) (\($0))" } ?? album }
+        return [release, "\(add.match.confidence)%", SeamPresentation.reasonPhrase(add.match.reason)]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
     @ViewBuilder
     private func section(_ title: String, _ items: [(CatalogTrack, String)], state: AntiphonDesign.TrackRow.State) -> some View {
         if !items.isEmpty {
             Section(title) {
                 ForEach(items, id: \.0.id) { track, detail in
-                    AntiphonDesign.TrackRow(title: track.title, detail: "\(track.artist) · \(detail)",
+                    AntiphonDesign.TrackRow(title: track.title, detail: "\(track.artist)\n\(detail)",
                                             artwork: CoverArt(url: track.artworkURL.flatMap(URL.init(string:)), seed: track.title, size: 40),
                                             state: state)
                     .listRowBackground(Color.canvasRaised)

@@ -39,6 +39,11 @@ enum PlanCopy {
         return "\(addPart) \(removePart)"
     }
 
+    /// MusicKit adds to the playlist; what happens next is the device's
+    /// Music settings, which Antiphon can't read or change.
+    static let appleMusicLibraryNote =
+        "Depending on Settings › Music on your iPhone (Add Playlist Songs, Automatic Downloads), Apple Music may also add these songs to your library and download them."
+
     /// Tracks the planner couldn't look up this time.
     static func uncheckedNote(_ count: Int) -> String? {
         guard count > 0 else { return nil }
