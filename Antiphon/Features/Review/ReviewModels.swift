@@ -5,12 +5,28 @@ import Observation
 @MainActor
 @Observable
 final class ReviewQueueModel {
-    private(set) var items: [ReviewItem] = []
+    /// One card: a close match to confirm, or a two-way removal to answer.
+    enum Entry: Identifiable {
+        case match(ReviewItem)
+        case conflict(ConflictItem)
+
+        var id: String {
+            switch self {
+            case .match(let item): "match-\(item.id)"
+            case .conflict(let item): "conflict-\(item.id.platform.rawValue)-\(item.id.id)"
+            }
+        }
+    }
+
+    private(set) var entries: [Entry] = []
     private(set) var index = 0
     private(set) var error: String?
     private(set) var isLoaded = false
     private(set) var added = 0
     private(set) var skipped = 0
+    private(set) var answered = 0
+    /// Removals the person still has to make in the Music app.
+    private(set) var guidedLeft: [SyncOperation] = []
 
     /// `nil` reviews every seam.
     let seamId: UUID?
@@ -23,23 +39,31 @@ final class ReviewQueueModel {
         self.sync = sync
     }
 
+    /// Close matches first, then removals — the same things the seam's
+    /// "Review" count promises.
     func load() async {
-        items = (try? await reviews.reviewItems(seamId: seamId)) ?? []
+        let matches = (try? await reviews.reviewItems(seamId: seamId)) ?? []
+        let conflicts = (try? await reviews.conflicts(seamId: seamId)) ?? []
+        entries = matches.map(Entry.match) + conflicts.map(Entry.conflict)
         index = 0
         isLoaded = true
     }
 
-    var current: ReviewItem? { items.indices.contains(index) ? items[index] : nil }
-    var isFinished: Bool { isLoaded && index >= items.count }
-    var positionText: String { "\(min(index + 1, max(items.count, 1))) of \(items.count)" }
-    var progress: Double { items.isEmpty ? 1 : Double(index) / Double(items.count) }
+    var currentEntry: Entry? { entries.indices.contains(index) ? entries[index] : nil }
+    var current: ReviewItem? {
+        if case .match(let item) = currentEntry { item } else { nil }
+    }
+    var isFinished: Bool { isLoaded && index >= entries.count }
+    var positionText: String { "\(min(index + 1, max(entries.count, 1))) of \(entries.count)" }
+    var progress: Double { entries.isEmpty ? 1 : Double(index) / Double(entries.count) }
     /// What's left behind the current card, for the stack.
-    var upcomingCount: Int { max(0, items.count - index - 1) }
+    var upcomingCount: Int { max(0, entries.count - index - 1) }
 
     var summary: String {
         var parts: [String] = []
         if added > 0 { parts.append("\(added) added") }
         if skipped > 0 { parts.append("\(skipped) skipped") }
+        if answered > 0 { parts.append("\(answered) answered") }
         return parts.isEmpty ? "Nothing changed." : parts.joined(separator: ", ") + "."
     }
 
@@ -63,6 +87,18 @@ final class ReviewQueueModel {
             advance()
         } catch {
             self.error = "Antiphon couldn't save that. Try again."
+        }
+    }
+
+    func resolve(_ item: ConflictItem, as outcome: ConflictOutcome) async {
+        let resolutions = ConflictResolver.resolveAll([item.conflict], as: outcome, appleMusicCanRemove: item.appleMusicCanRemove)
+        do {
+            let result = try await sync.resolve(resolutions, seamId: item.seamId)
+            guidedLeft += result.guided
+            answered += 1
+            advance()
+        } catch {
+            self.error = "Antiphon couldn't change the playlist. Check your connection and try again."
         }
     }
 
@@ -155,14 +191,9 @@ final class ConflictModel {
         self.sync = sync
     }
 
-    var title: String { "\(item.conflict.track.title) was removed on \(item.conflict.removedFrom.rawValue)" }
+    var title: String { item.question }
 
-    func subtitle(now: Date = Date()) -> String {
-        let remaining = item.conflict.removedFrom.other.rawValue
-        let still = "It's still in \(item.remainingPlaylistName) on \(remaining)."
-        guard let noticed = item.conflict.noticedAt else { return still }
-        return "Noticed \(RelativeTime.text(since: noticed, now: now)). \(still)"
-    }
+    func subtitle(now: Date = Date()) -> String { item.noticedLine(now: now) }
 
     var buttonTitle: String { ConflictResolver.buttonTitle(for: item.conflict, outcome: outcome) }
 
@@ -171,10 +202,7 @@ final class ConflictModel {
         return "Do the same for \(PlanCopy.count(others.count, "other removal"))"
     }
 
-    var guidedNote: String? {
-        guard outcome == .removeOnOtherSide, item.conflict.removedFrom.other == .appleMusic, !item.appleMusicCanRemove else { return nil }
-        return "Antiphon can't remove tracks from this Apple Music playlist. Remove \(item.conflict.track.title) in the Music app; Antiphon notices on the next sync."
-    }
+    var guidedNote: String? { outcome == .removeOnOtherSide ? item.guidedRemovalNote : nil }
 
     func confirm() async {
         isWorking = true
@@ -189,5 +217,22 @@ final class ConflictModel {
         } catch {
             self.error = "Antiphon couldn't change the playlist. Check your connection and try again."
         }
+    }
+}
+
+/// Copy shared by the conflict sheet and the removal card in the queue.
+extension ConflictItem {
+    var question: String { "\(conflict.track.title) was removed on \(conflict.removedFrom.rawValue)" }
+
+    func noticedLine(now: Date = Date()) -> String {
+        let still = "It's still in \(remainingPlaylistName) on \(conflict.removedFrom.other.rawValue)."
+        guard let noticed = conflict.noticedAt else { return still }
+        return "Noticed \(RelativeTime.text(since: noticed, now: now)). \(still)"
+    }
+
+    /// Set when removing on the other side has to happen in the Music app.
+    var guidedRemovalNote: String? {
+        guard conflict.removedFrom.other == .appleMusic, !appleMusicCanRemove else { return nil }
+        return "Antiphon can't remove tracks from this Apple Music playlist. Remove \(conflict.track.title) in the Music app; Antiphon notices on the next sync."
     }
 }

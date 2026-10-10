@@ -126,6 +126,7 @@
 		E27E54828ABBCBA35B32BD2A /* ReviewRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6F67253D0F0A33D8E1F03A /* ReviewRepositoryTests.swift */; };
 		E40C1C023C7E2401E070F816 /* ConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F355E49299CC28CD1A183F1E /* ConflictResolver.swift */; };
 		E5F6AEB807218CECD02D544D /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D70BADB8E6EE6E25C849F1D /* SyncService.swift */; };
+		E72C9DC668436CE5C6E99C52 /* ReleaseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D02F72E52AAEA70781AD605 /* ReleaseResolver.swift */; };
 		EA5A21703A9874B277A9C746 /* ProblemsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A119350F389951E8FECC5131 /* ProblemsTests.swift */; };
 		EB91D3D28B5AAA71F0BAA5CA /* MatchComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75E5474B99BB82ACA895667 /* MatchComparison.swift */; };
 		EBE94649C95587D0E2962DE5 /* ProblemsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA39821B4B424788A1DAC8CD /* ProblemsModel.swift */; };
@@ -212,6 +213,7 @@
 		655E9E31CF9771477CD3AFB1 /* MatchDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchDetailTests.swift; sourceTree = "<group>"; };
 		66714CB337991AB0E13F3BCA /* SyncProblem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProblem.swift; sourceTree = "<group>"; };
 		67EC887433FA149952795669 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
+		6D02F72E52AAEA70781AD605 /* ReleaseResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseResolver.swift; sourceTree = "<group>"; };
 		6DED2218261BB42D83856BF8 /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
 		6FF6E045F7025D77200102AE /* ReleasePreferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleasePreferenceTests.swift; sourceTree = "<group>"; };
 		71107F83439544F67E1D11D4 /* SyncFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFlowModel.swift; sourceTree = "<group>"; };
@@ -478,6 +480,7 @@
 				AB07EEC8F741307983879651 /* PlaylistEntryEdit.swift */,
 				0B8F7BAFABF625CB1CB80425 /* Problems.swift */,
 				2035E83AD10D7BA22E7C2743 /* ReleasePreference.swift */,
+				6D02F72E52AAEA70781AD605 /* ReleaseResolver.swift */,
 				6258FA0FE71955A953CCCD81 /* SyncOperation.swift */,
 				22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */,
 				997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */,
@@ -932,6 +935,7 @@
 				625625155F423FEED1904B3C /* RateLimitPolicy.swift in Sources */,
 				D323FB79512021AFF5376A7B /* RelativeTime.swift in Sources */,
 				25DA53C2F193F422491AB18A /* ReleasePreference.swift in Sources */,
+				E72C9DC668436CE5C6E99C52 /* ReleaseResolver.swift in Sources */,
 				9761C9B5A894065095B64E54 /* ReviewModels.swift in Sources */,
 				60BE8D86C1D4AE96DB07DFFA /* ReviewQueueView.swift in Sources */,
 				A249E92B6D7F5784422772BF /* ReviewRepository.swift in Sources */,

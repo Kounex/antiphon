@@ -2,7 +2,8 @@ import AntiphonDesign
 import SwiftUI
 
 /// Close matches as a card stack: swipe right to add, left to skip, or pick
-/// another version. Previews play so ears can decide.
+/// another version. Previews play so ears can decide. Two-way removals
+/// waiting for an answer follow as cards of their own.
 struct ReviewQueueView: View {
     @State var model: ReviewQueueModel
     let makeDetail: (ReviewItem) -> MatchDetailModel
@@ -19,14 +20,14 @@ struct ReviewQueueView: View {
                 background
                 if model.isFinished {
                     finished
-                } else if let item = model.current {
+                } else if let entry = model.currentEntry {
                     VStack(spacing: Space.s4) {
                         ProgressView(value: model.progress).tint(.thread).accessibilityHidden(true)
-                        stack(item)
+                        stack(entry)
                         if let error = model.error {
                             Text(error).font(.footnote).foregroundStyle(Color.statusFailed).multilineTextAlignment(.center)
                         }
-                        controls(item)
+                        if case .match(let item) = entry { controls(item) }
                     }
                     .padding(.horizontal, Space.s4)
                     .padding(.bottom, Space.s4)
@@ -64,7 +65,7 @@ struct ReviewQueueView: View {
     private var background: some View {
         ZStack {
             Color.canvas
-            CoverPlaceholder(seed: model.current?.source.title ?? "")
+            CoverPlaceholder(seed: backgroundSeed)
                 .opacity(0.5)
                 .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
         }
@@ -72,7 +73,15 @@ struct ReviewQueueView: View {
         .accessibilityHidden(true)
     }
 
-    private func stack(_ item: ReviewItem) -> some View {
+    private var backgroundSeed: String {
+        switch model.currentEntry {
+        case .match(let item): item.source.title
+        case .conflict(let item): item.conflict.track.title
+        case nil: ""
+        }
+    }
+
+    private func stack(_ entry: ReviewQueueModel.Entry) -> some View {
         ZStack {
             ForEach(0..<min(2, model.upcomingCount), id: \.self) { depth in
                 RoundedRectangle(cornerRadius: Radius.card)
@@ -82,15 +91,21 @@ struct ReviewQueueView: View {
                     .offset(y: depth == 0 ? -12 : -24)
                     .accessibilityHidden(true)
             }
-            ReviewCard(item: item, player: player)
-                .offset(x: drag.width)
-                .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag.width) / 25))
-                .gesture(swipe)
-                .accessibilityElement(children: .contain)
-                .accessibilityAction(named: "Same track, add it") { Task { await model.accept() } }
-                .accessibilityAction(named: "Skip this track") { Task { await model.skip() } }
-                .accessibilityAction(named: "Pick another version") { detailItem = item }
+            switch entry {
+            case .match(let item):
+                ReviewCard(item: item, player: player)
+                    .offset(x: drag.width)
+                    .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag.width) / 25))
+                    .gesture(swipe)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityAction(named: "Same track, add it") { Task { await model.accept() } }
+                    .accessibilityAction(named: "Skip this track") { Task { await model.skip() } }
+                    .accessibilityAction(named: "Pick another version") { detailItem = item }
+            case .conflict(let item):
+                RemovalCard(item: item) { outcome in Task { await model.resolve(item, as: outcome) } }
+            }
         }
+        .id(entry.id)
     }
 
     private var swipe: some Gesture {
@@ -144,6 +159,10 @@ struct ReviewQueueView: View {
                 .accessibilityHidden(true)
             Text("All caught up").font(.antiphonTitle2).foregroundStyle(Color.ink)
             Text(model.summary).font(.body).foregroundStyle(Color.inkMuted)
+            if !model.guidedLeft.isEmpty {
+                Text("Still to do in the Music app: remove \(model.guidedLeft.map(\.track.title).formatted(.list(type: .and))).")
+                    .font(.footnote).foregroundStyle(Color.inkMuted).multilineTextAlignment(.center)
+            }
             Button("Done", action: onClose).glassButton(.primary)
         }
         .padding(Space.s6)
@@ -224,5 +243,43 @@ struct ReviewCard: View {
                     .controlSize(.small)
             }
         }
+    }
+}
+
+/// "Holocene was removed on Apple Music": the three outcomes as verbs, one
+/// tap each, same as the conflict sheet.
+struct RemovalCard: View {
+    let item: ConflictItem
+    let onChoose: (ConflictOutcome) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.s4) {
+                Text(item.seamName.uppercased())
+                    .font(.footnote).foregroundStyle(Color.inkMuted)
+                Text(item.question).font(.antiphonTitle2).foregroundStyle(Color.ink)
+                Text(item.noticedLine()).font(.subheadline).foregroundStyle(Color.inkMuted)
+                AntiphonDesign.TrackRow(
+                    title: item.conflict.track.title,
+                    detail: [item.conflict.track.artist, item.conflict.track.album].compactMap { $0 }.joined(separator: " · "),
+                    artwork: CoverArt(url: item.conflict.track.artworkURL.flatMap(URL.init(string:)), seed: item.conflict.track.title, size: 40),
+                    state: .removed
+                )
+                VStack(spacing: Space.s2) {
+                    ForEach([ConflictOutcome.removeOnOtherSide, .restore, .keepDifference], id: \.self) { outcome in
+                        Button(ConflictResolver.buttonTitle(for: item.conflict, outcome: outcome)) { onChoose(outcome) }
+                            .buttonSizing(.flexible)
+                            .glassButton(.secondary)
+                    }
+                }
+                if let note = item.guidedRemovalNote {
+                    Text(note).font(.footnote).foregroundStyle(Color.inkMuted)
+                }
+            }
+            .padding(Space.s5)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(Color.canvasRaised, in: .rect(cornerRadius: Radius.card))
+        .shadow(color: .black.opacity(0.25), radius: 20, y: 12)
     }
 }

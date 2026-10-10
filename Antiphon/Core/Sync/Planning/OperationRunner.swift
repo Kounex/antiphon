@@ -66,8 +66,8 @@ actor OperationRunner {
                                            trigger: .conflict, undoOf: nil, outcome: &outcome)
 
         for resolution in resolutions {
-            let landedAll = resolution.operations.allSatisfy { $0.isGuided || outcome.landed.contains($0) }
-            guard landedAll, let row = row(for: resolution.conflict.key, in: pair) else { continue }
+            let landed = resolution.operations.map { $0.isGuided ? $0 : landedOperation(for: $0, in: outcome.landed) }
+            guard !landed.contains(nil), let row = row(for: resolution.conflict.key, in: pair) else { continue }
             switch resolution.rowUpdate {
             case .forget:
                 context.delete(row)
@@ -77,6 +77,10 @@ actor OperationRunner {
                 row.removalKeptAt = nil
                 row.source = .both
                 row.syncState = .synced
+                // Apple Music answers with the ID it added, usually not the one removed.
+                for case let added? in landed where added.kind == .add {
+                    if added.platform == .spotify { row.spotifyTrackUri = added.track.id } else { row.appleMusicTrackId = added.track.id }
+                }
             case .keepDifference:
                 row.removalKeptAt = Date()
             }
@@ -196,6 +200,19 @@ actor OperationRunner {
             return group
         case .move:
             throw PlaylistEditError.unsupported
+        }
+    }
+
+    /// The write that landed for a requested one. Adds may come back with
+    /// another ID (Apple Music catalog vs library), so they're matched by recording.
+    private func landedOperation(for operation: SyncOperation, in landed: [SyncOperation]) -> SyncOperation? {
+        if landed.contains(operation) { return operation }
+        guard operation.kind == .add else { return nil }
+        return landed.first { other in
+            other.kind == .add && other.platform == operation.platform
+                && (other.track.isrc.map { $0 == operation.track.isrc } ?? false
+                    || (other.track.title.normalizedForMatching == operation.track.title.normalizedForMatching
+                        && other.track.artist.normalizedForMatching == operation.track.artist.normalizedForMatching))
         }
     }
 

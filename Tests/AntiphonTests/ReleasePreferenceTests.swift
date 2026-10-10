@@ -126,3 +126,29 @@ struct AlbumSearchTests {
         #expect(score("Home of Music Rock") == 0)
     }
 }
+
+@Suite("Putting a track back")
+struct RestoreReleaseTests {
+    @Test("A restored track gets its original album, not the first ISRC hit")
+    func originalAlbum() async throws {
+        let removed = CatalogTrack(platform: .appleMusic, id: "i.word", title: "Word Up!", artist: "Korn",
+                                   album: "Greatest Hits, Vol. 1", durationMs: 173_000, isrc: "USSM10400583")
+        let catalog = FakeCatalog(byISRC: ["USSM10400583": [
+            CatalogTrack(platform: .appleMusic, id: "random", title: "Word Up!", artist: "Korn", album: "Nu Metal Hits",
+                         durationMs: 173_000, isrc: "USSM10400583"),
+            CatalogTrack(platform: .appleMusic, id: "original", title: "Word Up!", artist: "Korn", album: "Greatest Hits, Vol. 1",
+                         durationMs: 173_000, isrc: "USSM10400583")
+        ]])
+        let picked = try await ReleaseResolver.catalogTrack(for: removed, in: catalog)
+        #expect(picked?.id == "original")
+    }
+
+    @Test("Nothing solid enough means nothing is added")
+    func noWeakPick() async throws {
+        let removed = CatalogTrack(platform: .appleMusic, id: "i.x", title: "Word Up!", artist: "Korn", durationMs: 173_000)
+        let catalog = FakeCatalog(searchResults: [
+            CatalogTrack(platform: .appleMusic, id: "live", title: "Word Up! (Live)", artist: "Korn", durationMs: 200_000)
+        ])
+        #expect(try await ReleaseResolver.catalogTrack(for: removed, in: catalog) == nil)
+    }
+}

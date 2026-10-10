@@ -74,6 +74,7 @@ struct DebugRouteView: View {
             DebugRoute.startScrolled = true
         case "rules": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id), .rules(PreviewFixtures.lateNightDrive.id)]
         case "review": model.reviewTarget = .init(seamId: nil)
+        case "review-removal": model.reviewTarget = .init(seamId: PreviewFixtures.gardenSundays.id)
         case "match":
             model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id),
                                .match(seamId: PreviewFixtures.lateNightDrive.id, rowId: PreviewFixtures.reviewItems[0].id)]

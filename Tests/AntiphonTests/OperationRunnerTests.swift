@@ -16,10 +16,13 @@ final class FakeEditor: PlaylistEditor, Sendable {
     private let log = Mutex<[Edit]>([])
     private let live: [Platform: [CatalogTrack]]
     private let failing: Bool
+    /// Apple Music answers with catalog IDs, not the IDs Antiphon asked with.
+    private let renameLanded: Bool
 
-    init(live: [Platform: [CatalogTrack]] = [:], failing: Bool = false) {
+    init(live: [Platform: [CatalogTrack]] = [:], failing: Bool = false, renameLanded: Bool = false) {
         self.live = live
         self.failing = failing
+        self.renameLanded = renameLanded
     }
 
     var edits: [Edit] { log.withLock { $0 } }
@@ -27,7 +30,8 @@ final class FakeEditor: PlaylistEditor, Sendable {
     func add(_ tracks: [CatalogTrack], to playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
         if failing { throw URLError(.notConnectedToInternet) }
         log.withLock { $0.append(Edit(kind: "add", platform: platform, playlistId: playlistId, trackIds: tracks.map(\.id))) }
-        return tracks
+        guard renameLanded else { return tracks }
+        return tracks.map { var t = $0; t.id = "catalog-\($0.title)"; return t }
     }
 
     func remove(_ tracks: [CatalogTrack], from playlistId: String, on platform: Platform) async throws {
@@ -103,6 +107,16 @@ struct OperationRunnerTests {
         let log = try #require(try logs(f).last)
         #expect(log.trigger == .conflict)
         #expect(log.changes.map(\.kind) == [.add])
+    }
+
+    @Test("Restoring updates the row even when Apple Music reports a different ID")
+    func restoreWithNewID() async throws {
+        let f = try makeFixture()
+        let runner = OperationRunner(modelContainer: f.container, editor: FakeEditor(renameLanded: true), capabilities: .spotifyOnly)
+        _ = try await runner.resolve([ConflictResolver.resolve(holoConflict(), as: .restore, appleMusicCanRemove: false)], pairId: f.pairId)
+        let row = try #require(try rows(f).first)
+        #expect(row.removalFlag == nil, "the question is answered")
+        #expect(row.appleMusicTrackId == "catalog-Holocene")
     }
 
     @Test("Removing on the other side removes it on Spotify and forgets the row")

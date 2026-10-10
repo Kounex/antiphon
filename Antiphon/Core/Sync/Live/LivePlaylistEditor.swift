@@ -63,22 +63,25 @@ struct LivePlaylistEditor: PlaylistEditor {
 
     /// Catalog songs for the tracks: by catalog ID when known, otherwise by
     /// ISRC (library IDs like "i.…" aren't catalog IDs).
+    /// Library IDs (`i.`) can't be added from the catalog: those tracks get
+    /// the release syncing would pick (original album first), or are left out.
     private func resolveSongs(_ tracks: [CatalogTrack]) async throws -> [Song] {
-        let catalogIds = tracks.map(\.id).filter { !$0.hasPrefix("i.") }
+        let catalog = AppleMusicTrackCatalog(manager: appleMusicManager)
+        let preferences = AppPreferences.shared.versionPreferences
+        var catalogIds: [String?] = []
+        for track in tracks {
+            if !track.id.hasPrefix("i.") {
+                catalogIds.append(track.id)
+            } else {
+                catalogIds.append(try await ReleaseResolver.catalogTrack(for: track, in: catalog, preferences: preferences)?.id)
+            }
+        }
+
         var byId: [String: Song] = [:]
-        for batch in catalogIds.chunked(into: 25) {
+        for batch in Array(Set(catalogIds.compactMap { $0 })).chunked(into: 25) {
             let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: batch.map { MusicItemID($0) })
             for song in try await request.response().items { byId[song.id.rawValue] = song }
         }
-
-        var songs: [Song] = []
-        for track in tracks {
-            if let song = byId[track.id] {
-                songs.append(song)
-            } else if let isrc = track.isrc, let song = try await appleMusicManager.searchByISRC(isrc) {
-                songs.append(song)
-            }
-        }
-        return songs
+        return catalogIds.compactMap { $0.flatMap { byId[$0] } }
     }
 }

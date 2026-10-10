@@ -179,3 +179,34 @@ struct ReviewModelsTests {
         #expect(model.guidedNote == nil)
     }
 }
+
+@Suite("Review queue with removals")
+@MainActor
+struct ReviewQueueConflictTests {
+    @Test("Removals waiting for an answer are cards in the same queue")
+    func conflictsInQueue() async {
+        let seam = UUID()
+        let source = CatalogTrack(platform: .spotify, id: "spotify:track:m", title: "Midnight City", artist: "M83")
+        let match = ReviewItem(id: UUID(), seamId: seam, seamName: "Garden Sundays", key: TrackKey(source), source: source,
+                               candidates: [MatchCandidate(track: CatalogTrack(platform: .appleMusic, id: "a", title: "Midnight City (Remaster)", artist: "M83"),
+                                                           confidence: 86, reason: .versionDifference)])
+        let spotify = CatalogTrack(platform: .spotify, id: "spotify:track:holo", title: "Holocene", artist: "Bon Iver")
+        let conflict = ConflictItem(seamId: seam, seamName: "Garden Sundays",
+                                    conflict: SyncPlan.Conflict(key: TrackKey(spotify), track: spotify, removedFrom: .appleMusic,
+                                                                noticedAt: nil, remaining: spotify, removed: spotify),
+                                    remainingPlaylistName: "Garden Sundays", appleMusicCanRemove: false, rowId: UUID())
+        let sync = RecordingSyncService()
+        let model = ReviewQueueModel(seamId: seam, reviews: FixedReviews(items: [match], conflictItems: [conflict]), sync: sync)
+        await model.load()
+        #expect(model.positionText == "1 of 2")
+        await model.accept()
+        guard case .conflict(let item) = model.currentEntry else {
+            Issue.record("expected the removal card next"); return
+        }
+        #expect(item.conflict.track.title == "Holocene")
+        await model.resolve(item, as: .restore)
+        #expect(sync.calls.last == .resolve([conflict.conflict.key], .restore))
+        #expect(model.isFinished)
+        #expect(model.summary == "1 added, 1 answered.")
+    }
+}
