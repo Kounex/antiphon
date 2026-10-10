@@ -403,3 +403,19 @@ Differences left, and why:
 
 ### Parked questions
 - **Apple Music library and downloads (2026-10-10, device test).** Tracks Antiphon added via `MusicLibrary.add(_:to:)` landed in the library and auto-downloaded (Add Playlist Songs and Automatic Downloads are on). The 7 tracks already in the test playlist, added from the suggestions while creating the playlist in Music and not in the library before, didn't download. Likely the Music app's creation-sheet suggestions skip the library add. That's Apple-side behavior Antiphon can't control; the preview notes the settings. Revisit only if users report surprises.
+
+### Device check after M4 (2026-10-10, Kounex iOS, separate `com.kounex.antiphon.dev` app)
+
+Verified with real accounts:
+- **One-way first sync:** Spotify (12) → Apple Music (7, 3 shared). The preview said +9 with nothing removed; the sync added 9 with no duplicates; the Spotify cover was untouched.
+- **New seam creating its Apple Music twin** (5 Linkin Park tracks): correct releases chosen, synced.
+- **Switching a seam to Both ways:** the rebuild preview showed +4 on Spotify; the sync added them.
+
+Found and fixed during the session:
+1. **Dev installs lost design colors.** A command-line `PRODUCT_BUNDLE_IDENTIFIER` also renamed the AntiphonDesign resource bundle; now `ANTIPHON_BUNDLE_ID` scopes it to the app target.
+2. **The preview failed with a misleading message.** A missing MusicKit developer token (MusicKit wasn't enabled for the new app ID) killed the whole preview. Now `CatalogFailure` stops only on errors that affect every track, with an actionable message, and skips one-off failures.
+3. **The first sync hung for over a minute.** The legacy cover-copy step was replacing an existing Spotify playlist's cover, which the preview never showed. It now only copies the cover onto Spotify playlists Antiphon created. Spotify 429 waits over 30 s now fail fast instead of sleeping.
+4. **Compilations instead of original albums.** One ISRC appears on the original album and on every compilation, and Apple's original album often carries a different ISRC than Spotify's. `ReleasePreference` plus an album-aware search in `MatchFinder` now pick the original release (exact album, then edition, then non-compilation); "See every track" shows the chosen release.
+5. **Placeholder covers for Apple Music-sourced rows.** Library artwork is `musicKit://`; matched rows now adopt the other side's web cover. Existing rows fill in on their next sync.
+
+Observed, not a bug: Spotify adds are near-instant because they're batched (100 per request), while Apple Music only allows one song at a time for library playlists.
