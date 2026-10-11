@@ -14,6 +14,28 @@ struct PlaylistFingerprint: Equatable, Sendable {
     }
 }
 
+/// How long a background run may spend looking tracks up. iOS gives a
+/// background refresh about 30 seconds and planning keeps nothing until it's
+/// applied, so planning stops in time to apply what it has; the rest waits
+/// for the next run. At least one track is always looked up, so a slow
+/// connection still makes progress.
+struct LookupBudget: Sendable {
+    let limit: Duration?
+    let startedAt: ContinuousClock.Instant
+
+    init(_ limit: Duration?, startedAt: ContinuousClock.Instant = .now) {
+        self.limit = limit
+        self.startedAt = startedAt
+    }
+
+    static var unlimited: LookupBudget { LookupBudget(nil) }
+
+    func allowsLookup(done: Int, at now: ContinuousClock.Instant = .now) -> Bool {
+        guard let limit, done > 0 else { return true }
+        return now - startedAt < limit
+    }
+}
+
 /// A plan plus what it was built against.
 struct PlannedSync: Sendable {
     let plan: SyncPlan
@@ -57,16 +79,21 @@ actor SyncPlanner {
 
     /// `unattended`: a background run applies the plan without a preview.
     /// Its `removeInBackground` decides whether Mirror removals are carried
-    /// out, and at most `limit` tracks are looked up, leaving the rest pending
-    /// for the next run (a background run has seconds, and planning keeps
-    /// nothing until applied).
+    /// out, and tracks are looked up only while `lookupTime` lasts (see
+    /// `LookupBudget`); the rest stay pending for the next run.
     struct Unattended: Sendable {
         let removeInBackground: Bool
-        let limit: Int?
+        let lookupTime: Duration
     }
+
+    /// Up-front ISRC lookups for a background run, so a huge batch doesn't
+    /// spend the budget before planning starts.
+    private static let unattendedPrefetch = 100
 
     func plan(pairId: UUID, action: SyncAction = .manualSync, progress: Progress? = nil,
               unattended: Unattended? = nil) async throws -> PlannedSync {
+        // Counts the playlist reads too: the whole plan has to fit.
+        let budget = LookupBudget(unattended?.lookupTime)
         let live = try await fetchLiveTracks(pairId: pairId)
         let stageA = try DryRunStageA.run(
             container: modelContainer, pairId: pairId, action: action,
@@ -80,11 +107,12 @@ actor SyncPlanner {
                 && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: recheck, now: Date()))
             return needsWork && PlanBuilder.allows(stageA.direction, from: row.source.platform)
         }
-        let toMatch = unattended?.limit.map { Array(candidates.prefix($0)) } ?? candidates
+        let toMatch = candidates
 
         let spotifyCatalog = SpotifyTrackCatalog(client: spotifyClient)
         let appleCatalog = AppleMusicTrackCatalog(manager: appleMusicManager)
-        await appleCatalog.prefetch(isrcs: toMatch.filter { $0.source.platform == .spotify }.compactMap(\.source.isrc))
+        let prefetching = toMatch.filter { $0.source.platform == .spotify }.compactMap(\.source.isrc)
+        await appleCatalog.prefetch(isrcs: unattended == nil ? prefetching : Array(prefetching.prefix(Self.unattendedPrefetch)))
 
         let spotifyPlaylist = live.spotify.compactMap { $0.track.map(CatalogTrack.init) }
         let applePlaylist = live.appleMusic.map(CatalogTrack.init)
@@ -93,6 +121,12 @@ actor SyncPlanner {
         var unchecked = 0
         for (index, row) in toMatch.enumerated() {
             try Task.checkCancellation()
+            guard budget.allowsLookup(done: index) else {
+                // Out of time: the rest stay pending for the next run.
+                unchecked += toMatch.count - index
+                print("[SyncPlanner] Looked up \(index) of \(toMatch.count) in the time a background run has; the rest wait")
+                break
+            }
             await progress?(index, toMatch.count)
             do {
                 let outcome = row.source.platform == .spotify

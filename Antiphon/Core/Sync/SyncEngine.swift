@@ -111,7 +111,7 @@ actor SyncEngine {
         let planned: PlannedSync
         do {
             planned = try await planner.plan(pairId: pair.id, action: .monitorSync, unattended: .init(
-                removeInBackground: preferences.removeInBackground, limit: AppConstants.Sync.backgroundLookupLimit
+                removeInBackground: preferences.removeInBackground, lookupTime: AppConstants.Sync.backgroundLookupTime
             ))
         } catch {
             // iOS ending the background run cancels the requests in flight.

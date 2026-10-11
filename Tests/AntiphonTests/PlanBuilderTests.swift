@@ -269,3 +269,27 @@ struct PlanDecisionTests {
         #expect(decisions[TrackKey(t(2, .spotify))]?.writesTrack == true)
     }
 }
+
+@Suite("Background lookup budget")
+struct LookupBudgetTests {
+    private let start = ContinuousClock.now
+
+    @Test("Looks tracks up until the time is used, then stops")
+    func stopsWhenSpent() {
+        let budget = LookupBudget(.seconds(12), startedAt: start)
+        #expect(budget.allowsLookup(done: 5, at: start + .seconds(11)))
+        #expect(!budget.allowsLookup(done: 5, at: start + .seconds(12)))
+    }
+
+    @Test("Always looks up at least one track, so a slow connection still makes progress")
+    func atLeastOne() {
+        let budget = LookupBudget(.seconds(12), startedAt: start)
+        #expect(budget.allowsLookup(done: 0, at: start + .seconds(60)))
+        #expect(!budget.allowsLookup(done: 1, at: start + .seconds(60)))
+    }
+
+    @Test("No budget (a preview the person waits for) never stops")
+    func unlimited() {
+        #expect(LookupBudget.unlimited.allowsLookup(done: 10_000, at: start + .seconds(3600)))
+    }
+}
