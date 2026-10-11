@@ -7,6 +7,7 @@ import MusicKit
 @main
 struct AntiphonApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     let modelContainer: ModelContainer
     let spotifyAuth: SpotifyAuthManager

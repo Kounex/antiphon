@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UserNotifications
 
 /// Everything that changes playlists, behind one protocol so views can be
 /// previewed with mock data. Every write path starts from a preview.
@@ -57,12 +58,16 @@ struct LiveSyncService: SyncService {
 
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome {
         let outcome = try await runner().resolve(resolutions, pairId: seamId)
+        // Answered: its notification, if any, has nothing left to ask.
+        UNUserNotificationCenter.current().removeDeliveredNotifications(
+            withIdentifiers: resolutions.map { QuestionNotice.id(seamId: seamId, key: $0.conflict.key) })
         WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
         return outcome
     }
 
     func decide(_ decision: OperationRunner.ReviewDecision, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome {
         let outcome = try await runner().decide(decision, for: key, pairId: seamId)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [QuestionNotice.id(seamId: seamId, key: key)])
         WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
         return outcome
     }

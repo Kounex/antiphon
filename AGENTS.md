@@ -44,7 +44,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 
 - **Scenarios:**
   - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly).
-  - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon).
+  - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app).
 - Last full run: **105 of 105** (2026-10-11).
 - **Rules from the user:**
   - Only touch playlists whose names start with "Antiphon". "Antiphon Test" (made by the user, used by their real two-way seam) and "Antiphon Test 2" (Antiphon-made) may be used.

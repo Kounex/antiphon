@@ -84,12 +84,14 @@ enum MonitorRun {
         var due: [UUID] = []
         var results: [SyncResult] = []
         var messages: [MonitorNotifications.Message] = []
+        /// New questions asked one by one, with their answers as buttons.
+        var questions: [QuestionNotice] = []
         var expired = false
 
         var succeeded: Bool { !expired && results.allSatisfy { $0.status != .failed } }
         var summary: String {
             if let blocker { return "skipped (\(blocker))" }
-            return "\(due.count) due, \(results.filter(\.isSuccess).count) synced, \(messages.count) notifications"
+            return "\(due.count) due, \(results.filter(\.isSuccess).count) synced, \(messages.count + questions.count) notifications"
         }
     }
 
@@ -112,6 +114,8 @@ enum MonitorRun {
 
         let repository = SwiftDataSeamRepository(modelContainer: modelContainer)
         let before = (try? await repository.seams()) ?? []
+        let reviewBefore = Set(((try? await repository.reviewItems(seamId: nil)) ?? []).map(\.id))
+        let conflictsBefore = Set(((try? await repository.conflicts(seamId: nil)) ?? []).map(QuestionNotifications.identity))
         let engine = SyncEngine(modelContainer: modelContainer, spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
         report.results = await engine.syncAllMonitored(only: Set(report.due), preferences: preferences)
         let after = (try? await repository.seams()) ?? []
@@ -120,10 +124,39 @@ enum MonitorRun {
         guard !report.expired else { return report }
         let outcomes = outcomes(before: before, after: after, results: report.results)
         report.messages = MonitorNotifications.messages(outcomes, preferences.notificationPreferences)
-        if post { await notify(report.messages, repository: repository, preferences: preferences) }
+        if preferences.notifyDecide {
+            // A few new questions are asked one by one, answerable from the
+            // notification; then the summary would only repeat them.
+            let review = ((try? await repository.reviewItems(seamId: nil)) ?? []).filter { !reviewBefore.contains($0.id) }
+            let conflicts = ((try? await repository.conflicts(seamId: nil)) ?? []).filter {
+                !conflictsBefore.contains(QuestionNotifications.identity($0))
+            }
+            report.questions = QuestionNotifications.notices(review: review, conflicts: conflicts)
+            if !report.questions.isEmpty { report.messages.removeAll { $0.kind == .decide } }
+        }
+        if post {
+            await notify(report.messages, repository: repository, preferences: preferences)
+            await ask(report.questions)
+        }
         // Notifications first: the widgets can wait, a question can't.
         if !isExpired() { await WidgetSnapshotWriter.refresh(modelContainer: modelContainer) }
         return report
+    }
+
+    /// Posts each question with its answers as buttons (`AppDelegate` handles them).
+    static func ask(_ questions: [QuestionNotice]) async {
+        let center = UNUserNotificationCenter.current()
+        for question in questions {
+            let content = UNMutableNotificationContent()
+            content.title = question.title
+            content.subtitle = question.subtitle
+            content.body = question.body
+            content.sound = .default
+            content.categoryIdentifier = question.category.rawValue
+            content.threadIdentifier = MonitorNotifications.Kind.decide.rawValue
+            content.userInfo = question.userInfo
+            try? await center.add(UNNotificationRequest(identifier: question.id, content: content, trigger: nil))
+        }
     }
 
     static func outcomes(before: [SeamSummary], after: [SeamSummary], results: [SyncResult]) -> [MonitorNotifications.SeamOutcome] {

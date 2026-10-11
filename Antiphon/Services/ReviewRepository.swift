@@ -10,7 +10,7 @@ struct ReviewItem: Identifiable, Hashable, Sendable {
     /// Identifies the row for `SyncService.decide`.
     let key: TrackKey
     let source: CatalogTrack
-    /// Best first.
+    /// The plan's choice first, then the alternatives it ranked lower.
     let candidates: [MatchCandidate]
 
     var best: MatchCandidate? { candidates.first }
@@ -49,7 +49,9 @@ extension SwiftDataSeamRepository: ReviewRepository {
                     guard let planRow = row.planRow(seamSource: seamSource) else { return nil }
                     return ReviewItem(
                         id: row.id, seamId: pair.id, seamName: Self.name(of: pair), key: planRow.key,
-                        source: planRow.source, candidates: row.candidates.sorted { $0.confidence > $1.confidence }
+                        // As stored: the plan's choice first. It can score below an
+                        // alternative it ranked lower (a compilation vs the original album).
+                        source: planRow.source, candidates: row.candidates
                     )
                 }
         }

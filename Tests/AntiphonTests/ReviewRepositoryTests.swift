@@ -63,6 +63,29 @@ struct ReviewRepositoryTests {
         #expect(first.targetPlatform == .appleMusic)
     }
 
+    @Test("The plan's choice stays first, even when an alternative scores higher (a compilation vs the original album)")
+    func plansChoiceFirst() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let context = ModelContext(container)
+        let pair = SyncPair(spotifyPlaylistId: "sp", spotifyPlaylistName: "Workout", appleMusicPlaylistId: "am",
+                            appleMusicPlaylistName: "Workout", syncDirection: .spotifyToApple)
+        context.insert(pair)
+        let row = CachedTrack(isrc: "F", title: "Faint", artist: "Linkin Park", spotifyTrackUri: "spotify:track:f",
+                              source: .spotify, syncState: .needsReview)
+        row.candidates = [
+            MatchCandidate(track: CatalogTrack(platform: .appleMusic, id: "meteora", title: "Faint", artist: "Linkin Park", album: "Meteora"),
+                           confidence: 99, reason: .titleArtistDuration),
+            MatchCandidate(track: CatalogTrack(platform: .appleMusic, id: "hits", title: "Faint", artist: "Linkin Park", album: "Rock Hits 2019"),
+                           confidence: 100, reason: .isrc)
+        ]
+        row.syncPair = pair
+        context.insert(row)
+        try context.save()
+        let item = try #require(try await SwiftDataSeamRepository(modelContainer: container).reviewItems(seamId: nil).first)
+        #expect(item.best?.track.id == "meteora")
+        #expect(item.candidates.map(\.track.id) == ["meteora", "hits"])
+    }
+
     @Test("Review items can be limited to one seam")
     func reviewItemsForSeam() async throws {
         let (container, _, garden) = try makeStore()

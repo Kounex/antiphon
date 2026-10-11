@@ -3,6 +3,7 @@ import Foundation
 import MusicKit
 import SwiftData
 import UIKit
+import UserNotifications
 
 /// End-to-end checks against the real Spotify and Apple Music accounts,
 /// through the same services the screens use. DEBUG only.
@@ -65,6 +66,8 @@ final class SelfTestRunner {
             if scenario == "realpreview" { try await previewPersonsSeam() }
             // Changes the Home Screen icon (iOS shows a notice): only by name.
             if scenario == "icon" { try await iconFollowsTheme() }
+            // Needs the person to tap a notification button: only by name.
+            if scenario == "ask" { try await askOnLockScreen() }
         } catch {
             fail("Stopped: \(error)")
         }
@@ -479,6 +482,22 @@ final class SelfTestRunner {
         }
         expect(report.results.first?.status != .failed, "the run didn't fail (\(report.results.map { "\($0.status)" }))")
 
+        // Close matches are asked one by one, with the answer as buttons (9.01).
+        log("questions: \(report.questions.map { "\($0.title) | \($0.body) | \($0.category.actions.map(\.title))" })")
+        if let question = report.questions.first(where: { $0.body.localizedCaseInsensitiveContains("Faint") }) {
+            expect(!report.messages.contains { $0.kind == .decide }, "the question replaces the summary")
+            let answered = await QuestionNotifications.answer(.useMatch, userInfo: question.userInfo,
+                                                              review: env.repository, sync: env.sync)
+            expect(answered == .answered, "tapping \(question.category.actions.last?.title ?? "use") answers it")
+            let apple = try await waitForApple(env, titles: ["Faint"])
+            expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Faint") }, "and Faint is on Apple Music")
+            let again = await QuestionNotifications.answer(.useMatch, userInfo: question.userInfo,
+                                                           review: env.repository, sync: env.sync)
+            expect(again == .gone, "a question already answered does nothing")
+        } else if (try env.rows(titled: ["Faint"]).first?.matchConfidence ?? 100) < 100 {
+            expect(false, "Faint waiting in Review is asked as a question")
+        }
+
         // Two-way Mirror: a removal on Spotify is carried out on Apple Music
         // in the background, unless "Removals in the background" is off.
         log("== Background removals in a two-way Mirror seam")
@@ -509,6 +528,55 @@ final class SelfTestRunner {
         let removalRun = try await twoWay.repository.runs().first
         expect(removalRun?.trigger == .monitor, "History shows the removal as a watching run")
         defaults.removePersistentDomain(forName: "antiphon-selftest-monitor")
+    }
+
+    // MARK: - Scenario: a question answered from its notification (by name)
+
+    private func askOnLockScreen() async throws {
+        log("== A close match asked as a notification, answered with its button while the app is in the background")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up"])
+
+        let defaults = UserDefaults(suiteName: "antiphon-selftest-ask")!
+        defaults.removePersistentDomain(forName: "antiphon-selftest-ask")
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.autoAddThreshold = 100
+        _ = try await env.editor.add([seeds.faint], to: spotifyId, on: .spotify)
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+        let report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        guard var question = report.questions.first(where: { $0.body.localizedCaseInsensitiveContains("Faint") }) else {
+            expect(false, "Faint is asked as a question (\(report.questions.map(\.body)))")
+            return
+        }
+        // The answer runs against this test's store, not the app's.
+        SelfTestStore.container.withLock { $0 = env.container }
+        defer { SelfTestStore.container.withLock { $0 = nil } }
+        question.userInfo["selftest"] = "1"
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        log("notifications allowed: \(settings.authorizationStatus == .authorized), banners \(settings.alertSetting == .enabled), Notification Centre \(settings.notificationCenterSetting == .enabled)")
+        await MonitorRun.ask([question])
+        let delivered = await UNUserNotificationCenter.current().deliveredNotifications().map(\.request.identifier)
+        log("delivered: \(delivered.contains(question.id))")
+        let button = question.category.actions.last?.title ?? "Use this version"
+        log("Posted: \(question.title) \(question.body)")
+        log("Now go to the Home Screen, open Notification Centre, long-press the Antiphon question and tap \"\(button)\". Then open this app again.")
+        let apple = try await waitForApple(env, titles: ["Faint"])
+        expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Faint") }, "the button added Faint to Apple Music")
+        // The answer finishes after Apple Music lists the track (anchoring).
+        var left = try await env.repository.reviewItems(seamId: env.pairId)
+        let start = Date()
+        while !left.isEmpty, Date().timeIntervalSince(start) < 30 {
+            try await Task.sleep(for: .seconds(2))
+            left = try await env.repository.reviewItems(seamId: env.pairId)
+        }
+        expect(left.isEmpty, "and the question is answered (\(left.count) left in Review)")
+        defaults.removePersistentDomain(forName: "antiphon-selftest-ask")
     }
 
     // MARK: - Scenario: undo a two-way sync
