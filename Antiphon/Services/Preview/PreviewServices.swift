@@ -197,15 +197,17 @@ struct PreviewSyncService: SyncService {
 #if DEBUG
 /// Storyboard-like libraries for previews.
 struct PreviewLibraryService: LibraryService {
-    static func playlist(_ name: String, _ platform: Platform, count: Int?, detail: String, blocked: String? = nil) -> LibraryPlaylist {
+    static func playlist(_ name: String, _ platform: Platform, count: Int?, detail: String, blocked: String? = nil,
+                         collaborative: Bool = false) -> LibraryPlaylist {
         LibraryPlaylist(platform: platform, id: "\(platform.rawValue)-\(name)", name: name, trackCount: count,
-                        artworkURL: nil, detail: detail, isEditable: blocked == nil, blockedReason: blocked)
+                        artworkURL: nil, detail: detail, isEditable: blocked == nil, blockedReason: blocked,
+                        isOwn: blocked == nil, isCollaborative: collaborative)
     }
 
     static let spotify = [
         playlist("Workout Mix 2026", .spotify, count: 64, detail: "64 tracks · yours"),
         playlist("Discover Weekly", .spotify, count: 30, detail: "30 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these."),
-        playlist("Road Trip Lisbon", .spotify, count: 112, detail: "112 tracks · collaborative"),
+        playlist("Road Trip Lisbon", .spotify, count: 112, detail: "112 tracks · collaborative", collaborative: true),
         playlist("Late Night Drive", .spotify, count: 52, detail: "52 tracks · yours"),
         playlist("Focus Flow", .spotify, count: 48, detail: "48 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these.")
     ]
@@ -228,12 +230,31 @@ struct PreviewLibraryService: LibraryService {
                                 durationMs: 180_000 + n * 7_000, isrc: "PRV\(n)")
         }
         switch playlist.name {
+        case "Road Trip Lisbon": return try await entries(of: playlist).map(\.track)
         case "Workout Mix 2026": return (0..<64).map { t($0, .spotify) }
         case "Gym Rotation": return (33..<64).map { t($0, .appleMusic) } + (100..<106).map { t($0, .appleMusic) }
         case "Workout": return (52..<64).map { t($0, .appleMusic) }
         default: return []
         }
     }
+
+    func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
+        guard playlist.name == "Road Trip Lisbon" else {
+            return try await tracks(of: playlist).map { LibraryEntry(track: $0, addedBy: nil) }
+        }
+        let lisbon: [(String, String, AddedBy)] = [
+            ("Fado Toninho", "Ana Moura", .collaborator), ("Lisboa, Anos 60", "Mariza", .you),
+            ("Sodade (Live at Olympia)", "Cesária Évora", .collaborator), ("Canção do Mar", "Dulce Pontes", .you),
+            ("Barco Negro", "Amália Rodrigues", .collaborator)
+        ]
+        return (0..<112).map { n in
+            let (title, artist, by) = n < lisbon.count ? lisbon[n] : ("\(Self.titles[n % Self.titles.count]) No. \(n)", Self.artists[n % Self.artists.count], AddedBy.you)
+            return LibraryEntry(track: CatalogTrack(platform: .spotify, id: "lisbon-\(n)", title: title, artist: artist,
+                                                    durationMs: 247_000, isrc: "LIS\(n)"), addedBy: by)
+        }
+    }
+
+    static let unavailableTitles: Set<String> = ["Sodade (Live at Olympia)"]
 
     static let titles = ["Physical", "Blinding Lights", "Titanium", "Stronger", "Pump It", "Lose Yourself", "Can't Hold Us", "Eye of the Tiger"]
     static let artists = ["Dua Lipa", "The Weeknd", "David Guetta, Sia", "Kanye West", "Black Eyed Peas", "Eminem", "Macklemore", "Survivor"]

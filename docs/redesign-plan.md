@@ -456,3 +456,17 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **Original album** (`ReleaseChoice.original`, Settings → Album to match). Ranking order: studio album, then earliest year, then album over single, then standard edition, then the source's album. Compilations and singles are recognised from the catalog's album type: Spotify `album_type`, and Apple `Album.isCompilation`/`isSingle`, fetched in one request only in this mode. Title keywords are the fallback. If the ISRC only finds compilations or singles, a plain search looks for the studio album.
 - Verified on device: the full self-test passed 65 of 65. Same order passed 14 of 14 (Spotify reorder, hand reorder on Apple Music, Apple Music-only track keeps its slot, new tracks land mid-list). Original album passed 8 of 8 against the real catalogs: Waiting for the End → A Thousand Suns; Word Up! stays on Greatest Hits, Vol. 1 rather than "It's Hard Rock, Hallelujah!".
 - Seen once and not reproducible: Apple confirmed a re-add to a playlist the self-test had just removed the song from, but never listed it. The rerun passed 43 of 43.
+
+### M6 Library, playlist detail, search: done (2026-10-11)
+
+- **Library (6.01):** both libraries in one grid, each cover with its platform dot. Choose Both / Spotify / Apple Music, filter by "No twin yet" (default) / "In a seam" / "Made by me", and sort by library order, name or most tracks. A seamed playlist opens its seam on the Syncs tab; any other playlist opens its own page.
+- **A playlist without a twin (6.02):** an Apple Music-style hero with no title in the bar, then the line "Spotify · collaborative · 112 tracks · 7 h 41 min" and an availability card with a bar. A Spotify playlist is checked automatically, because Apple Music ISRC lookups are batched. An Apple Music playlist is checked only when the person asks, since Spotify needs one search per track. "Stitch to …" opens New seam at the twin step with the playlist already picked.
+- **Search (6.03):** a local search over the seams' cached tracks (title, artist, album, ignoring case and accents), both libraries' playlist names, and artists. Each track result shows, per side, the seam name, "N playlists" or "not on …". Recent searches are stored on the device.
+- **Differences from Board 6, kept on purpose:**
+  - "4 aren't sold in Germany" becomes "4 weren't found there": the catalogs don't give a reason.
+  - "added by Joana" becomes "added by a collaborator" (D6).
+  - Apple Music library playlists show "No twin yet" without a track count, because MusicKit only gives counts after reading the tracks.
+  - Search has no "Add to a seam" for single tracks; a playlist without a twin is stitched from its page.
+- **Apple Music ownership, observed on device:** playlists the person or Antiphon made report `userShared` or no kind. Editorial playlists, personal mixes and Replay report their own kinds and count as not the person's (`AppleMusicOwnership`).
+- **TrackRow:** gains a `.plain` state for tracks that aren't in a seam.
+- **Verified:** 261 unit tests pass. A read-only `library` self-test on device passed 7 of 7: both libraries, ownership, the grid recognising seamed playlists, availability both ways (about 1 s each for the self-test playlists), and the search index. Screenshots were taken in light and dark mode and at AX5.

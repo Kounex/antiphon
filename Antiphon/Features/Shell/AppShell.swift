@@ -24,9 +24,7 @@ struct AppShell: View {
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
 
             Tab(AntiphonTab.library.title, systemImage: AntiphonTab.library.symbol, value: AppShellModel.Tab.library) {
-                RootPlaceholder(title: "Library", symbol: AntiphonTab.library.symbol,
-                                message: "Both libraries in one grid, with the playlists that have no twin yet.",
-                                model: model)
+                LibraryRoot(shell: model)
             }
 
             Tab(AntiphonTab.activity.title, systemImage: AntiphonTab.activity.symbol, value: AppShellModel.Tab.activity) {
@@ -36,15 +34,18 @@ struct AppShell: View {
             }
 
             Tab(value: AppShellModel.Tab.search, role: .search) {
-                RootPlaceholder(title: "Search", symbol: "magnifyingglass",
-                                message: "Find which playlists, on which side, already hold a track.",
-                                model: model)
-                    .searchable(text: $model.searchText, prompt: "Tracks, playlists, artists")
+                SearchRoot(shell: model)
             }
         }
         .antiphonTabBar()
         .modifier(SyncAccessoryModifier(running: running))
-        .sheet(isPresented: $model.showsNewSeam, onDismiss: { Task { await model.refresh() } }) {
+        .sheet(isPresented: $model.showsNewSeam, onDismiss: {
+            model.newSeamSource = nil
+            Task {
+                await model.refresh()
+                await model.libraryModel.load()
+            }
+        }) {
             NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow, onReview: openSeam)
         }
         .sheet(item: $model.syncFlowSeamId, onDismiss: {

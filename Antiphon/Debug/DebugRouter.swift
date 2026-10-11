@@ -69,9 +69,22 @@ struct DebugRouteView: View {
         accounts.isSpotifyConnected = option != "problems"
         let model = AppShellModel(seams: repository, accounts: accounts,
                                   sync: PreviewSyncService(), library: PreviewLibraryService(),
-                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService())
+                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
+                                  index: repository, availability: PreviewAvailabilityService())
         switch option {
         case "library": model.selectedTab = .library
+        case "library-playlist":
+            model.selectedTab = .library
+            model.libraryPath = [.playlist(PreviewLibraryService.spotify[2])]
+        case "library-stitch":
+            model.selectedTab = .library
+            model.startSeam(from: PreviewLibraryService.spotify[2])
+        case "library-apple":
+            model.selectedTab = .library
+            model.libraryPath = [.playlist(PreviewLibraryService.appleMusic[2])]
+        case let query? where query.hasPrefix("search-"):
+            model.selectedTab = .search
+            model.searchModel.query = String(query.dropFirst("search-".count))
         case "activity": model.selectedTab = .activity
         case "search": model.selectedTab = .search
         case "detail": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]

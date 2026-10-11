@@ -26,6 +26,7 @@ final class AppPreferences: @unchecked Sendable {
         /// Written by the pre-redesign Settings screen.
         static let legacyInterval = "syncIntervalMinutes"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let recentSearches = "recentSearches"
     }
 
     // MARK: - Matching
@@ -85,6 +86,14 @@ final class AppPreferences: @unchecked Sendable {
                 ?? 15
         }
         set { defaults.set(newValue, forKey: Key.monitorIntervalMinutes) }
+    }
+
+    // MARK: - Search
+
+    /// Newest first; kept on this device only.
+    var recentSearches: [String] {
+        get { defaults.stringArray(forKey: Key.recentSearches) ?? [] }
+        set { defaults.set(newValue, forKey: Key.recentSearches) }
     }
 
     // MARK: - Onboarding

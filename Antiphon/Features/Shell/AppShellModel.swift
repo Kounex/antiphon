@@ -60,7 +60,6 @@ final class AppShellModel {
     var showsNewSeam = false
     /// The Syncs tab's navigation, so other screens can open a seam.
     var syncsPath: [SyncsRoute] = []
-    var searchText = ""
     private(set) var reviewCount = 0
     private(set) var seams: [SeamSummary] = []
 
@@ -71,6 +70,15 @@ final class AppShellModel {
     let reviews: ReviewRepository
     let problems: ProblemsRepository
     let catalogSearch: CatalogSearchService
+    let index: TrackIndex
+    let availability: AvailabilityService
+    /// Library's navigation.
+    var libraryPath: [LibraryRoute] = []
+    /// A playlist picked in Library to start a seam from.
+    var newSeamSource: LibraryPlaylist?
+    /// Shared by Library and Search, so playlists load once.
+    @ObservationIgnored private(set) lazy var libraryModel = LibraryModel(library: library, seams: seamRepository)
+    @ObservationIgnored private(set) lazy var searchModel = SearchModel(index: index, library: libraryModel, preferences: .shared)
     /// The seam whose preview → sync flow is open.
     var syncFlowSeamId: UUID?
     /// The open review queue: one seam, or every seam.
@@ -93,7 +101,10 @@ final class AppShellModel {
     }
 
     init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService,
-         reviews: ReviewRepository, problems: ProblemsRepository, catalogSearch: CatalogSearchService) {
+         reviews: ReviewRepository, problems: ProblemsRepository, catalogSearch: CatalogSearchService,
+         index: TrackIndex, availability: AvailabilityService) {
+        self.index = index
+        self.availability = availability
         self.seamRepository = seams
         self.accounts = accounts
         self.sync = sync
@@ -139,7 +150,25 @@ final class AppShellModel {
 
     func makeNewSeam() -> NewSeamModel {
         let linked = Set(seams.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
-        return NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
+        let model = NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
+        if let source = newSeamSource { model.preselect(source) }
+        return model
+    }
+
+    func makePlaylistDetail(_ playlist: LibraryPlaylist) -> PlaylistDetailModel {
+        PlaylistDetailModel(playlist: playlist, library: library, availability: availability)
+    }
+
+    /// "Stitch to …": the New seam flow, starting at this playlist's twin.
+    func startSeam(from playlist: LibraryPlaylist) {
+        newSeamSource = playlist
+        showsNewSeam = true
+    }
+
+    /// Opens a seam on the Syncs tab, from Library or Search.
+    func openSeamDetail(_ seamId: UUID) {
+        selectedTab = .syncs
+        syncsPath = [.seam(seamId)]
     }
 
     var accountInitials: String? { AccountInitials.from(accounts.spotifyDisplayName) }

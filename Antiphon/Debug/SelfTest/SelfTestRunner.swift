@@ -52,6 +52,7 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "twoway" { try await twoWayOnOwnedPlaylists() }
             if scenario == nil || scenario == "sameorder" { try await sameOrderOneWay() }
             if scenario == nil || scenario == "album" { try await originalAlbum() }
+            if scenario == nil || scenario == "library" { try await libraryReadOnly() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -313,6 +314,48 @@ final class SelfTestRunner {
                 expect(ReleasePreference.baseAlbum(album).localizedCaseInsensitiveContains(ReleasePreference.baseAlbum(expected)),
                        "\(source.title), \(choice): from \(expected) (got \(album))")
             }
+        }
+    }
+
+    // MARK: - Read only: Library, availability, search
+
+    private func libraryReadOnly() async throws {
+        log("== Library and search (read only)")
+        let library = LiveLibraryService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
+        let spotify = try await library.playlists(on: .spotify)
+        let apple = try await library.playlists(on: .appleMusic)
+        log("Spotify: \(spotify.count) playlists, \(spotify.filter(\.isOwn).count) own, \(spotify.filter(\.isCollaborative).count) collaborative, \(spotify.filter { $0.blockedReason != nil }.count) blocked")
+        log("Apple Music: \(apple.count) playlists, \(apple.filter(\.isOwn).count) own; not own: \(apple.filter { !$0.isOwn }.prefix(5).map { "\($0.name) (\($0.detail))" })")
+        expect(!spotify.isEmpty && !apple.isEmpty, "both libraries load")
+        let ownApple = Set(apple.filter(\.isOwn).map(\.name))
+        expect([Self.ownedName, Self.userOwnedAppleName].allSatisfy(ownApple.contains),
+               "Apple Music playlists the person or Antiphon made count as their own")
+
+        let repository = SwiftDataSeamRepository(modelContainer: SharedModelContainer.container)
+        let seams = try await repository.seams()
+        let items = LibraryGrid.items(spotify: spotify, appleMusic: apple, seams: seams)
+        let counts = LibraryGrid.counts(items, scope: .both)
+        log("grid: no twin \(counts[.noTwin] ?? 0), in a seam \(counts[.inSeam] ?? 0), made by me \(counts[.madeByMe] ?? 0); seams \(seams.count)")
+        expect(seams.isEmpty || (counts[.inSeam] ?? 0) > 0, "seamed playlists are recognized in the grid")
+
+        let availability = LiveAvailabilityService()
+        for (platform, list) in [(Platform.spotify, spotify), (.appleMusic, apple)] {
+            guard let playlist = list.first(where: { $0.name == Self.ownedName }) else { continue }
+            let entries = try await library.entries(of: playlist)
+            let start = Date()
+            let report = try await availability.check(entries.map(\.track), on: platform.other) { _ in }
+            log("\(platform.rawValue) \(Self.ownedName) → \(platform.other.rawValue): \(PlaylistCopy.availability(report, on: platform.other)) (\(String(format: "%.1f", Date().timeIntervalSince(start))) s)")
+            expect(report.isComplete && report.available.count == entries.count,
+                   "every track of the \(platform.rawValue) self-test playlist is found on \(platform.other.rawValue)")
+        }
+
+        let index = try await repository.indexedTracks()
+        log("search index: \(index.count) tracks in \(Set(index.map(\.seam.id)).count) seams")
+        expect(seams.isEmpty || !index.isEmpty, "the search index holds the seams' tracks")
+        if let sample = index.first {
+            let hits = LibrarySearch.tracks(sample.title, in: index)
+            log("search “\(sample.title)”: \(hits.map { "\($0.title) — Spotify: \(LibrarySearch.sideText($0.spotify, on: .spotify)), Apple Music: \(LibrarySearch.sideText($0.appleMusic, on: .appleMusic))" })")
+            expect(hits.contains { $0.title == sample.title }, "searching a seam's track finds it")
         }
     }
 

@@ -14,6 +14,8 @@ public struct TrackRow: View {
         case failed
         /// Removed on one side of a two-way seam; waiting for an answer.
         case removed
+        /// Not in a seam: no state to show.
+        case plain
     }
 
     public let title: String
@@ -40,9 +42,11 @@ public struct TrackRow: View {
                 // Full width for the words; the state moves under them.
                 VStack(alignment: .leading, spacing: Space.s1) {
                     text
-                    HStack(spacing: Space.s2) {
-                        symbol
-                        Text(Self.stateDescription(state)).font(.footnote).foregroundStyle(Color.inkMuted)
+                    if state != .plain {
+                        HStack(spacing: Space.s2) {
+                            symbol
+                            Text(Self.stateDescription(state)).font(.footnote).foregroundStyle(Color.inkMuted)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,7 +55,7 @@ public struct TrackRow: View {
                     artwork
                     text
                     Spacer(minLength: Space.s2)
-                    symbol
+                    if state != .plain { symbol }
                 }
             }
         }
@@ -92,6 +96,7 @@ public struct TrackRow: View {
         case .review, .removed: "questionmark.circle.fill"
         case .missing: "circle.slash"
         case .failed: "exclamationmark.triangle.fill"
+        case .plain: ""
         }
     }
 
@@ -103,6 +108,7 @@ public struct TrackRow: View {
         case .review, .removed: .statusReview
         case .missing: .statusMissing
         case .failed: .statusFailed
+        case .plain: .clear
         }
     }
 
@@ -115,6 +121,7 @@ public struct TrackRow: View {
         case .missing: "Not available"
         case .failed: "Failed"
         case .removed: "Removed on one side, needs your call"
+        case .plain: ""
         }
     }
 }

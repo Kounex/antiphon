@@ -81,7 +81,8 @@ struct AppShellTests {
     func reviewBadge() async {
         let repository = PreviewSeamRepository(seams: [seam("A", .spotifyToApple, review: 3), seam("B", .bidirectional, review: 2)])
         let model = AppShellModel(seams: repository, accounts: PreviewAccounts(), sync: PreviewSyncService(), library: PreviewLibraryService(),
-                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService())
+                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
+                                  index: repository, availability: PreviewAvailabilityService())
         await model.refresh()
         #expect(model.reviewCount == 5)
     }

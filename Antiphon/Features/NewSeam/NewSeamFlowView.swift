@@ -43,6 +43,8 @@ struct NewSeamFlowView: View {
             }
         }
         .tint(.thread)
+        // Started from a playlist in Library: its twin comes first.
+        .onAppear { if model.source != nil, path.isEmpty { path = [.twin] } }
         #if DEBUG
         .task { let steps = await model.debugPrepare(); if !steps.isEmpty { path = steps } }
         #endif

@@ -13,12 +13,36 @@ struct LibraryPlaylist: Identifiable, Hashable, Sendable {
     let isEditable: Bool
     /// Set when the platform won't let Antiphon read or change it.
     let blockedReason: String?
+    /// Made by the person (not followed, not editorial).
+    var isOwn: Bool = true
+    var isCollaborative: Bool = false
+}
+
+/// Who put a track in a collaborative playlist. Collaborators aren't named:
+/// that would cost a request each.
+enum AddedBy: Hashable, Sendable {
+    case you
+    case collaborator
+}
+
+/// A track as it sits in a library playlist.
+struct LibraryEntry: Hashable, Sendable {
+    let track: CatalogTrack
+    let addedBy: AddedBy?
 }
 
 /// Both libraries, read-only.
 protocol LibraryService: Sendable {
     func playlists(on platform: Platform) async throws -> [LibraryPlaylist]
     func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack]
+    /// Tracks with who added them, where the platform says.
+    func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry]
+}
+
+extension LibraryService {
+    func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
+        try await tracks(of: playlist).map { LibraryEntry(track: $0, addedBy: nil) }
+    }
 }
 
 /// `LibraryService` over the existing clients.
@@ -44,17 +68,32 @@ struct LiveLibraryService: LibraryService {
                     platform: .spotify, id: playlist.id, name: playlist.name, trackCount: playlist.tracks.total,
                     artworkURL: playlist.images?.first.flatMap { URL(string: $0.url) },
                     detail: parts.joined(separator: " · "),
-                    isEditable: playlist.isEditable(byUserId: me.id), blockedReason: blocked
+                    isEditable: playlist.isEditable(byUserId: me.id), blockedReason: blocked,
+                    isOwn: isMine, isCollaborative: playlist.collaborative
                 )
             }
         case .appleMusic:
             return try await appleMusicManager.fetchUserPlaylists().map { playlist in
-                LibraryPlaylist(
+                let isOwn = AppleMusicOwnership.isOwn(kind: playlist.kind)
+                return LibraryPlaylist(
                     platform: .appleMusic, id: playlist.id.rawValue, name: playlist.name, trackCount: nil,
                     artworkURL: playlist.artwork?.url(width: 300, height: 300),
-                    detail: "Apple Music", isEditable: true, blockedReason: nil
+                    detail: isOwn ? "Apple Music" : "by \(playlist.curatorName ?? "Apple Music")",
+                    isEditable: isOwn, blockedReason: nil, isOwn: isOwn
                 )
             }
+        }
+    }
+
+    func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
+        guard playlist.platform == .spotify else {
+            return try await tracks(of: playlist).map { LibraryEntry(track: $0, addedBy: nil) }
+        }
+        let me = playlist.isCollaborative ? try await spotifyClient.getCurrentUser().id : nil
+        return try await spotifyClient.getPlaylistTracks(playlistId: playlist.id).compactMap { item in
+            guard let track = item.track else { return nil }
+            let addedBy: AddedBy? = me.flatMap { me in item.addedBy.map { $0.id == me ? .you : .collaborator } }
+            return LibraryEntry(track: CatalogTrack(track), addedBy: addedBy)
         }
     }
 
@@ -68,5 +107,15 @@ struct LiveLibraryService: LibraryService {
             }
             return try await appleMusicManager.fetchPlaylistTracks(for: match).map(CatalogTrack.init)
         }
+    }
+}
+
+/// Which library playlists are the person's own. Seen on device: playlists
+/// they or Antiphon made report `userShared` or no kind; editorial ones,
+/// Apple's personal mixes and Replay report those kinds.
+enum AppleMusicOwnership {
+    static func isOwn(kind: Playlist.Kind?) -> Bool {
+        guard let kind else { return true }
+        return ![.editorial, .external, .personalMix, .replay].contains(kind)
     }
 }

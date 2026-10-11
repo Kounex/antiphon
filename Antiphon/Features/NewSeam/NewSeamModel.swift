@@ -98,6 +98,13 @@ final class NewSeamModel {
         selected = []
     }
 
+    /// Starts from a playlist picked elsewhere (Library): straight to its twin.
+    func preselect(_ playlist: LibraryPlaylist) {
+        side = playlist.platform
+        selected = [playlist]
+        startQueue()
+    }
+
     func startQueue() {
         queue = NewSeamQueue(sources: selected)
         prepareForCurrent()
