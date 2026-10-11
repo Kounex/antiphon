@@ -172,7 +172,7 @@ struct SpotifyTrack: Codable, Identifiable {
 }
 
 struct SpotifyAlbum: Codable {
-    let id: String
+    let id: String?
     let name: String
     let images: [SpotifyImage]?
     let releaseDate: String?

@@ -464,9 +464,10 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **Search (6.03):** a local search over the seams' cached tracks (title, artist, album, ignoring case and accents), both libraries' playlist names, and artists. Each track result shows, per side, the seam name, "N playlists" or "not on …". Recent searches are stored on the device.
 - **Differences from Board 6, kept on purpose:**
   - "4 aren't sold in Germany" becomes "4 weren't found there": the catalogs don't give a reason.
-  - "added by Joana" becomes "added by a collaborator" (D6).
+  - "added by Joana" becomes "added by a collaborator" by default (D6). The "Show who added each track" toggle, remembered across playlists, looks up each collaborator's Spotify name with one request each. This was verified on device; a name Spotify won't give stays "a collaborator".
   - Apple Music library playlists show "No twin yet" without a track count, because MusicKit only gives counts after reading the tracks.
   - Search has no "Add to a seam" for single tracks; a playlist without a twin is stitched from its page.
 - **Apple Music ownership, observed on device:** playlists the person or Antiphon made report `userShared` or no kind. Editorial playlists, personal mixes and Replay report their own kinds and count as not the person's (`AppleMusicOwnership`).
+- **Fixed:** a Spotify playlist with a local file (`album.id` null) failed to decode as a whole, which also blocked syncing it. `SpotifyAlbum.id` is now optional.
 - **TrackRow:** gains a `.plain` state for tracks that aren't in a seam.
 - **Verified:** 261 unit tests pass. A read-only `library` self-test on device passed 7 of 7: both libraries, ownership, the grid recognising seamed playlists, availability both ways (about 1 s each for the self-test playlists), and the search index. Screenshots were taken in light and dark mode and at AX5.

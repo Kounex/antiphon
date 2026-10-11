@@ -249,9 +249,14 @@ struct PreviewLibraryService: LibraryService {
         ]
         return (0..<112).map { n in
             let (title, artist, by) = n < lisbon.count ? lisbon[n] : ("\(Self.titles[n % Self.titles.count]) No. \(n)", Self.artists[n % Self.artists.count], AddedBy.you)
+            let user = by == .you ? "me" : (n % 2 == 0 ? "joana" : "rui")
             return LibraryEntry(track: CatalogTrack(platform: .spotify, id: "lisbon-\(n)", title: title, artist: artist,
-                                                    durationMs: 247_000, isrc: "LIS\(n)"), addedBy: by)
+                                                    durationMs: 247_000, isrc: "LIS\(n)"), addedBy: by, addedByUserId: user)
         }
+    }
+
+    func displayNames(for userIds: Set<String>) async -> [String: String] {
+        ["joana": "Joana", "rui": "Rui"].filter { userIds.contains($0.key) }
     }
 
     static let unavailableTitles: Set<String> = ["Sodade (Live at Olympia)"]

@@ -176,3 +176,78 @@ struct LibrarySearchTests {
         #expect(RecentSearches.adding("  ", to: recent) == recent)
     }
 }
+
+/// Collaborative playlist with two collaborators; counts name lookups.
+final class NamesLibrary: LibraryService, @unchecked Sendable {
+    private(set) var lookups: [Set<String>] = []
+    func playlists(on platform: Platform) async throws -> [LibraryPlaylist] { [] }
+    func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack] { [] }
+    func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
+        [("a", "joana", AddedBy.collaborator), ("b", "me", .you), ("c", "rui", .collaborator), ("d", "joana", .collaborator)].map { id, user, by in
+            LibraryEntry(track: CatalogTrack(platform: .spotify, id: id, title: id, artist: "Artist"), addedBy: by, addedByUserId: user)
+        }
+    }
+    func displayNames(for userIds: Set<String>) async -> [String: String] {
+        lookups.append(userIds)
+        return ["joana": "Joana"].filter { userIds.contains($0.key) }
+    }
+}
+
+@Suite("Collaborator names")
+@MainActor
+struct CollaboratorNamesTests {
+    private let playlist = LibraryPlaylist(platform: .spotify, id: "p", name: "Road Trip Lisbon", trackCount: 4, artworkURL: nil,
+                                           detail: "", isEditable: true, blockedReason: nil, isCollaborative: true)
+
+    private func model(_ library: NamesLibrary, showsNames: Bool) -> PlaylistDetailModel {
+        let defaults = UserDefaults(suiteName: "names-\(UUID().uuidString)")!
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.showsCollaboratorNames = showsNames
+        return PlaylistDetailModel(playlist: playlist, library: library, availability: PreviewAvailabilityService(), preferences: preferences)
+    }
+
+    @Test("Off: no lookups, collaborators stay unnamed")
+    func off() async {
+        let library = NamesLibrary()
+        let m = model(library, showsNames: false)
+        await m.load()
+        #expect(library.lookups.isEmpty)
+        #expect(m.detail(for: m.entries[0]) == "Artist · added by a collaborator")
+    }
+
+    @Test("On: each collaborator is looked up once, never the person")
+    func on() async {
+        let library = NamesLibrary()
+        let m = model(library, showsNames: false)
+        await m.load()
+        await m.setShowsNames(true)
+        #expect(library.lookups == [["joana", "rui"]])
+        #expect(m.detail(for: m.entries[0]) == "Artist · added by Joana")
+        #expect(m.detail(for: m.entries[1]) == "Artist · added by you")
+        // Spotify didn't give a name: still honest.
+        #expect(m.detail(for: m.entries[2]) == "Artist · added by a collaborator")
+        await m.setShowsNames(false)
+        await m.setShowsNames(true)
+        #expect(library.lookups.count == 1)
+    }
+
+    @Test("The choice is remembered: names load with the playlist")
+    func remembered() async {
+        let library = NamesLibrary()
+        let m = model(library, showsNames: true)
+        await m.load()
+        #expect(library.lookups == [["joana", "rui"]])
+        #expect(m.showsNames)
+    }
+}
+
+@Suite("Spotify playlist items")
+struct SpotifyItemDecodingTests {
+    @Test("A local file without an album ID doesn't break the whole playlist")
+    func localFileAlbum() throws {
+        let json = #"{"is_local": true, "added_by": {"id": "joana"}, "item": {"id": null, "name": "Demo", "uri": "spotify:local:a:b:Demo:200", "duration_ms": 200000, "type": "track", "album": {"id": null, "name": "Garage", "images": []}, "artists": [{"id": null, "name": "Band"}]}}"#
+        let item = try JSONDecoder().decode(SpotifyPlaylistItem.self, from: Data(json.utf8))
+        #expect(item.track?.album?.name == "Garage")
+        #expect(item.addedBy?.id == "joana")
+    }
+}

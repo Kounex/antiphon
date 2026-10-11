@@ -349,6 +349,17 @@ final class SelfTestRunner {
                    "every track of the \(platform.rawValue) self-test playlist is found on \(platform.other.rawValue)")
         }
 
+        // Collaborator names: counts only, no names in the log.
+        if let shared = spotify.first(where: { $0.isCollaborative && $0.blockedReason == nil }) {
+            let entries = try await library.entries(of: shared)
+            let ids = Set(entries.filter { $0.addedBy == .collaborator }.compactMap(\.addedByUserId))
+            let names = await library.displayNames(for: ids)
+            log("collaborative playlist: \(entries.count) tracks, \(entries.filter { $0.addedBy == .you }.count) by you, \(ids.count) collaborators, \(names.count) names found")
+            expect(ids.isEmpty || !names.isEmpty, "collaborators' names can be looked up")
+        } else {
+            log("no collaborative Spotify playlist to check names on")
+        }
+
         let index = try await repository.indexedTracks()
         log("search index: \(index.count) tracks in \(Set(index.map(\.seam.id)).count) seams")
         expect(seams.isEmpty || !index.isEmpty, "the search index holds the seams' tracks")

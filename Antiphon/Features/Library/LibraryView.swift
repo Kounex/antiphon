@@ -170,6 +170,21 @@ struct PlaylistDetailView: View {
             } else if let error = model.loadError {
                 Banner(tone: .failed, symbol: "exclamationmark.triangle.fill", title: "Couldn't load tracks", message: error).plainRow()
             } else {
+                if model.offersNames {
+                    Section {
+                        Toggle(isOn: Binding(get: { model.showsNames },
+                                             set: { on in Task { await model.setShowsNames(on) } })) {
+                            HStack(spacing: Space.s2) {
+                                Text("Show who added each track").foregroundStyle(Color.ink)
+                                if model.isLoadingNames { ProgressView() }
+                            }
+                        }
+                        .tint(.thread)
+                        .listRowBackground(Color.canvasRaised)
+                    } footer: {
+                        Text(model.namesNote)
+                    }
+                }
                 Section {
                     ForEach(Array(model.entries.enumerated()), id: \.offset) { _, entry in
                         AntiphonDesign.TrackRow(

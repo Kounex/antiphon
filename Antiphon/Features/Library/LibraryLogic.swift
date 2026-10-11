@@ -137,11 +137,11 @@ enum PlaylistCopy {
         return rest.isEmpty ? lead : "\(lead) \(rest.joined(separator: ", "))."
     }
 
-    static func trackDetail(artist: String, addedBy: AddedBy?, isMissing: Bool, other: Platform) -> String {
+    static func trackDetail(artist: String, addedBy: AddedBy?, name: String? = nil, isMissing: Bool, other: Platform) -> String {
         if isMissing { return "\(artist) · not on \(other.rawValue)" }
         switch addedBy {
         case .you: return "\(artist) · added by you"
-        case .collaborator: return "\(artist) · added by a collaborator"
+        case .collaborator: return "\(artist) · added by \(name ?? "a collaborator")"
         case nil: return artist
         }
     }

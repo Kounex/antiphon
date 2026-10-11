@@ -72,14 +72,46 @@ final class PlaylistDetailModel {
     private(set) var loadError: String?
     private(set) var report: AvailabilityReport?
     private(set) var isChecking = false
+    /// Collaborators' names, by Spotify user ID, once looked up.
+    private(set) var names: [String: String] = [:]
+    private(set) var showsNames: Bool
+    private(set) var isLoadingNames = false
+    private var namesLookedUp = false
 
     private let library: LibraryService
     private let availability: AvailabilityService
+    private let preferences: AppPreferences
 
-    init(playlist: LibraryPlaylist, library: LibraryService, availability: AvailabilityService) {
+    init(playlist: LibraryPlaylist, library: LibraryService, availability: AvailabilityService,
+         preferences: AppPreferences = .shared) {
         self.playlist = playlist
         self.library = library
         self.availability = availability
+        self.preferences = preferences
+        showsNames = preferences.showsCollaboratorNames
+    }
+
+    /// Only collaborative playlists have someone else to name.
+    var offersNames: Bool { playlist.isCollaborative && entries.contains { $0.addedBy == .collaborator } }
+
+    var namesNote: String {
+        "Antiphon asks Spotify for each collaborator's name: \(PlanCopy.count(collaboratorIds.count, "request"))."
+    }
+
+    private var collaboratorIds: Set<String> {
+        Set(entries.filter { $0.addedBy == .collaborator }.compactMap(\.addedByUserId))
+    }
+
+    /// Remembered for every collaborative playlist. Names are looked up
+    /// once per screen.
+    func setShowsNames(_ on: Bool) async {
+        showsNames = on
+        preferences.showsCollaboratorNames = on
+        guard on, !namesLookedUp, !collaboratorIds.isEmpty else { return }
+        namesLookedUp = true
+        isLoadingNames = true
+        defer { isLoadingNames = false }
+        names = await library.displayNames(for: collaboratorIds)
     }
 
     var other: Platform { playlist.platform.other }
@@ -97,6 +129,7 @@ final class PlaylistDetailModel {
             loadError = "Antiphon couldn't read this playlist."
             return
         }
+        if showsNames, offersNames { await setShowsNames(true) }
         if checksAutomatically { await checkAvailability() }
     }
 
@@ -131,6 +164,7 @@ final class PlaylistDetailModel {
 
     func detail(for entry: LibraryEntry) -> String {
         PlaylistCopy.trackDetail(artist: entry.track.artist, addedBy: playlist.isCollaborative ? entry.addedBy : nil,
+                                 name: showsNames ? entry.addedByUserId.flatMap { names[$0] } : nil,
                                  isMissing: isMissing(entry), other: other)
     }
 }

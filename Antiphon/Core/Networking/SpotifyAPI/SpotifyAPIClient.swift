@@ -22,6 +22,11 @@ actor SpotifyAPIClient {
     func getCurrentUser() async throws -> SpotifyUserProfile {
         return try await request(endpoint: .me)
     }
+
+    /// Another user's public profile (display name).
+    func getUser(id: String) async throws -> SpotifyUser {
+        return try await request(endpoint: .user(id: id))
+    }
     
     // MARK: - Playlists
     

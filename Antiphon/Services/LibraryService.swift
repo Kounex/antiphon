@@ -29,6 +29,8 @@ enum AddedBy: Hashable, Sendable {
 struct LibraryEntry: Hashable, Sendable {
     let track: CatalogTrack
     let addedBy: AddedBy?
+    /// Spotify user ID, for looking up names when the person asks.
+    var addedByUserId: String? = nil
 }
 
 /// Both libraries, read-only.
@@ -37,12 +39,17 @@ protocol LibraryService: Sendable {
     func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack]
     /// Tracks with who added them, where the platform says.
     func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry]
+    /// Spotify display names, one request per user. Users whose name
+    /// couldn't be read are left out.
+    func displayNames(for userIds: Set<String>) async -> [String: String]
 }
 
 extension LibraryService {
     func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
         try await tracks(of: playlist).map { LibraryEntry(track: $0, addedBy: nil) }
     }
+
+    func displayNames(for userIds: Set<String>) async -> [String: String] { [:] }
 }
 
 /// `LibraryService` over the existing clients.
@@ -93,8 +100,20 @@ struct LiveLibraryService: LibraryService {
         return try await spotifyClient.getPlaylistTracks(playlistId: playlist.id).compactMap { item in
             guard let track = item.track else { return nil }
             let addedBy: AddedBy? = me.flatMap { me in item.addedBy.map { $0.id == me ? .you : .collaborator } }
-            return LibraryEntry(track: CatalogTrack(track), addedBy: addedBy)
+            return LibraryEntry(track: CatalogTrack(track), addedBy: addedBy, addedByUserId: item.addedBy?.id)
         }
+    }
+
+    func displayNames(for userIds: Set<String>) async -> [String: String] {
+        var names: [String: String] = [:]
+        for id in userIds {
+            do {
+                if let name = try await spotifyClient.getUser(id: id).displayName, !name.isEmpty { names[id] = name }
+            } catch {
+                print("[LibraryService] No name for a collaborator: \(error.localizedDescription)")
+            }
+        }
+        return names
     }
 
     func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack] {

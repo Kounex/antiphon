@@ -27,6 +27,7 @@ final class AppPreferences: @unchecked Sendable {
         static let legacyInterval = "syncIntervalMinutes"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let recentSearches = "recentSearches"
+        static let showsCollaboratorNames = "showsCollaboratorNames"
     }
 
     // MARK: - Matching
@@ -94,6 +95,13 @@ final class AppPreferences: @unchecked Sendable {
     var recentSearches: [String] {
         get { defaults.stringArray(forKey: Key.recentSearches) ?? [] }
         set { defaults.set(newValue, forKey: Key.recentSearches) }
+    }
+
+    /// Collaborative playlists show who added each track by name. Off by
+    /// default: it costs a request per collaborator.
+    var showsCollaboratorNames: Bool {
+        get { defaults.bool(forKey: Key.showsCollaboratorNames) }
+        set { defaults.set(newValue, forKey: Key.showsCollaboratorNames) }
     }
 
     // MARK: - Onboarding

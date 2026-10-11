@@ -2,6 +2,7 @@ import Foundation
 
 enum SpotifyEndpoint {
     case me
+    case user(id: String)
     case myPlaylists(limit: Int, offset: Int)
     case playlistTracks(playlistId: String, limit: Int, offset: Int, market: String?)
     case addTracks(playlistId: String)
@@ -16,6 +17,8 @@ enum SpotifyEndpoint {
         switch self {
         case .me:
             return "/me"
+        case .user(let id):
+            return "/users/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)"
         case .myPlaylists:
             return "/me/playlists"
         case .playlistTracks(let playlistId, _, _, _):
@@ -35,7 +38,7 @@ enum SpotifyEndpoint {
     
     var queryItems: [URLQueryItem] {
         switch self {
-        case .me:
+        case .me, .user:
             return []
         case .myPlaylists(let limit, let offset):
             return [
@@ -72,7 +75,7 @@ enum SpotifyEndpoint {
     
     var httpMethod: String {
         switch self {
-        case .me, .myPlaylists, .playlistTracks, .searchByISRC, .searchByQuery:
+        case .me, .user, .myPlaylists, .playlistTracks, .searchByISRC, .searchByQuery:
             return "GET"
         case .addTracks, .createPlaylist:
             return "POST"
