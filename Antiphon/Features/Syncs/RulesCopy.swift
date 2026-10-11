@@ -32,6 +32,20 @@ enum RulesCopy {
         }
     }
 
+    static func order(_ placement: TrackPlacement, direction: SyncDirection, appleMusicCanReorder: Bool) -> String {
+        guard placement == .sourceOrder else { return "New tracks go at the end of the playlist." }
+        let appleLimit = "Apple only lets apps reorder playlists they created."
+        switch direction {
+        case .spotifyToApple:
+            return appleMusicCanReorder ? "New tracks go where they are on Spotify." : "New tracks go at the end on Apple Music: \(appleLimit)"
+        case .appleToSpotify:
+            return "New tracks go where they are on Apple Music."
+        case .bidirectional:
+            let both = "New tracks go next to the same tracks as on the other side."
+            return appleMusicCanReorder ? both : "\(both) On Apple Music they go at the end: \(appleLimit)"
+        }
+    }
+
     static func monitoring(isOn: Bool, interval: Int, direction: SyncDirection) -> String {
         guard isOn, interval > 0 else { return "Antiphon only syncs when you ask." }
         let what = switch direction {

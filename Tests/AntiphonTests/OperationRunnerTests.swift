@@ -4,7 +4,8 @@ import Synchronization
 import Testing
 @testable import Antiphon
 
-/// Records edits instead of making them. Tracks listed in `failing` throw.
+/// Records edits and keeps each platform's playlist like the real one would:
+/// adds append, removals remove, reorders rewrite.
 final class FakeEditor: PlaylistEditor, Sendable {
     struct Edit: Equatable {
         let kind: String
@@ -14,13 +15,13 @@ final class FakeEditor: PlaylistEditor, Sendable {
     }
 
     private let log = Mutex<[Edit]>([])
-    private let live: [Platform: [CatalogTrack]]
+    private let live: Mutex<[Platform: [CatalogTrack]]>
     private let failing: Bool
     /// Apple Music answers with catalog IDs, not the IDs Antiphon asked with.
     private let renameLanded: Bool
 
     init(live: [Platform: [CatalogTrack]] = [:], failing: Bool = false, renameLanded: Bool = false) {
-        self.live = live
+        self.live = Mutex(live)
         self.failing = failing
         self.renameLanded = renameLanded
     }
@@ -30,17 +31,32 @@ final class FakeEditor: PlaylistEditor, Sendable {
     func add(_ tracks: [CatalogTrack], to playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
         if failing { throw URLError(.notConnectedToInternet) }
         log.withLock { $0.append(Edit(kind: "add", platform: platform, playlistId: playlistId, trackIds: tracks.map(\.id))) }
-        guard renameLanded else { return tracks }
-        return tracks.map { var t = $0; t.id = "catalog-\($0.title)"; return t }
+        let landed = renameLanded ? tracks.map { var t = $0; t.id = "catalog-\($0.title)"; return t } : tracks
+        live.withLock { $0[platform, default: []] += landed }
+        return landed
     }
 
     func remove(_ tracks: [CatalogTrack], from playlistId: String, on platform: Platform) async throws {
         if failing { throw URLError(.notConnectedToInternet) }
         log.withLock { $0.append(Edit(kind: "remove", platform: platform, playlistId: playlistId, trackIds: tracks.map(\.id))) }
+        let ids = Set(tracks.map(\.id))
+        live.withLock { $0[platform]?.removeAll { ids.contains($0.id) } }
     }
 
     func tracks(in playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
-        live[platform] ?? []
+        live.withLock { $0[platform] ?? [] }
+    }
+
+    func reorder(_ playlistId: String, on platform: Platform, to order: [String]) async throws {
+        log.withLock { $0.append(Edit(kind: "reorder", platform: platform, playlistId: playlistId, trackIds: order)) }
+        live.withLock { state in
+            var pool = state[platform] ?? []
+            var ordered: [CatalogTrack] = []
+            for id in order {
+                if let index = pool.firstIndex(where: { $0.id == id }) { ordered.append(pool.remove(at: index)) }
+            }
+            state[platform] = ordered + pool
+        }
     }
 }
 
@@ -118,6 +134,45 @@ struct OperationRunnerTests {
         #expect(row.removalFlag == nil, "the question is answered")
         #expect(row.appleMusicTrackId == "catalog-Holocene")
         #expect(row.lastSyncAttempt != nil, "the write time lets the next sync wait for Apple Music to list it")
+    }
+
+    @Test("A track put back goes where it is on the other side")
+    func restorePlacesTrack() async throws {
+        let f = try makeFixture()
+        let context = ModelContext(f.container)
+        let pair = try #require(try context.fetch(FetchDescriptor<SyncPair>()).first)
+        pair.appleMusicCreatedByAntiphon = true
+        for (n, title) in ["Towers", "Calgary"].enumerated() {
+            let row = CachedTrack(isrc: "R\(n)", title: title, artist: "Bon Iver", spotifyTrackUri: "spotify:track:\(title)",
+                                  appleMusicTrackId: "i.\(title)", source: .both, syncState: .synced)
+            row.syncPair = pair
+            context.insert(row)
+        }
+        try context.save()
+        func track(_ platform: Platform, _ id: String, _ title: String) -> CatalogTrack {
+            CatalogTrack(platform: platform, id: id, title: title, artist: "Bon Iver")
+        }
+        // Holocene is first on Spotify; Apple Music lost it.
+        let editor = FakeEditor(live: [
+            .spotify: [track(.spotify, "spotify:track:holo", "Holocene"), track(.spotify, "spotify:track:Towers", "Towers"),
+                       track(.spotify, "spotify:track:Calgary", "Calgary")],
+            .appleMusic: [track(.appleMusic, "i.Towers", "Towers"), track(.appleMusic, "i.Calgary", "Calgary")]
+        ])
+        let runner = OperationRunner(modelContainer: f.container, editor: editor)
+        _ = try await runner.resolve([ConflictResolver.resolve(holoConflict(), as: .restore, appleMusicCanRemove: true)], pairId: f.pairId)
+
+        #expect(editor.edits.last == .init(kind: "reorder", platform: .appleMusic, playlistId: "p.am",
+                                           trackIds: ["i.holo", "i.Towers", "i.Calgary"]))
+        #expect(try await editor.tracks(in: "p.am", on: .appleMusic).map(\.title) == ["Holocene", "Towers", "Calgary"])
+    }
+
+    @Test("Apple Music playlists the person made keep added tracks at the end")
+    func restoreAppendsOnPersonsPlaylist() async throws {
+        let f = try makeFixture()
+        let editor = FakeEditor(live: [.spotify: [CatalogTrack(platform: .spotify, id: "spotify:track:holo", title: "Holocene", artist: "Bon Iver")]])
+        let runner = OperationRunner(modelContainer: f.container, editor: editor, capabilities: .spotifyOnly)
+        _ = try await runner.resolve([ConflictResolver.resolve(holoConflict(), as: .restore, appleMusicCanRemove: false)], pairId: f.pairId)
+        #expect(!editor.edits.contains { $0.kind == "reorder" })
     }
 
     @Test("Removing on the other side removes it on Spotify and forgets the row")

@@ -28,6 +28,7 @@
 		34F76C71AF6B0BDC8DCC23CC /* NewSeamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7E30A58ED8BB6FA0A2ACAF /* NewSeamTests.swift */; };
 		365A4A2F7D195C80A78F646D /* AppleMusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */; };
 		389E98931C908BB7F1913798 /* SyncPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECA505B09CD7547976B593F /* SyncPreviewView.swift */; };
+		3901E403AFD0306BDFAD6C0D /* TrackOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */; };
 		3B650BB91CF54466B3354592 /* SyncPlaylistsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */; };
 		3BAE7B65ED32E06EBC959AFE /* PlanCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C68001EE22B1D000F6E200B /* PlanCopy.swift */; };
 		3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC832933336424869C9D99A /* ConfidenceScorer.swift */; };
@@ -38,11 +39,13 @@
 		474BBC1AAD2F606B792EE297 /* CachedTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F3404651655D7A5447EB77 /* CachedTrack.swift */; };
 		4882C4D0A2E21A0259A94334 /* SyncFlowModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3684F43351350DA5DFA22B /* SyncFlowModelTests.swift */; };
 		48B255EDE92E1BF9835AFEEE /* SyncOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6258FA0FE71955A953CCCD81 /* SyncOperation.swift */; };
+		4A1BE668FE2EE53C4E59951D /* PlacementStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5833C13527FAD298E69E0D22 /* PlacementStep.swift */; };
 		4A6FF23538A5B39D8F63ADDC /* AppShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4834B68E70E1487637B5D465 /* AppShell.swift */; };
 		4CACC11EA1C9C2FF7C1C4DBB /* CatalogSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E8D78FAC06CC206ABB772F /* CatalogSearchService.swift */; };
 		53BB3382B855BAFC3B7AD70F /* SyncingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2F6662ADA4D05517C95C8D /* SyncingView.swift */; };
 		548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */; };
 		5867879B7B39F43691520596 /* AppleMusicManager+Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2789E5CD602DAF69E66E6D3 /* AppleMusicManager+Catalog.swift */; };
+		59BA7DFAE25A70E7609D595B /* TrackOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446C8A791BD2EA3CC9B5DCEA /* TrackOrder.swift */; };
 		5A322C01ABF9485DE2A59502 /* SyncsHomeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C2A5592001819FACCE5550 /* SyncsHomeModel.swift */; };
 		5AD5F665F19D2FC00CEE5B77 /* ManualMatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6311492CEB3216990C5660 /* ManualMatchSheet.swift */; };
 		60BE8D86C1D4AE96DB07DFFA /* ReviewQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106F1A086A86ECB215FA1722 /* ReviewQueueView.swift */; };
@@ -173,6 +176,7 @@
 		106F1A086A86ECB215FA1722 /* ReviewQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewQueueView.swift; sourceTree = "<group>"; };
 		12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicy.swift; sourceTree = "<group>"; };
 		1691BDDC0F7D0DE0E12E6CC8 /* SyncsRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncsRoot.swift; sourceTree = "<group>"; };
+		174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackOrderTests.swift; sourceTree = "<group>"; };
 		1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyEndpoints.swift; sourceTree = "<group>"; };
 		1C68001EE22B1D000F6E200B /* PlanCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCopy.swift; sourceTree = "<group>"; };
 		1D70BADB8E6EE6E25C849F1D /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
@@ -194,6 +198,7 @@
 		3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageA.swift; sourceTree = "<group>"; };
 		42F95E6D658D51F4DECAFB85 /* RulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesView.swift; sourceTree = "<group>"; };
 		43A74EE097E172BA0BF2CCF2 /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
+		446C8A791BD2EA3CC9B5DCEA /* TrackOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackOrder.swift; sourceTree = "<group>"; };
 		447426C0F6AE67434FEAA22F /* ReviewModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewModels.swift; sourceTree = "<group>"; };
 		44FA160B1B3DA6A3592D01DC /* SyncPair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPair.swift; sourceTree = "<group>"; };
 		453FEEF1C0450C8067712B3B /* Antiphon.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Antiphon.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -205,6 +210,7 @@
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
 		56C99A2EA1F2C86AF606A37D /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		57908CB3D0A95E792C5F0FD9 /* SyncsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncsHomeView.swift; sourceTree = "<group>"; };
+		5833C13527FAD298E69E0D22 /* PlacementStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlacementStep.swift; sourceTree = "<group>"; };
 		59186402A15C5B0251619DC0 /* AppleMusicManager+Editing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppleMusicManager+Editing.swift"; sourceTree = "<group>"; };
 		5A4DA604959B36AE69F60434 /* AntiphonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiphonApp.swift; sourceTree = "<group>"; };
 		5D53D13097A21C7D4F4D2374 /* AppleMusicEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicEditTests.swift; sourceTree = "<group>"; };
@@ -436,6 +442,7 @@
 				E1B72CCE3299789633D50F4C /* SeamRepositoryTests.swift */,
 				EB3684F43351350DA5DFA22B /* SyncFlowModelTests.swift */,
 				839CAB12C7238823EEA3F68A /* SyncsScreensTests.swift */,
+				174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */,
 				77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */,
 				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
 				FC7978E6553415361166F294 /* Fixtures */,
@@ -492,6 +499,7 @@
 				A75E5474B99BB82ACA895667 /* MatchComparison.swift */,
 				CF989E9D0834914D57852A23 /* MatchFinder.swift */,
 				75340A5AC68EB42570B931B2 /* OperationRunner.swift */,
+				5833C13527FAD298E69E0D22 /* PlacementStep.swift */,
 				328E95FD8DB619F55B5CD210 /* PlanBuilder.swift */,
 				1C68001EE22B1D000F6E200B /* PlanCopy.swift */,
 				AB07EEC8F741307983879651 /* PlaylistEntryEdit.swift */,
@@ -500,6 +508,7 @@
 				6D02F72E52AAEA70781AD605 /* ReleaseResolver.swift */,
 				6258FA0FE71955A953CCCD81 /* SyncOperation.swift */,
 				22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */,
+				446C8A791BD2EA3CC9B5DCEA /* TrackOrder.swift */,
 				997FDA688B57E81C9E9FA6F0 /* UndoPlanner.swift */,
 				F47DB7CE3877470178AA994E /* VersionTag.swift */,
 			);
@@ -886,6 +895,7 @@
 				9F336423E88805CE0B750167 /* SeamRepositoryTests.swift in Sources */,
 				4882C4D0A2E21A0259A94334 /* SyncFlowModelTests.swift in Sources */,
 				2BDF1AE6094A76FC41645069 /* SyncsScreensTests.swift in Sources */,
+				3901E403AFD0306BDFAD6C0D /* TrackOrderTests.swift in Sources */,
 				BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */,
 				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
 			);
@@ -940,6 +950,7 @@
 				FE75B752A423A1327BA34D5C /* NewSeamModel.swift in Sources */,
 				7F26ED7D10670AC6DC21E16E /* NotificationManager.swift in Sources */,
 				F34175A2334B7EF41B5409AE /* OperationRunner.swift in Sources */,
+				4A1BE668FE2EE53C4E59951D /* PlacementStep.swift in Sources */,
 				9F8282B5A28CCA4DD9128FD9 /* PlanBuilder.swift in Sources */,
 				3BAE7B65ED32E06EBC959AFE /* PlanCopy.swift in Sources */,
 				C8B3B69A6426DE341C5766AC /* Platform.swift in Sources */,
@@ -1002,6 +1013,7 @@
 				880F1B1C98DFF4B222DD4690 /* SyncsRoot.swift in Sources */,
 				CA2388C7DCDC467AF34D99AF /* TrackArtworkView.swift in Sources */,
 				016AE988C2EA08BB5841B16D /* TrackMatcher.swift in Sources */,
+				59BA7DFAE25A70E7609D595B /* TrackOrder.swift in Sources */,
 				862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */,
 				92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */,
 			);

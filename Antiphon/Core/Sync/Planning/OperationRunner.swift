@@ -9,6 +9,8 @@ protocol PlaylistEditor: Sendable {
     func add(_ tracks: [CatalogTrack], to playlistId: String, on platform: Platform) async throws -> [CatalogTrack]
     func remove(_ tracks: [CatalogTrack], from playlistId: String, on platform: Platform) async throws
     func tracks(in playlistId: String, on platform: Platform) async throws -> [CatalogTrack]
+    /// Puts the playlist in `order` (the IDs `tracks(in:on:)` reports).
+    func reorder(_ playlistId: String, on platform: Platform, to order: [String]) async throws
 }
 
 enum PlaylistEditError: Error {
@@ -65,6 +67,7 @@ actor OperationRunner {
         outcome.landed = try await execute(operations.filter { !$0.isGuided }, pair: pair, context: context,
                                            trigger: .conflict, undoOf: nil, outcome: &outcome)
 
+        var placing: [Platform: Set<String>] = [:]
         for resolution in resolutions {
             let landed = resolution.operations.map { $0.isGuided ? $0 : landedOperation(for: $0, in: outcome.landed) }
             guard !landed.contains(nil), let row = row(for: resolution.conflict.key, in: pair) else { continue }
@@ -81,12 +84,14 @@ actor OperationRunner {
                 for case let added? in landed where added.kind == .add {
                     if added.platform == .spotify { row.spotifyTrackUri = added.track.id } else { row.appleMusicTrackId = added.track.id }
                     row.lastSyncAttempt = Date()
+                    placing[added.platform, default: []].insert(row.id.uuidString)
                 }
             case .keepDifference:
                 row.removalKeptAt = Date()
             }
         }
         try context.save()
+        await place(placing, pair: pair)
         return outcome
     }
 
@@ -153,11 +158,33 @@ actor OperationRunner {
                 row.adoptArtwork(from: candidate.track)
             }
             try context.save()
+            if let added = landed.first?.track {
+                await place([added.platform: [row.id.uuidString]], pair: pair)
+            }
             return outcome
         }
     }
 
     // MARK: - Private
+
+    /// Moves tracks just added next to their neighbours on the other side.
+    /// Best effort: if it fails they stay at the end, where they landed.
+    private func place(_ placing: [Platform: Set<String>], pair: SyncPair) async {
+        let rows = pair.cachedTracks.map(PlacementStep.Row.init)
+        let playlists: [Platform: String] = [.spotify: pair.spotifyPlaylistId, .appleMusic: pair.appleMusicPlaylistId]
+        let allowed = Platform.allCases.filter { platform in
+            pair.effectivePlacement == .sourceOrder && (platform == .spotify || capabilities(for: pair).appleMusicCanReorder)
+        }
+        for (platform, keys) in placing where allowed.contains(platform) {
+            guard let playlistId = playlists[platform], let otherId = playlists[platform.other] else { continue }
+            do {
+                try await PlacementStep.place(keys, on: platform, playlistId: playlistId, otherPlaylistId: otherId,
+                                              rows: rows, editor: editor)
+            } catch {
+                print("[OperationRunner] Placing on \(platform.rawValue) failed; tracks stay at the end: \(error)")
+            }
+        }
+    }
 
     /// Runs the writes, then logs whatever landed — also when a later write fails.
     private func execute(

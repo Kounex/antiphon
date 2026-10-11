@@ -468,6 +468,8 @@ actor SyncEngine {
                 }
             }
             
+            await placeAddedTracks(pair: pair, cachedTracks: cachedTracks, run: run)
+
             // ── Final: Log result ──
             let totalRemovalFlags = cachedTracks.filter { $0.removalFlag != nil }.count
             let totalUnmatched = cachedTracks.filter { $0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed }.count
@@ -1019,6 +1021,25 @@ actor SyncEngine {
     /// Apple Music removals only appear here when the seam's playlist was
     /// created by Antiphon (D1); others were planned as guided.
     /// Returns the cache rows whose tracks are gone from both playlists.
+    /// Moves this run's additions next to their neighbours on the other
+    /// side. Best effort: if it fails, they stay at the end where they landed.
+    private func placeAddedTracks(pair: SyncPair, cachedTracks: [CachedTrack], run: RunContext) async {
+        let rows = cachedTracks.map(PlacementStep.Row.init)
+        let editor = LivePlaylistEditor(spotifyClient: spotifyClient, appleMusicManager: appleMusicManager)
+        for (platform, keys) in run.addedRows where pair.canPlace(on: platform) {
+            let (playlistId, otherId) = platform == .spotify
+                ? (pair.spotifyPlaylistId, pair.appleMusicPlaylistId)
+                : (pair.appleMusicPlaylistId, pair.spotifyPlaylistId)
+            do {
+                let moved = try await PlacementStep.place(keys, on: platform, playlistId: playlistId, otherPlaylistId: otherId,
+                                                          rows: rows, editor: editor)
+                if moved { print("[SyncEngine] Placed \(keys.count) added tracks on \(platform.rawValue)") }
+            } catch {
+                print("[SyncEngine] Placing on \(platform.rawValue) failed; tracks stay at the end: \(error)")
+            }
+        }
+    }
+
     private func applyPlannedRemovals(
         _ plan: SyncPlan,
         pair: SyncPair,
@@ -1200,6 +1221,8 @@ private final class RunContext {
     var seamSource: Platform
     var changes: [SyncChange] = []
     var removedCount = 0
+    /// Rows added this run, by the platform they landed on, for placing.
+    var addedRows: [Platform: Set<String>] = [:]
 
     init(trigger: SyncTrigger, planned: PlannedSync? = nil, approved: Set<TrackKey> = []) {
         self.trigger = trigger
@@ -1216,6 +1239,7 @@ private final class RunContext {
         )
         changes.append(SyncChange(platform: platform, kind: .add, track: landed,
                                   confidence: track.matchConfidence, reason: track.matchReason))
+        addedRows[platform, default: []].insert(track.id.uuidString)
     }
 }
 

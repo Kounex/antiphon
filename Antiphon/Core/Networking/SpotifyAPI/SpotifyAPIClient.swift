@@ -112,6 +112,12 @@ actor SpotifyAPIClient {
         }
     }
     
+    /// Moves a run of items within a playlist.
+    func reorderPlaylistItems(playlistId: String, rangeStart: Int, insertBefore: Int, rangeLength: Int) async throws {
+        let body = SpotifyReorderTracksRequest(rangeStart: rangeStart, insertBefore: insertBefore, rangeLength: rangeLength)
+        let _: SpotifySnapshotResponse = try await request(endpoint: .reorderTracks(playlistId: playlistId), body: body)
+    }
+
     /// Removes tracks from a playlist (handles batches of 100).
     func removeTracksFromPlaylist(playlistId: String, trackUris: [String]) async throws {
         for batch in trackUris.chunked(into: 100) {

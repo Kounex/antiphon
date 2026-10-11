@@ -207,6 +207,19 @@ struct SpotifyAddTracksRequest: Codable {
     let position: Int?
 }
 
+/// Moves `rangeLength` items starting at `rangeStart` before `insertBefore`.
+struct SpotifyReorderTracksRequest: Codable {
+    let rangeStart: Int
+    let insertBefore: Int
+    let rangeLength: Int
+
+    enum CodingKeys: String, CodingKey {
+        case rangeStart = "range_start"
+        case insertBefore = "insert_before"
+        case rangeLength = "range_length"
+    }
+}
+
 struct SpotifyRemoveTracksRequest: Codable {
     let items: [SpotifyTrackReference]
     let snapshotId: String?

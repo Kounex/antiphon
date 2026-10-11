@@ -443,3 +443,9 @@ What it found, all fixed and checked on device:
 - **Apple Music lists added songs after a few seconds** (measured 3 s), and lists songs already in the library under an equivalent catalog ID (added 1831584253, listed 193613943). After every add, `LibraryAnchor` re-reads the playlist and stores the library ID, matching by catalog ID, then title, artist and length. Anything still unlisted gets `DeltaEngine.appleMusicReadGrace` (15 min) before it counts as removed.
 - **The safety threshold counted old questions and kept differences**, so one real removal in a small playlist stopped the sync. `RemovalSafety` counts only this sync's new removals, from 3 up.
 - **Putting a track back** uses `ReleaseResolver` (same original-album ranking as syncing) instead of the first ISRC hit.
+
+### Track order (2026-10-11)
+
+Default per seam: **Same place** (`TrackPlacement.sourceOrder`); the alternative is **At the end**. Adds work exactly as before. Afterwards `PlacementStep` re-reads both playlists and moves each added track right after the nearest track that comes before it on the other side (`TrackOrder.desired`). Tracks Antiphon didn't add never move, so a person's own order on that side is kept. On Spotify this uses the reorder call (`PUT /playlists/{id}/items`, range moves). On Apple Music playlists Antiphon created it uses one `MusicLibrary.edit` rewrite, behind the same "read everything first" check that removals use. Apple Music playlists the person made only append, and the rules copy says so. If placing fails, the tracks stay at the end and nothing is lost. It runs after syncs, put-backs and accepted reviews. Self-test checks order after the first sync, after a put-back, and after a song is moved into the middle on each side: 43/43 on device.
+
+Not done (deliberately): "Mirror order" (copy the source's reordering to the target) and "Original album" matching. Both are options for later.

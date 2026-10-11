@@ -21,6 +21,21 @@ extension AppleMusicManager {
         _ = try await MusicLibrary.shared.edit(playlist, items: kept.map { entries[$0] })
     }
 
+    /// Rewrites the playlist in `order` (library or catalog IDs). Entries
+    /// `order` doesn't name stay, at the end. Only for playlists Antiphon
+    /// created (D1).
+    func reorderTracks(in playlist: Playlist, to order: [String]) async throws {
+        guard MusicAuthorization.currentStatus == .authorized else { throw AppleMusicError.notAuthorized }
+        let entries = try await allEntries(of: playlist)
+        let indices = try PlaylistEntryEdit.orderedIndices(
+            entries: entries.map(Self.identity),
+            expectedCount: try await allTrackCount(of: playlist),
+            desired: order
+        )
+        guard indices != Array(entries.indices) else { return }
+        _ = try await MusicLibrary.shared.edit(playlist, items: indices.map { entries[$0] })
+    }
+
     // MARK: - Private
 
     private func allEntries(of playlist: Playlist) async throws -> [Playlist.Entry] {

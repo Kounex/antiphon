@@ -46,6 +46,7 @@ final class SyncPair {
     var monitorIntervalMinutes: Int?
     /// Which side's order wins. `nil` means the source side.
     var orderSource: Platform?
+    /// `nil` means `.sourceOrder`.
     var newTrackPlacement: TrackPlacement?
     var notifyNewTracks: Bool = false
     /// Set by "Pause this seam": no syncs run until cleared.
@@ -94,6 +95,15 @@ extension SyncPair {
 
     /// Nothing is removed by default: one-way seams keep removed tracks,
     /// two-way seams turn a removal into a question.
+    var effectivePlacement: TrackPlacement { newTrackPlacement ?? .sourceOrder }
+
+    /// Whether Antiphon places new tracks on `platform`. Apple Music only lets
+    /// apps reorder playlists they created; elsewhere tracks go at the end.
+    func canPlace(on platform: Platform) -> Bool {
+        guard effectivePlacement == .sourceOrder else { return false }
+        return platform == .spotify || appleMusicCreatedByAntiphon
+    }
+
     var effectiveRemovalPolicy: RemovalPolicy {
         removalPolicy ?? (isTwoWay ? .ask : .keep)
     }
@@ -113,6 +123,8 @@ enum RemovalPolicy: String, Codable, CaseIterable, Sendable {
 
 /// Where tracks Antiphon adds are placed in the target playlist.
 enum TrackPlacement: String, Codable, Sendable {
+    /// After the same neighbour as on the other side. The default.
+    case sourceOrder
     case end
 }
 

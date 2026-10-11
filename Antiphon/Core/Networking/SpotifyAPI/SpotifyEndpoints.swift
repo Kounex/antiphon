@@ -6,6 +6,7 @@ enum SpotifyEndpoint {
     case playlistTracks(playlistId: String, limit: Int, offset: Int, market: String?)
     case addTracks(playlistId: String)
     case removeTracks(playlistId: String)
+    case reorderTracks(playlistId: String)
     case createPlaylist
     case searchByISRC(isrc: String, market: String?)
     case searchByQuery(query: String, type: String, market: String?, limit: Int)
@@ -21,7 +22,7 @@ enum SpotifyEndpoint {
             return "/playlists/\(playlistId)/items"
         case .addTracks(let playlistId):
             return "/playlists/\(playlistId)/items"
-        case .removeTracks(let playlistId):
+        case .removeTracks(let playlistId), .reorderTracks(let playlistId):
             return "/playlists/\(playlistId)/items"
         case .createPlaylist:
             return "/me/playlists"
@@ -48,7 +49,7 @@ enum SpotifyEndpoint {
             ]
             if let market { items.append(URLQueryItem(name: "market", value: market)) }
             return items
-        case .addTracks, .removeTracks, .createPlaylist, .uploadPlaylistImage:
+        case .addTracks, .removeTracks, .reorderTracks, .createPlaylist, .uploadPlaylistImage:
             return []
         case .searchByISRC(let isrc, let market):
             var items = [
@@ -77,7 +78,7 @@ enum SpotifyEndpoint {
             return "POST"
         case .removeTracks:
             return "DELETE"
-        case .uploadPlaylistImage:
+        case .uploadPlaylistImage, .reorderTracks:
             return "PUT"
         }
     }

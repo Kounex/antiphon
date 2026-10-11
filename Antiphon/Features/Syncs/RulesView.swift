@@ -14,6 +14,7 @@ struct RulesView: View {
             if let rules = model.rules {
                 direction(rules)
                 removal(rules)
+                order(rules)
                 monitoring(rules)
                 Section {
                     Button(rules.isPaused ? "Resume this seam" : "Pause this seam") {
@@ -102,6 +103,19 @@ struct RulesView: View {
                 options: model.removalOptions,
                 selection: Binding(get: { rules.removalPolicy }, set: { policy in model.update { $0.removalPolicy = policy } }),
                 consequence: RulesCopy.removal(rules.removalPolicy, direction: rules.direction)
+            )
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: Space.s2, leading: 0, bottom: Space.s2, trailing: 0))
+        }
+    }
+
+    private func order(_ rules: SeamRules) -> some View {
+        Section("Track order") {
+            DirectionPicker(
+                "Where new tracks go",
+                options: [.init(.sourceOrder, title: "Same place"), .init(.end, title: "At the end")],
+                selection: Binding(get: { rules.placement }, set: { placement in model.update { $0.placement = placement } }),
+                consequence: RulesCopy.order(rules.placement, direction: rules.direction, appleMusicCanReorder: rules.appleMusicCanReorder)
             )
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: Space.s2, leading: 0, bottom: Space.s2, trailing: 0))

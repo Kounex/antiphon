@@ -83,6 +83,7 @@ final class SelfTestRunner {
         expect(apple.count == 3, "Apple Music has 3 tracks after the first sync (has \(apple.count))")
         checkAlbum(apple, title: "Word Up", album: seeds.wordUp.album)
         checkAlbum(apple, title: "Faint", album: seeds.faint.album)
+        try await checkOrder(env, "after the first sync")
         try await env.dumpRows("before the second sync")
         planned = try await env.preview()
         try await env.apply(planned, trigger: .manual)
@@ -108,6 +109,7 @@ final class SelfTestRunner {
         if !planned.plan.isEmpty { describe(planned.plan) }
         apple = try await waitForApple(env, titles: ["Word Up"])
         checkAlbum(apple, title: "Word Up", album: seeds.wordUp.album)
+        try await checkOrder(env, "after putting Word Up back")
         conflicts = try await env.conflicts()
         expect(conflicts.isEmpty, "no question left after putting it back (\(conflicts.count))")
         try await env.dumpRows("after restore")
@@ -175,12 +177,14 @@ final class SelfTestRunner {
 
         // Added on Spotify → added on Apple Music
         _ = try await env.editor.add([seeds.holocene], to: spotifyId, on: .spotify)
+        try await moveToSecond(env, title: "Holocene", on: .spotify)
         planned = try await env.preview()
         describe(planned.plan)
         expect(planned.plan.sides[.appleMusic]?.automaticAdds.count == 1, "a track added on Spotify is added on Apple Music")
         try await env.apply(planned, trigger: .manual)
         apple = try await waitForApple(env, titles: ["Holocene"])
         checkAlbum(apple, title: "Holocene", album: seeds.holocene.album)
+        try await checkOrder(env, "after adding Holocene second on Spotify")
 
         // Removed on Spotify → remove on Apple Music too
         try await env.editor.remove([seeds.holocene], from: spotifyId, on: .spotify)
@@ -199,12 +203,14 @@ final class SelfTestRunner {
         let pumpIt = try await appleCatalogTrack("Pump It Black Eyed Peas", album: "Monkey Business")
         _ = try await env.editor.add([pumpIt], to: appleId, on: .appleMusic)
         _ = try await waitForApple(env, titles: ["Pump It"])
+        try await moveToSecond(env, title: "Pump It", on: .appleMusic)
         planned = try await env.preview()
         describe(planned.plan)
         expect(planned.plan.sides[.spotify]?.automaticAdds.count == 1, "a track added on Apple Music is added on Spotify")
         try await env.apply(planned, trigger: .manual)
         let spotify = try await env.editor.tracks(in: spotifyId, on: .spotify)
         checkAlbum(spotify, title: "Pump It", album: "Monkey Business")
+        try await checkOrder(env, "after adding Pump It second on Apple Music")
         planned = try await env.preview()
         expect(planned.plan.isEmpty, "in sync at the end")
         if !planned.plan.isEmpty { describe(planned.plan) }
@@ -424,6 +430,28 @@ final class SelfTestRunner {
             }
             try await Task.sleep(for: .seconds(3))
         }
+    }
+
+    /// Moves a track to the second place, like a person dragging it there.
+    private func moveToSecond(_ env: Env, title: String, on platform: Platform) async throws {
+        let playlistId = platform == .spotify ? env.spotifyId : env.appleId
+        var ids = try await env.editor.tracks(in: playlistId, on: platform).map { ($0.id, $0.title) }
+        guard let index = ids.firstIndex(where: { $0.1.localizedCaseInsensitiveContains(title) }) else {
+            throw SelfTestError("\(title) isn't on \(platform.rawValue) to move")
+        }
+        let moved = ids.remove(at: index)
+        ids.insert(moved, at: min(1, ids.count))
+        try await env.editor.reorder(playlistId, on: platform, to: ids.map(\.0))
+        log("moved \(title) to second place on \(platform.rawValue)")
+    }
+
+    /// Tracks on both sides are in the same order on both sides.
+    private func checkOrder(_ env: Env, _ label: String) async throws {
+        let spotify = try await env.editor.tracks(in: env.spotifyId, on: .spotify).map(\.title.normalizedForMatching)
+        let apple = try await env.appleTracks().map(\.title.normalizedForMatching)
+        let shared = Set(spotify).intersection(apple)
+        let spotifyOrder = spotify.filter(shared.contains), appleOrder = apple.filter(shared.contains)
+        expect(spotifyOrder == appleOrder, "same order on both sides \(label): Spotify \(spotifyOrder) / Apple Music \(appleOrder)")
     }
 
     private func removeOnApple(_ env: Env, title: String) async throws {

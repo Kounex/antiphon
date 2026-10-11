@@ -149,6 +149,22 @@ struct SyncsScreensTests {
         #expect(RulesCopy.removal(.keep, direction: .bidirectional) == "A track removed on one side stays on the other.")
     }
 
+    @Test("Track order copy says where new tracks go, and where Apple Music can't follow")
+    func orderCopy() {
+        #expect(RulesCopy.order(.sourceOrder, direction: .spotifyToApple, appleMusicCanReorder: true)
+                == "New tracks go where they are on Spotify.")
+        #expect(RulesCopy.order(.sourceOrder, direction: .spotifyToApple, appleMusicCanReorder: false)
+                == "New tracks go at the end on Apple Music: Apple only lets apps reorder playlists they created.")
+        #expect(RulesCopy.order(.sourceOrder, direction: .appleToSpotify, appleMusicCanReorder: false)
+                == "New tracks go where they are on Apple Music.")
+        #expect(RulesCopy.order(.sourceOrder, direction: .bidirectional, appleMusicCanReorder: true)
+                == "New tracks go next to the same tracks as on the other side.")
+        #expect(RulesCopy.order(.sourceOrder, direction: .bidirectional, appleMusicCanReorder: false)
+                == "New tracks go next to the same tracks as on the other side. On Apple Music they go at the end: Apple only lets apps reorder playlists they created.")
+        #expect(RulesCopy.order(.end, direction: .bidirectional, appleMusicCanReorder: true)
+                == "New tracks go at the end of the playlist.")
+    }
+
     @Test("Monitoring copy is honest about timing")
     func monitoringCopy() {
         #expect(RulesCopy.monitoring(isOn: true, interval: 15, direction: .spotifyToApple) == "Checks Spotify about every 15 min and syncs new tracks. iOS decides the exact moment.")

@@ -56,6 +56,9 @@ struct SeamRules: Equatable, Sendable {
     var monitorIntervalMinutes: Int?
     var notifyNewTracks: Bool
     var isPaused: Bool
+    var placement: TrackPlacement = .sourceOrder
+    /// Apple Music lets apps reorder only playlists they created (D1).
+    var appleMusicCanReorder: Bool = false
 }
 
 /// A seam about to be created.
@@ -174,7 +177,9 @@ actor SwiftDataSeamRepository: SeamRepository {
             isMonitored: pair.isMonitored,
             monitorIntervalMinutes: pair.monitorIntervalMinutes,
             notifyNewTracks: pair.notifyNewTracks,
-            isPaused: pair.isPaused
+            isPaused: pair.isPaused,
+            placement: pair.effectivePlacement,
+            appleMusicCanReorder: pair.appleMusicCreatedByAntiphon
         )
     }
 
@@ -187,6 +192,7 @@ actor SwiftDataSeamRepository: SeamRepository {
         pair.isMonitored = rules.isMonitored
         pair.monitorIntervalMinutes = rules.monitorIntervalMinutes
         pair.notifyNewTracks = rules.notifyNewTracks
+        pair.newTrackPlacement = rules.placement
         if rules.isPaused != pair.isPaused {
             pair.pausedAt = rules.isPaused ? Date() : nil
         }

@@ -19,6 +19,24 @@ enum PlaylistEntryEdit {
         case notFound
     }
 
+    /// Entry indices in the order of `desired` (IDs as in `Entry.ids`).
+    /// Entries `desired` doesn't name keep their relative order at the end,
+    /// so a rewrite never drops one.
+    static func orderedIndices(entries: [Entry], expectedCount: Int, desired: [String]) throws -> [Int] {
+        guard entries.count == expectedCount else {
+            throw Failure.incompleteRead(read: entries.count, expected: expectedCount)
+        }
+        var used = Set<Int>()
+        var order: [Int] = []
+        for id in desired {
+            if let index = entries.indices.first(where: { !used.contains($0) && entries[$0].ids.contains(id) }) {
+                used.insert(index)
+                order.append(index)
+            }
+        }
+        return order + entries.indices.filter { !used.contains($0) }
+    }
+
     /// Indices of entries to keep, in order. Each track removes at most one
     /// entry, so an intentional duplicate survives.
     static func keptIndices(entries: [Entry], expectedCount: Int, removing tracks: [CatalogTrack]) throws -> [Int] {

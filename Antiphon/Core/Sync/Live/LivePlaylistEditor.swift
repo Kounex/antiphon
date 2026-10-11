@@ -47,6 +47,24 @@ struct LivePlaylistEditor: PlaylistEditor {
         }
     }
 
+    func reorder(_ playlistId: String, on platform: Platform, to order: [String]) async throws {
+        switch platform {
+        case .spotify:
+            // Copies of the same track are interchangeable: tag them by occurrence.
+            func tagged(_ ids: [String]) -> [String] {
+                var seen: [String: Int] = [:]
+                return ids.map { id in defer { seen[id, default: 0] += 1 }; return "\(id)#\(seen[id, default: 0])" }
+            }
+            let current = try await tracks(in: playlistId, on: .spotify).map(\.id)
+            for move in TrackOrder.moves(from: tagged(current), to: tagged(order)) {
+                try await spotifyClient.reorderPlaylistItems(playlistId: playlistId, rangeStart: move.rangeStart,
+                                                             insertBefore: move.insertBefore, rangeLength: move.rangeLength)
+            }
+        case .appleMusic:
+            try await appleMusicManager.reorderTracks(in: try await appleMusicPlaylist(playlistId), to: order)
+        }
+    }
+
     func tracks(in playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
         switch platform {
         case .spotify:
