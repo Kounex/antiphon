@@ -48,6 +48,9 @@ targets:
         INFOPLIST_KEY_NSAppleMusicUsageDescription: "Antiphon needs access to your Apple Music library to sync playlists."
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
         SWIFT_STRICT_CONCURRENCY: complete
+        # Light and dark Home Screen icons for the Appearance setting; the
+        # primary AppIcon.icon follows the system.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Light AppIcon-Dark"
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG

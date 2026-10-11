@@ -90,6 +90,10 @@ struct AntiphonApp: App {
                 #endif
             }
             .preferredColorScheme(appearance.colorScheme)
+            .onChange(of: appearance) { _, appearance in
+                guard !Self.isHostingTests, !Self.isDebugRoute else { return }
+                Task { await AppIconSwitcher.apply(appearance) }
+            }
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { oldPhase, newPhase in

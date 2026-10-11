@@ -2,6 +2,7 @@
 import Foundation
 import MusicKit
 import SwiftData
+import UIKit
 
 /// End-to-end checks against the real Spotify and Apple Music accounts,
 /// through the same services the screens use. DEBUG only.
@@ -62,6 +63,8 @@ final class SelfTestRunner {
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
             if scenario == "realpreview" { try await previewPersonsSeam() }
+            // Changes the Home Screen icon (iOS shows a notice): only by name.
+            if scenario == "icon" { try await iconFollowsTheme() }
         } catch {
             fail("Stopped: \(error)")
         }
@@ -319,6 +322,19 @@ final class SelfTestRunner {
                 expect(ReleasePreference.baseAlbum(album).localizedCaseInsensitiveContains(ReleasePreference.baseAlbum(expected)),
                        "\(source.title), \(choice): from \(expected) (got \(album))")
             }
+        }
+    }
+
+    // MARK: - Scenario: the Home Screen icon follows the theme
+
+    private func iconFollowsTheme() async throws {
+        log("== Home Screen icon follows Appearance")
+        expect(UIApplication.shared.supportsAlternateIcons, "the app supports alternate icons")
+        for appearance in [AppAppearance.dark, .light, .system] {
+            await AppIconSwitcher.apply(appearance)
+            try await Task.sleep(for: .seconds(2))
+            let current = UIApplication.shared.alternateIconName
+            expect(current == appearance.alternateIconName, "\(appearance.title): icon is \(current ?? "the adaptive one")")
         }
     }
 

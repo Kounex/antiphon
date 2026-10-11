@@ -57,13 +57,17 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Color.canvasRaised)
 
-                Section("Appearance") {
+                Section {
                     Picker("Theme", selection: $appearance) {
                         ForEach(AppAppearance.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("The Home Screen icon follows. iOS briefly confirms each icon change.")
                 }
 
                 Section("Antiphon") {

@@ -280,6 +280,13 @@ struct AppearanceTests {
         #expect(AppAppearance.allCases.map(\.title) == ["System", "Light", "Dark"])
     }
 
+    @Test("The Home Screen icon follows: System keeps the adaptive icon")
+    func icons() {
+        #expect(AppAppearance.system.alternateIconName == nil)
+        #expect(AppAppearance.light.alternateIconName == "AppIcon-Light")
+        #expect(AppAppearance.dark.alternateIconName == "AppIcon-Dark")
+    }
+
     @Test("Stored by name, System when unset")
     func stored() {
         let defaults = UserDefaults(suiteName: "appearance-\(UUID().uuidString)")!
