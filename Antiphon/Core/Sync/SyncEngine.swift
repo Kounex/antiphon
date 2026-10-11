@@ -95,7 +95,8 @@ actor SyncEngine {
     
     /// A run nobody previews applies the same plan a preview would show,
     /// approving nothing: strong matches are added, close matches wait in
-    /// Review, removals follow the seam's policy (Mirror removes, Ask asks).
+    /// Review, removals follow the seam's policy (Mirror removes unless
+    /// "Removals in the background" is off, Ask asks).
     private func monitorSync(_ pair: SyncPair, context: ModelContext, trigger: SyncTrigger,
                              preferences: AppPreferences) async -> SyncResult {
         // A sync already running for this seam (started by the person) wins;
@@ -112,8 +113,9 @@ actor SyncEngine {
         let run = RunContext(trigger: trigger)
         let planned: PlannedSync
         do {
-            planned = try await planner.plan(pairId: pair.id, action: .monitorSync, unattended: true,
-                                             limit: AppConstants.Sync.backgroundLookupLimit)
+            planned = try await planner.plan(pairId: pair.id, action: .monitorSync, unattended: .init(
+                removeInBackground: preferences.removeInBackground, limit: AppConstants.Sync.backgroundLookupLimit
+            ))
         } catch {
             // iOS ending the background run cancels the requests in flight.
             if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {

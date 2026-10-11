@@ -211,12 +211,12 @@ struct PlanBuilderTests {
         #expect(plan.conflicts.isEmpty)
     }
 
-    @Test("Background runs never carry out two-way removals (D2); one-way Mirror still applies")
+    @Test("Background runs carry out Mirror removals (one- and two-way), unless that's turned off")
     func backgroundRemovalPolicy() {
-        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .bidirectional) == .keep)
-        #expect(PlanBuilder.unattendedPolicy(.ask, direction: .bidirectional) == .ask)
-        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .spotifyToApple) == .mirror)
-        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .appleToSpotify) == .mirror)
+        #expect(PlanBuilder.unattendedPolicy(.mirror, removeInBackground: true) == .mirror)
+        #expect(PlanBuilder.unattendedPolicy(.mirror, removeInBackground: false) == .keep)
+        #expect(PlanBuilder.unattendedPolicy(.ask, removeInBackground: true) == .ask, "questions stay questions")
+        #expect(PlanBuilder.unattendedPolicy(.keep, removeInBackground: true) == .keep)
     }
 
     @Test("The question rule agrees with the plan for every flag, direction and policy")

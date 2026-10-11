@@ -18,6 +18,12 @@ enum SettingsCopy {
         isOn ? RulesCopy.intervalLabel(minutes) : "Off"
     }
 
+    static func backgroundRemovals(_ isOn: Bool) -> String {
+        isOn
+            ? "When a seam is set to remove a track on the other side too, background checks do it without a preview. Each removal is in History and can be undone. Apple Music playlists you made yourself are the exception: apps can't remove from them."
+            : "Removals wait until you sync and check the preview. New tracks are still added in the background."
+    }
+
     static func disconnectEffect(seams: Int) -> String {
         seams == 0
             ? "Your playlists stay exactly as they are."

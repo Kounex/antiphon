@@ -55,12 +55,18 @@ actor SyncPlanner {
         self.capabilities = capabilities
     }
 
-    /// `unattended`: a background run applies the plan without a preview, so
-    /// two-way removals are left for the next preview (D2), and at most
-    /// `limit` tracks are looked up, leaving the rest pending for the next run
-    /// (a background run has seconds, and planning keeps nothing until applied).
+    /// `unattended`: a background run applies the plan without a preview.
+    /// Its `removeInBackground` decides whether Mirror removals are carried
+    /// out, and at most `limit` tracks are looked up, leaving the rest pending
+    /// for the next run (a background run has seconds, and planning keeps
+    /// nothing until applied).
+    struct Unattended: Sendable {
+        let removeInBackground: Bool
+        let limit: Int?
+    }
+
     func plan(pairId: UUID, action: SyncAction = .manualSync, progress: Progress? = nil,
-              unattended: Bool = false, limit: Int? = nil) async throws -> PlannedSync {
+              unattended: Unattended? = nil) async throws -> PlannedSync {
         let live = try await fetchLiveTracks(pairId: pairId)
         let stageA = try DryRunStageA.run(
             container: modelContainer, pairId: pairId, action: action,
@@ -74,7 +80,7 @@ actor SyncPlanner {
                 && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: recheck, now: Date()))
             return needsWork && PlanBuilder.allows(stageA.direction, from: row.source.platform)
         }
-        let toMatch = limit.map { Array(candidates.prefix($0)) } ?? candidates
+        let toMatch = unattended?.limit.map { Array(candidates.prefix($0)) } ?? candidates
 
         let spotifyCatalog = SpotifyTrackCatalog(client: spotifyClient)
         let appleCatalog = AppleMusicTrackCatalog(manager: appleMusicManager)
@@ -117,8 +123,9 @@ actor SyncPlanner {
             pairId: pairId,
             direction: stageA.direction,
             sourcePlatform: stageA.sourcePlatform,
-            removalPolicy: unattended
-                ? PlanBuilder.unattendedPolicy(stageA.removalPolicy, direction: stageA.direction) : stageA.removalPolicy,
+            removalPolicy: unattended.map {
+                PlanBuilder.unattendedPolicy(stageA.removalPolicy, removeInBackground: $0.removeInBackground)
+            } ?? stageA.removalPolicy,
             confidence: confidence,
             rows: stageA.rows,
             outcomes: outcomes,

@@ -100,11 +100,12 @@ enum PlanBuilder {
         }
     }
 
-    /// The removal policy for a run nobody previews. Two-way removals are
-    /// never carried out unseen (D2): a two-way Mirror seam keeps them for
-    /// the next preview. One-way Mirror removals still apply.
-    static func unattendedPolicy(_ policy: RemovalPolicy, direction: SyncDirection) -> RemovalPolicy {
-        direction == .bidirectional && policy == .mirror ? .keep : policy
+    /// The removal policy for a run nobody previews. Mirror removals are
+    /// carried out (one- and two-way) unless the person turned off
+    /// "Removals in the background"; then they wait for the next preview.
+    /// Questions stay questions either way.
+    static func unattendedPolicy(_ policy: RemovalPolicy, removeInBackground: Bool) -> RemovalPolicy {
+        policy == .mirror && !removeInBackground ? .keep : policy
     }
 
     /// Whether a removal flag becomes a question for the person. The seam

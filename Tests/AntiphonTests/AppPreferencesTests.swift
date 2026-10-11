@@ -20,6 +20,7 @@ struct AppPreferencesTests {
         #expect(prefs.newSeamMonitoring)
         #expect(prefs.monitorIntervalMinutes == 15)
         #expect(prefs.hasCompletedOnboarding == false)
+        #expect(prefs.removeInBackground, "background runs may carry out Mirror removals")
     }
 
     @Test("The interval chosen in the old Settings screen carries over")

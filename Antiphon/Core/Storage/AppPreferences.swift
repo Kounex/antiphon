@@ -33,6 +33,7 @@ final class AppPreferences: @unchecked Sendable {
         static let allowRadioEdits = "allowRadioEdits"
         static let recheckCadence = "recheckCadence"
         static let wifiOnly = "monitorWiFiOnly"
+        static let removeInBackground = "monitorRemovals"
         static let pauseInLowPower = "monitorPauseInLowPower"
         static let quietHours = "monitorQuietHours"
         static let notifyDecide = "notifyDecide"
@@ -122,6 +123,13 @@ final class AppPreferences: @unchecked Sendable {
                 ?? 15
         }
         set { defaults.set(newValue, forKey: Key.monitorIntervalMinutes) }
+    }
+
+    /// Background runs carry out Mirror removals without a preview. On by
+    /// default: the seam's Mirror setting is the opt-in.
+    var removeInBackground: Bool {
+        get { defaults.object(forKey: Key.removeInBackground) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.removeInBackground) }
     }
 
     // MARK: - Monitoring gates

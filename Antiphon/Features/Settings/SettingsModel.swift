@@ -80,6 +80,7 @@ final class SettingsModel {
     // Monitoring
     var interval: Int { didSet { preferences.monitorIntervalMinutes = interval } }
     var wifiOnly: Bool { didSet { preferences.wifiOnly = wifiOnly } }
+    var removeInBackground: Bool { didSet { preferences.removeInBackground = removeInBackground } }
     var pauseInLowPower: Bool { didSet { preferences.pauseInLowPower = pauseInLowPower } }
     var quietHours: MonitorGates.QuietHours? { didSet { preferences.quietHours = quietHours } }
 
@@ -113,6 +114,7 @@ final class SettingsModel {
         recheck = preferences.recheckCadence
         interval = preferences.monitorIntervalMinutes
         wifiOnly = preferences.wifiOnly
+        removeInBackground = preferences.removeInBackground
         pauseInLowPower = preferences.pauseInLowPower
         quietHours = preferences.quietHours
         notifyDecide = preferences.notifyDecide

@@ -96,7 +96,7 @@ Packages/AntiphonDesign  Tokens (colors from tokens.json, type, spacing) and com
 Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via SharedModelContainer.make(inMemory:)
 ```
 
-**Sync flow.** A manual sync previews first: `SyncPlanner.plan` gives a `PlannedSync`. The person approves it, `SyncService.apply` hands it to `SyncEngine.syncPair(planned:)`, and that writes, records a `SyncChange` per write, then places new tracks in order. Monitoring (`SyncEngine.syncAllMonitored` → `monitorSync`) builds the same plan unattended and applies it approving nothing: strong matches are added, close matches wait in Review, one-way Mirror removals apply, and two-way removals are never carried out unseen (D2, `PlanBuilder.unattendedPolicy`). It looks up at most `backgroundLookupLimit` tracks per run; the rest stay pending. Single actions (put back, accept a match, undo) go through `OperationRunner`.
+**Sync flow.** A manual sync previews first: `SyncPlanner.plan` gives a `PlannedSync`. The person approves it, `SyncService.apply` hands it to `SyncEngine.syncPair(planned:)`, and that writes, records a `SyncChange` per write, then places new tracks in order. Monitoring (`SyncEngine.syncAllMonitored` → `monitorSync`) builds the same plan unattended and applies it approving nothing: strong matches are added, close matches wait in Review, Mirror removals (one- and two-way) are carried out unless Settings › Monitoring › "Removals in the background" is off (D2 as revised, `PlanBuilder.unattendedPolicy`), and Ask seams' removals become questions. It looks up at most `backgroundLookupLimit` tracks per run; the rest stay pending. Single actions (put back, accept a match, undo) go through `OperationRunner`.
 
 ## Gotchas learned the hard way
 

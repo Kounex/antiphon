@@ -149,6 +149,10 @@ struct SettingsCopyTests {
         #expect(SettingsCopy.monitoring(isOn: true, minutes: 15) == "15 min")
         #expect(SettingsCopy.monitoring(isOn: true, minutes: 720) == "Twice a day")
         #expect(SettingsCopy.monitoring(isOn: false, minutes: 15) == "Off")
+        #expect(SettingsCopy.backgroundRemovals(true)
+                == "When a seam is set to remove a track on the other side too, background checks do it without a preview. Each removal is in History and can be undone. Apple Music playlists you made yourself are the exception: apps can't remove from them.")
+        #expect(SettingsCopy.backgroundRemovals(false)
+                == "Removals wait until you sync and check the preview. New tracks are still added in the background.")
         #expect(SettingsCopy.header(seams: 9, tracksInSync: 1284, locale: Locale(identifier: "en_US")) == "9 seams · 1,284 tracks in sync")
     }
 

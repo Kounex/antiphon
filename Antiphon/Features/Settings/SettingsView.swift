@@ -445,6 +445,14 @@ struct MonitoringSettingsView: View {
             }
 
             Section {
+                Toggle("Removals in the background", isOn: $model.removeInBackground)
+            } footer: {
+                Text(SettingsCopy.backgroundRemovals(model.removeInBackground))
+            }
+            .tint(.thread)
+            .listRowBackground(Color.canvasRaised)
+
+            Section {
                 Toggle("Only on Wi-Fi", isOn: $model.wifiOnly)
                 Toggle("Pause in Low Power Mode", isOn: $model.pauseInLowPower)
                 Toggle("Quiet hours", isOn: Binding(get: { model.quietHoursOn }, set: { model.quietHoursOn = $0 }))

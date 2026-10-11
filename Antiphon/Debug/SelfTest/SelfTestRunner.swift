@@ -455,6 +455,36 @@ final class SelfTestRunner {
             }
         }
         expect(report.results.first?.status != .failed, "the run didn't fail (\(report.results.map { "\($0.status)" }))")
+
+        // Two-way Mirror: a removal on Spotify is carried out on Apple Music
+        // in the background, unless "Removals in the background" is off.
+        log("== Background removals in a two-way Mirror seam")
+        preferences.autoAddThreshold = ConfidencePolicy.defaultAutoAddThreshold
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint])
+        try await resetApple(appleId)
+        let twoWay = try Env(spotifyId: spotifyId, appleId: appleId, direction: .bidirectional, appleOwned: true)
+        try await twoWay.apply(try await twoWay.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(twoWay, titles: ["Word Up", "Faint"])
+        try twoWay.setRemovalPolicy(.mirror)
+        try await twoWay.editor.remove([seeds.faint], from: spotifyId, on: .spotify)
+
+        preferences.removeInBackground = false
+        try twoWay.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+        report = await MonitorRun.perform(modelContainer: twoWay.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        log("switched off: \(report.summary)")
+        let kept = try await twoWay.appleTracks()
+        expect(report.results.first?.status != .failed, "switched off: the run didn't fail")
+        expect(kept.contains { $0.title.localizedCaseInsensitiveContains("Faint") }, "switched off: Faint stays on Apple Music")
+
+        preferences.removeInBackground = true
+        try twoWay.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+        report = await MonitorRun.perform(modelContainer: twoWay.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        log("switched on: \(report.summary)")
+        let after = try await twoWay.appleTracks()
+        expect(!after.contains { $0.title.localizedCaseInsensitiveContains("Faint") } && after.contains { $0.title.localizedCaseInsensitiveContains("Word Up") },
+               "switched on: the background run removes Faint from Apple Music, Word Up stays (\(after.map(\.title)))")
+        let removalRun = try await twoWay.repository.runs().first
+        expect(removalRun?.trigger == .monitor, "History shows the removal as a watching run")
         defaults.removePersistentDomain(forName: "antiphon-selftest-monitor")
     }
 
@@ -705,6 +735,16 @@ final class SelfTestRunner {
             try ModelContext(container).fetch(FetchDescriptor<CachedTrack>())
                 .filter { row in row.syncPair?.id == pairId && titles.contains { row.title.localizedCaseInsensitiveContains($0) } }
                 .map { ($0.title, $0.syncState, $0.matchConfidence) }
+        }
+
+        @MainActor
+        func setRemovalPolicy(_ policy: RemovalPolicy) throws {
+            let context = ModelContext(container)
+            guard let pair = try context.fetch(FetchDescriptor<SyncPair>()).first(where: { $0.id == pairId }) else {
+                throw SelfTestError("no seam")
+            }
+            pair.removalPolicy = policy
+            try context.save()
         }
 
         /// Monitored, as if last synced at `lastSynced`.
