@@ -6,43 +6,7 @@ This document describes the design patterns, system architecture, database schem
 
 ## 🗺 Directory Structure
 
-The codebase is structured around a separation of concern between platform interfaces, core synchronization engines, and SwiftUI features:
-
-```
-Antiphon/
-├── App/
-│   ├── AntiphonApp.swift           # Application entry point & SwiftData container setup
-│   └── AppConstants.swift          # App-wide constants (URLs, thresholds, identifiers)
-├── Core/
-│   ├── Background/                 # Background tasks & App Intents
-│   │   ├── BackgroundTaskManager.swift
-│   │   └── SyncPlaylistsIntent.swift
-│   ├── Extensions/                 # Utility extensions (String, Date)
-│   ├── Notifications/
-│   │   └── NotificationManager.swift  # Local notification permissions & sync failure alerts
-│   ├── Networking/
-│   │   ├── AppleMusic/             # Apple MusicKit manager, search, and playlist services
-│   │   └── SpotifyAPI/             # Spotify OAuth client, token provider actor, API wrappers, and types
-│   ├── Storage/
-│   │   ├── KeychainManager.swift   # Secure credential storage
-│   │   └── Models/                 # SwiftData schemas (SyncPair, CachedTrack, SyncLog)
-│   └── Sync/
-│       ├── CacheAligner.swift      # Delta engine: updates cache with live source state
-│       ├── DeltaEngine.swift       # Delta engine: matches target tracks and handles additions/removals
-│       ├── PlaylistCachePruner.swift# Cache pruner: deduplicates rows and clears dead references
-│       ├── SyncCoordinator.swift   # Main-thread bridge: manages background SyncEngine tasks and UI state
-│       ├── SyncEngine.swift        # Background orchestration Actor for sync transactions
-│       ├── SyncResult.swift        # Result and progress types returned by the engine
-│       └── TrackMatcher.swift      # Search rules & fuzzy string similarity matcher
-├── Features/
-│   ├── Dashboard/                  # Main screen list of pairs, monitoring overview, and summaries
-│   ├── Inspector/                  # Detailed tab views (Tracks, Flagged, History)
-│   ├── LinkWizard/                 # Linked playlist creator (platform connect, playlist search)
-│   └── Settings/                   # BYOK credentials configuration and database resets
-└── UI/
-    ├── Components/                 # Common controls (Badges, Status indicators, PulsingDot)
-    └── Theme/                      # Design system bindings (AppColors, AppFonts, AppStyles)
-```
+The current folder map (after the iOS 26 redesign) and the sync flow are in [`CLAUDE.md`](../CLAUDE.md#architecture-redesign-layer); the screen-by-screen plan is in [`redesign-plan.md`](redesign-plan.md). In short: pure planning lives in `Core/Sync/Planning`, live reads and writes in `Core/Sync/Live`, the engine in `Core/Sync`, screens talk to `Services/` protocols (each with live and preview implementations), and the UI kit is the `Packages/AntiphonDesign` package.
 
 ---
 
@@ -65,19 +29,19 @@ UI-facing managers are fully `@MainActor`-isolated at the class level, ensuring 
 * **`SyncCoordinator`**: A `@MainActor @Observable` class that bridges the SwiftUI UI and the background `SyncEngine` actor. It manages task handles, progress state, and sync results. `startSync()` creates a `SpotifyAPIClient` (which internally uses `SpotifyTokenProvider`) — no `SpotifyAuthManager` dependency needed.
 * **`SpotifyAuthManager`**: A `@MainActor @Observable` class that owns UI-only auth state: login/logout flows (OAuth PKCE), user profile display, BYOK Client ID management, and the observable `isAuthenticated` flag. It writes tokens to Keychain during login (consumed by `SpotifyTokenProvider`), but does **not** manage token refresh or provide tokens to API callers. The `ASWebAuthenticationPresentationContextProviding` conformance uses `@preconcurrency` with `MainActor.assumeIsolated`.
 * **`AppleMusicManager`**: A `@MainActor @Observable` class managing MusicKit authorization status and library access. Provides a `nonisolated init()` so SwiftUI views can create instances as stored properties. All API methods call `ensureAuthorized()` which checks `MusicAuthorization.currentStatus` live rather than relying on the cached observable property — this is critical for fresh instances created by background tasks and the sync coordinator, which never receive a `refreshStatus()` call.
-* **`LinkWizardViewModel`**: A `@MainActor @Observable` class that drives the multi-step playlist linking wizard UI state.
+* **Screen models** (`SyncsHomeModel`, `SeamDetailModel`, `SyncFlowModel`, `LibraryModel`, `ActivityModel`, `SettingsModel`, `OnboardingModel`, …) are `@MainActor @Observable` classes that call `Services/` protocols, so previews and tests can use fixtures.
 
 ### 4. Background Task Isolation
 Background execution contexts (`BackgroundTaskManager`, `SyncPlaylistsIntent`) create a `SpotifyAPIClient()` directly — which uses its own `SpotifyTokenProvider` internally. No `SpotifyAuthManager` is needed for background work, cleanly separating background token access from foreground UI auth state.
 
 ### 5. Local Notifications
-`NotificationManager` is a static utility (`enum`) that manages local notification permissions and posts alerts when background syncs fail. Permission is requested lazily on first app activation (`.active` scene phase). When `BackgroundTaskManager` or `SyncPlaylistsIntent` completes with failures, `NotificationManager.postSyncFailureNotification(results:)` delivers a grouped notification that summarises the failing playlists, giving the user a clear call to action without needing the app in the foreground.
+Background runs (`MonitorRun.perform`) decide what to say with `MonitorNotifications`. There are four categories the person controls in Settings: need to decide, something breaks, new tracks (each sync or a daily summary) and a weekly digest. `NotificationScheduler` rewrites the scheduled summary and digest after each run. Permission is asked for in onboarding or when a notification is turned on, not at launch. The Shortcuts intent still uses `NotificationManager.postSyncFailureNotification` and respects "When something breaks".
 
 ---
 
 ## 🗄 Storage Schema (SwiftData Models)
 
-Antiphon stores its cached configurations and results in three main database tables:
+Antiphon stores its data in SwiftData. The diagram shows the three original models. Since the redesign there are also `SyncChange` (one row per write a run made, ordered by `sequence`, used for history, New tracks and undo; cascades from `SyncLog`) and `SyncProblem` (open problems per seam). `SyncPair` gained rule fields (`removalPolicy`, `monitorIntervalMinutes`, `newTrackPlacement`, `pausedAt`, `…CreatedByAntiphon`, `needsRebuild`), and `CachedTrack` gained match evidence (`matchConfidence`, `matchReason`, `candidatesData`, `removalKeptAt`…). All new fields are optional or defaulted, so stores migrate in place. Reset deletes object by object, because batch deletes fail on the run → change relationship.
 
 ```mermaid
 erDiagram

@@ -1,5 +1,8 @@
 # Antiphon redesign plan (Phase 0)
 
+> **Status (2026-10-11):** M0–M8 are done on `redesign/ios26`. Each milestone's record is at the end of this file. Waiting for the user's "merge" to fast-forward `main`, then M9 (widgets, Live Activity, actionable notifications, share extension). Agent notes and commands: [`CLAUDE.md`](../CLAUDE.md).
+
+
 Status: **approved 2026-10-10 — all recommendations (D1–D7) accepted.** Work happens on `redesign/ios26`. This document is the audit and plan for the iOS 26 / Liquid Glass rebuild against the Antiphon design system (`TXKAkq1pkYhFFF593kxH63`) and the storyboard (`BF77MNwKAG2ZbZNv6mL15Q`).
 
 Effort scale used throughout: **S** ≤ half a day, **M** 1–2 days, **L** 3+ days.

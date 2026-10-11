@@ -6,7 +6,7 @@
 
 > **Antiphon**: *A responsive playlist synchronization bridge between Spotify and Apple Music.*
 
-Antiphon is a high-performance, native macOS/iOS application built in SwiftUI that bridges the gap between Spotify and Apple Music. It allows you to link specific playlists across both streaming platforms, perform delta sync calculations, and resolve missing tracks or removals with a premium dark-themed Glassmorphic user interface.
+Antiphon is a native iOS app built in SwiftUI that bridges the gap between Spotify and Apple Music. It links playlists across both services, previews every sync, and keeps them matching, with a Liquid Glass interface in light and dark.
 
 ---
 
@@ -22,11 +22,13 @@ Streaming platforms are walled gardens. If you collaborate on a Spotify playlist
 
 ## 🚀 Key Features
 
-* **Glassmorphic UI**: Beautiful dark mode theme leveraging HSL-tailored colors, brand gradients, and micro-interactions.
-* **Real-time Sync Indicators**: Dynamic status cards featuring colorized state icons and real-time synced counts (e.g., `1 missing, 114 synced`).
-* **Detailed Audit Trails**: A scrollable history tab logging every sync event, track addition, removal, and matching failure.
-* **Safety Threshold Checks**: Sync abort safety guards to prevent accidental wipes if more than 30% of a playlist's tracks are flagged for deletion.
-* **Diagnostics Export**: A built-in sharing button to export plain-text alignment tables, cache states, and platform IDs for easy troubleshooting.
+* **Seams**: link a Spotify playlist with an Apple Music one, one way or both ways. Every sync starts with a preview that says exactly what will change.
+* **Honest matching**: ISRC first, then title, artist and length, with confidence bands. Close matches wait in a review queue instead of being guessed. Preferences cover explicit/clean, remasters, live versions, radio edits and which album.
+* **Nothing removed by surprise**: removals are kept, asked about, or mirrored, as you choose, and any sync can be undone from Activity.
+* **Track order**: new tracks land next to the same neighbours as on the other side, or the target follows the source's order entirely, wherever the platform allows it.
+* **Library and search**: both libraries in one grid, availability checks before you stitch a playlist, and a search across your seams.
+* **Monitoring**: background checks per seam with Wi-Fi, Low Power and quiet-hours gates, and notifications split by whether you need to act.
+* **Light and dark**: a Liquid Glass UI built on iOS 26, with a System / Light / Dark setting that the Home Screen icon follows.
 
 ---
 
@@ -35,6 +37,8 @@ Streaming platforms are walled gardens. If you collaborate on a Spotify playlist
 For a deep dive into architecture and algorithm implementation details, refer to the following documents:
 * [Architecture Guide](docs/ARCHITECTURE.md): Concurrency model (Actors & @MainActor), project folder structure, and SwiftData database schema.
 * [Playlist Sync Engine Guide](docs/SYNC_ENGINE.md): Technical overview of the delta matching pipeline, fuzzy matching rules, override actions, and sync safety thresholds.
+* [Redesign plan](docs/redesign-plan.md): the iOS 26 redesign, decisions, and what each milestone shipped and verified.
+* [Agent notes](CLAUDE.md): build/test/screenshot/self-test commands, architecture map, and gotchas.
 
 ---
 
@@ -51,8 +55,8 @@ Antiphon is built as a native Swift application using modern Apple frameworks:
 ## 💻 How to Build and Run
 
 ### Prerequisites
-* macOS 14+
-* Xcode 16.0+
+* macOS 15+
+* Xcode 26+ (iOS 26 SDK)
 * Swift 6.0 (strict concurrency enabled)
 * [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 

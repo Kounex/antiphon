@@ -4,6 +4,18 @@ This document explains the delta synchronization logic, track-matching pipelines
 
 ---
 
+## Since the redesign
+
+The engine below still does the work, but syncs are now **planned first**:
+
+- `SyncPlanner` dry-runs Stage A (`DryRunStageA`) and matching (`MatchFinder` + `ConfidenceScorer`) into a `SyncPlan` that the person previews. `SyncEngine.syncPair(planned:approving:)` then applies exactly that plan. If the playlists changed in between, the plan counts as stale and nothing is applied.
+- Confidence bands: at or above the threshold (default 90) a match is added; from 60 it waits in Review; below that the track counts as not found. Tracks not found are tried three times, then looked up again on the recheck schedule from Settings.
+- Every write is recorded as a `SyncChange`. Single actions (put back, keep, accept a match, undo) run through `OperationRunner`.
+- Apple Music: adds are mapped to library IDs by `LibraryAnchor`. Apple Music is slow to list new tracks, so `DeltaEngine` gives them a read grace. `RemovalSafety` stops a run whose fresh removals pass the safety threshold, counted only from 3 removals up.
+- After writes, `PlacementStep` puts new tracks where they are on the other side, or makes the whole target follow the source ("Same order"), wherever the platform allows it.
+
+See [`CLAUDE.md`](../CLAUDE.md) for the gotchas behind these, and `docs/redesign-plan.md` for what was verified on real accounts.
+
 ## 🔄 The Two-Stage Sync Pipeline
 
 To maximize speed and prevent UI freezes, the synchronization engine is split into a fast, non-blocking phase (Stage A) followed by a slower, progress-reporting match phase (Stage B).

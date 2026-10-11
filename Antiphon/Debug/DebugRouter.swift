@@ -19,7 +19,8 @@ enum DebugRoute {
     /// The tab shell on preview data; `shell/library`, `shell/activity`,
     /// `shell/search` pick a tab, `shell/syncing` adds a running sync.
     case shell(String?)
-    /// End-to-end checks on the real accounts: `selftest`, `selftest/twoway`, `selftest/ownam`.
+    /// End-to-end checks on the real accounts: `selftest` or `selftest/<scenario>`
+    /// (see `SelfTestRunner.run` and `scripts/selftest.sh`).
     case selfTest(String?)
     /// First launch: `onboarding/connect`, `/defaults`, `/twins`.
     case onboarding(String?)
