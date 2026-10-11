@@ -70,7 +70,8 @@ struct DebugRouteView: View {
         let model = AppShellModel(seams: repository, accounts: accounts,
                                   sync: PreviewSyncService(), library: PreviewLibraryService(),
                                   reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
-                                  index: repository, availability: PreviewAvailabilityService())
+                                  index: repository, availability: PreviewAvailabilityService(),
+                                  activity: repository)
         switch option {
         case "library": model.selectedTab = .library
         case "library-playlist":
@@ -86,6 +87,12 @@ struct DebugRouteView: View {
             model.selectedTab = .search
             model.searchModel.query = String(query.dropFirst("search-".count))
         case "activity": model.selectedTab = .activity
+        case "activity-new":
+            model.selectedTab = .activity
+            model.activityModel.tab = .newTracks
+        case "activity-run":
+            model.selectedTab = .activity
+            model.activityPath = [.run(PreviewFixtures.runs[0].id)]
         case "search": model.selectedTab = .search
         case "detail": model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
         case "detail-scrolled":

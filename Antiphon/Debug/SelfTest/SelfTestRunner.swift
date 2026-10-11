@@ -40,6 +40,8 @@ final class SelfTestRunner {
     static let userOwnedAppleName = "Antiphon Test"
     /// One way with "Same order", Antiphon-created on both sides.
     static let sameOrderName = "Antiphon Self-Test (same order)"
+    /// Two way, Antiphon-created on both sides, for undo.
+    static let undoName = "Antiphon Self-Test (undo)"
 
     // MARK: - Run
 
@@ -53,6 +55,7 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "sameorder" { try await sameOrderOneWay() }
             if scenario == nil || scenario == "album" { try await originalAlbum() }
             if scenario == nil || scenario == "library" { try await libraryReadOnly() }
+            if scenario == nil || scenario == "undo" { try await undoTwoWay() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -315,6 +318,71 @@ final class SelfTestRunner {
                        "\(source.title), \(choice): from \(expected) (got \(album))")
             }
         }
+    }
+
+    // MARK: - Scenario: undo a two-way sync
+
+    private func undoTwoWay() async throws {
+        log("== Undo a two-way sync, both playlists Antiphon's")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.undoName)
+        let appleId = try await applePlaylist(named: Self.undoName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint])
+        try await resetApple(appleId)
+
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .bidirectional, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up", "Faint"])
+        try await env.apply(try await env.preview(), trigger: .manual)
+
+        // One new track on each side, synced across in one run.
+        _ = try await env.editor.add([seeds.holocene], to: spotifyId, on: .spotify)
+        let pumpIt = try await appleCatalogTrack("Pump It Black Eyed Peas", album: "Monkey Business")
+        _ = try await env.editor.add([pumpIt], to: appleId, on: .appleMusic)
+        _ = try await waitForApple(env, titles: ["Pump It"])
+        var planned = try await env.preview()
+        describe(planned.plan)
+        try await env.apply(planned, trigger: .manual)
+        _ = try await waitForApple(env, titles: ["Holocene"])
+        var spotify = try await env.editor.tracks(in: spotifyId, on: .spotify).map(\.title)
+        expect(spotify.contains { $0.localizedCaseInsensitiveContains("Pump It") }, "Pump It reached Spotify (\(spotify))")
+
+        let runs = try await env.repository.runs()
+        guard let run = runs.first(where: { $0.changes.count == 2 }) else { throw SelfTestError("no run with the two adds") }
+        log("history: \(runs.map { ActivityCopy.line($0) })")
+        expect(run.canUndo, "the sync can be undone")
+        let undoPlan = try await env.sync.undoPreview(runId: run.id)
+        log("undo says: \(undoPlan.summary) \(undoPlan.guidedNote ?? "")")
+        expect(undoPlan.operations.count == 2 && undoPlan.guided.isEmpty && undoPlan.skipped.isEmpty,
+               "undo plans two removals (\(undoPlan.operations.count) ops, \(undoPlan.guided.count) guided, \(undoPlan.skipped.count) skipped)")
+
+        let outcome = try await env.sync.undo(runId: run.id)
+        log("undo landed \(outcome.landed.map { "\($0.track.title) on \($0.platform.rawValue)" }), guided \(outcome.guided.count), skipped \(outcome.skipped.count)")
+        expect(outcome.landed.count == 2, "both removals landed")
+
+        spotify = try await env.editor.tracks(in: spotifyId, on: .spotify).map(\.title)
+        expect(!spotify.contains { $0.localizedCaseInsensitiveContains("Pump It") }, "Pump It is gone from Spotify (\(spotify))")
+        let start = Date()
+        var apple = try await env.appleTracks().map(\.title)
+        while apple.contains(where: { $0.localizedCaseInsensitiveContains("Holocene") }), Date().timeIntervalSince(start) < 60 {
+            try await Task.sleep(for: .seconds(3))
+            apple = try await env.appleTracks().map(\.title)
+        }
+        expect(!apple.contains { $0.localizedCaseInsensitiveContains("Holocene") }, "Holocene is gone from Apple Music (\(apple))")
+        expect(apple.contains { $0.localizedCaseInsensitiveContains("Pump It") } && spotify.contains { $0.localizedCaseInsensitiveContains("Holocene") },
+               "the tracks stay where the person added them")
+
+        let after = try await env.repository.runs()
+        expect(after.first { $0.id == run.id }?.undoneAt != nil, "the run is marked undone")
+        expect(after.contains { $0.trigger == .undo && $0.undoOfRunId == run.id }, "the undo is its own entry in history")
+        expect(!(after.first { $0.id == run.id }?.canUndo ?? true), "an undone sync can't be undone twice")
+
+        planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.isEmpty, "the next sync doesn't bring the undone tracks back or ask about them")
+        try await env.apply(planned, trigger: .manual)
+        planned = try await env.preview()
+        expect(planned.plan.isEmpty, "still settled a sync later")
     }
 
     // MARK: - Read only: Library, availability, search

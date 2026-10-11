@@ -471,3 +471,14 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **Fixed:** a Spotify playlist with a local file (`album.id` null) failed to decode as a whole, which also blocked syncing it. `SpotifyAlbum.id` is now optional.
 - **TrackRow:** gains a `.plain` state for tracks that aren't in a seam.
 - **Verified:** 261 unit tests pass. A read-only `library` self-test on device passed 7 of 7: both libraries, ownership, the grid recognising seamed playlists, availability both ways (about 1 s each for the self-test playlists), and the search index. Screenshots were taken in light and dark mode and at AX5.
+
+### M7 Activity, history, new tracks, run detail and undo: done (2026-10-11)
+
+- **History (8.01):** every run across seams, newest first, one section per day (Today, Yesterday, weekday, then date). Each run gets one line, e.g. "4 added to Apple Music · watching", "First sync · 35 added…", "Undo · …", "… · undone". Checks of one seam in a row that changed nothing collapse into "Checked 3 times · nothing to change". Failed runs never collapse. Logs from before the redesign show their counts. The week card shows tracks synced per day this calendar week, failed runs in orange, and a "N failed" pill.
+- **New tracks (8.02):** adds from monitoring runs that aren't undone and haven't been seen, grouped by seam ("both ways" / "one way"), with "Added on Spotify · 5 h". The first four of each group show, then "N more". "Mark all seen" sets `SyncChange.seenAt`.
+- **One sync in detail + Undo (8.03):** the trigger and duration, counts ("Added to Apple Music +4", "Removed 0"), and each track with its evidence (ISRC match / 97% match / another version / chosen by you). "Undo this sync" shows the `UndoPlanner` sentence before anything is touched. Afterwards it reports what was reverted, what was skipped because it had changed by hand, and what has to be removed by hand in the Music app.
+- **Differences from Board 8, kept on purpose:**
+  - The Discover Weekly archive is dropped (D6).
+  - "Added on Apple Music by you" becomes "Added on Apple Music", because monitoring doesn't know who added a track.
+  - "Moved" appears only for recorded moves. Placement and "Same order" reorders aren't logged as moves, so undo removes added tracks but doesn't restore an order.
+- **Verified on device:** the `undo` self-test passed 13 of 13 on Antiphon-created playlists on both services. One run added a track in each direction; undoing it removed both, marked the run undone and logged the undo as its own entry. The next two syncs neither re-added nor asked about the undone tracks. The full self-test passed 86 of 86 (two-way, Same order, Original album, Library, undo). 274 unit tests pass.

@@ -72,6 +72,10 @@ final class AppShellModel {
     let catalogSearch: CatalogSearchService
     let index: TrackIndex
     let availability: AvailabilityService
+    let activity: ActivityRepository
+    /// Activity's navigation.
+    var activityPath: [ActivityRoute] = []
+    @ObservationIgnored private(set) lazy var activityModel = ActivityModel(activity: activity)
     /// Library's navigation.
     var libraryPath: [LibraryRoute] = []
     /// A playlist picked in Library to start a seam from.
@@ -102,8 +106,9 @@ final class AppShellModel {
 
     init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService,
          reviews: ReviewRepository, problems: ProblemsRepository, catalogSearch: CatalogSearchService,
-         index: TrackIndex, availability: AvailabilityService) {
+         index: TrackIndex, availability: AvailabilityService, activity: ActivityRepository) {
         self.index = index
+        self.activity = activity
         self.availability = availability
         self.seamRepository = seams
         self.accounts = accounts
@@ -153,6 +158,10 @@ final class AppShellModel {
         let model = NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
         if let source = newSeamSource { model.preselect(source) }
         return model
+    }
+
+    func makeRunDetail(_ runId: UUID) -> RunDetailModel {
+        RunDetailModel(runId: runId, activity: activity, sync: sync)
     }
 
     func makePlaylistDetail(_ playlist: LibraryPlaylist) -> PlaylistDetailModel {

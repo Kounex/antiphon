@@ -28,9 +28,7 @@ struct AppShell: View {
             }
 
             Tab(AntiphonTab.activity.title, systemImage: AntiphonTab.activity.symbol, value: AppShellModel.Tab.activity) {
-                RootPlaceholder(title: "Activity", symbol: AntiphonTab.activity.symbol,
-                                message: "Every sync, what it changed, and a way to undo it.",
-                                model: model)
+                ActivityRoot(shell: model)
             }
 
             Tab(value: AppShellModel.Tab.search, role: .search) {
@@ -147,30 +145,6 @@ private struct SyncAccessoryModifier: ViewModifier {
                 title: running.title, detail: running.detail, done: running.done, total: running.total,
                 artwork: CoverArt(seed: running.seed, size: 32, cornerRadius: 8)
             )
-        }
-    }
-}
-
-/// A tab root that isn't built yet: the right title, toolbar and an honest note.
-private struct RootPlaceholder: View {
-    let title: String
-    let symbol: String
-    let message: String
-    let model: AppShellModel
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                ContentUnavailableView(title, systemImage: symbol, description: Text(message))
-                    .padding(.top, Space.s8)
-            }
-            .background(Color.canvas)
-            .navigationTitle(title)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    AccountButton(initials: model.accountInitials) { model.showsSettings = true }
-                }
-            }
         }
     }
 }

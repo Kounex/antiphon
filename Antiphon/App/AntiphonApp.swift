@@ -44,7 +44,8 @@ struct AntiphonApp: App {
             problems: repository,
             catalogSearch: LiveCatalogSearchService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager()),
             index: repository,
-            availability: LiveAvailabilityService()
+            availability: LiveAvailabilityService(),
+            activity: repository
         )
 
         // Register background tasks (handler creates its own auth instances)

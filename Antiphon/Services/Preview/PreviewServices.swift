@@ -138,6 +138,8 @@ extension PreviewSeamRepository: ReviewRepository, ProblemsRepository {
 actor PreviewSeamRepository: SeamRepository {
     private var summaries: [SeamSummary]
     private var rulesById: [UUID: SeamRules] = [:]
+    /// Activity › New tracks "Mark all seen".
+    var seenAll = false
 
     init(seams: [SeamSummary] = PreviewFixtures.seams) {
         summaries = seams
