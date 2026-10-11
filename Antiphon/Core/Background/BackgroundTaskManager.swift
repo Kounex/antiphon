@@ -121,6 +121,8 @@ enum MonitorRun {
         let outcomes = outcomes(before: before, after: after, results: report.results)
         report.messages = MonitorNotifications.messages(outcomes, preferences.notificationPreferences)
         if post { await notify(report.messages, repository: repository, preferences: preferences) }
+        // Notifications first: the widgets can wait, a question can't.
+        if !isExpired() { await WidgetSnapshotWriter.refresh(modelContainer: modelContainer) }
         return report
     }
 

@@ -125,6 +125,7 @@ final class SyncCoordinator {
             syncProgress[pairId] = nil
             lastResults[pairId] = result
         }
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
     }
     
     /// Cancels all in-progress syncs and waits for them to unwind. Call before

@@ -447,6 +447,14 @@ final class SelfTestRunner {
         expect(runs.first?.trigger == .monitor, "History shows it as watching")
         let fresh = try await env.repository.newTracks()
         expect(fresh.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "and it's under New tracks")
+        // The widgets' snapshot follows the run (App Group, D4).
+        if let folder = AppGroup.containerURL, let snapshot = WidgetSnapshot.read(from: folder) {
+            log("snapshot: \(snapshot.seamCount) seams, \(snapshot.tracksInSync) in sync, new this week \(snapshot.newThisWeek.tracks) in \(snapshot.newThisWeek.playlists)")
+            expect(Date().timeIntervalSince(snapshot.generatedAt) < 120 && snapshot.seamCount == 1 && snapshot.newThisWeek.tracks >= 1,
+                   "the widget snapshot in the App Group describes this run")
+        } else {
+            expect(false, "the widget snapshot is in the App Group (\(AppGroup.identifier ?? "no group"))")
+        }
 
         // Only the automatic band is added without asking: with the bar at
         // 100, anything less than a perfect match waits in Review.

@@ -50,15 +50,21 @@ struct LiveSyncService: SyncService {
     }
 
     func undo(runId: UUID) async throws -> OperationRunner.Outcome {
-        try await runner().undo(runId: runId)
+        let outcome = try await runner().undo(runId: runId)
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
+        return outcome
     }
 
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome {
-        try await runner().resolve(resolutions, pairId: seamId)
+        let outcome = try await runner().resolve(resolutions, pairId: seamId)
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
+        return outcome
     }
 
     func decide(_ decision: OperationRunner.ReviewDecision, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome {
-        try await runner().decide(decision, for: key, pairId: seamId)
+        let outcome = try await runner().decide(decision, for: key, pairId: seamId)
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
+        return outcome
     }
 
     private func runner() -> OperationRunner {

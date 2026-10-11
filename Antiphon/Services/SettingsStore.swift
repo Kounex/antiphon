@@ -72,6 +72,8 @@ extension SwiftDataSeamRepository: SettingsStore {
         for row in try context.fetch(FetchDescriptor<CachedTrack>()) { context.delete(row) }
         for problem in try context.fetch(FetchDescriptor<SyncProblem>()) { context.delete(problem) }
         try context.save()
+        // Deleted seams mustn't linger in the widgets.
+        await WidgetSnapshotWriter.refresh(modelContainer: modelContainerForReview)
     }
 
     private static func csvField(_ value: String) -> String {

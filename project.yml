@@ -14,6 +14,11 @@ packages:
 
 settings:
   base:
+    # Override ANTIPHON_BUNDLE_ID (not PRODUCT_BUNDLE_IDENTIFIER) for side-by-side
+    # dev installs: a command-line PRODUCT_BUNDLE_IDENTIFIER also renames the
+    # AntiphonDesign resource bundle, and its colors stop resolving. Set here so
+    # the extensions derive their IDs and the App Group from it too.
+    ANTIPHON_BUNDLE_ID: com.kounex.antiphon
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
     GENERATE_INFOPLIST_FILE: YES
@@ -30,12 +35,10 @@ targets:
       - path: Antiphon
         excludes:
           - "**/.DS_Store"
+      # Compiled into the app and its extensions (snapshot, App Group).
+      - path: Shared
     settings:
       base:
-        # Override ANTIPHON_BUNDLE_ID (not PRODUCT_BUNDLE_IDENTIFIER) for side-by-side
-        # dev installs: a command-line PRODUCT_BUNDLE_IDENTIFIER also renames the
-        # AntiphonDesign resource bundle, and its colors stop resolving.
-        ANTIPHON_BUNDLE_ID: com.kounex.antiphon
         PRODUCT_BUNDLE_IDENTIFIER: $(ANTIPHON_BUNDLE_ID)
         DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
         CODE_SIGN_STYLE: Automatic
@@ -58,9 +61,15 @@ targets:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
     entitlements:
       path: Antiphon/Antiphon.entitlements
+      properties:
+        # Shared with the widget and share extensions; derived from the
+        # bundle ID so the dev app gets its own.
+        com.apple.security.application-groups:
+          - group.$(ANTIPHON_BUNDLE_ID)
     info:
       path: Antiphon/Info.plist
       properties:
+        AntiphonAppGroup: group.$(ANTIPHON_BUNDLE_ID)
         CFBundleURLTypes:
           - CFBundleURLName: "Spotify Callback"
             CFBundleURLSchemes:

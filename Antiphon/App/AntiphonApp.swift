@@ -112,6 +112,7 @@ struct AntiphonApp: App {
                 AppIconSwitcher.request(appearance)
             case .background:
                 BackgroundTaskManager.scheduleBackgroundRefresh(modelContainer: modelContainer)
+                WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
             default:
                 break
             }

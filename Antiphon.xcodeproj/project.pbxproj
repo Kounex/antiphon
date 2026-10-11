@@ -28,6 +28,7 @@
 		2A7EEA371E5B945224F6C7A8 /* RemovalSafety.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9030715CD4B60D71DE6F1F9 /* RemovalSafety.swift */; };
 		2BDF1AE6094A76FC41645069 /* SyncsScreensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 839CAB12C7238823EEA3F68A /* SyncsScreensTests.swift */; };
 		33619F6BFDBD9DEC44307C09 /* SettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37E42179D70BD924D4064F32 /* SettingsModel.swift */; };
+		33DFFC5BB95D380CC1CF9692 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A034B4128214013EAF309BB /* WidgetSnapshot.swift */; };
 		34F76C71AF6B0BDC8DCC23CC /* NewSeamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7E30A58ED8BB6FA0A2ACAF /* NewSeamTests.swift */; };
 		35702F7547C71D80FD85DC94 /* LibraryIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B581B0A0088325B387F43EEC /* LibraryIndex.swift */; };
 		365A4A2F7D195C80A78F646D /* AppleMusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE694836EDC8E88970F06ABD /* AppleMusicManager.swift */; };
@@ -36,6 +37,7 @@
 		3901E403AFD0306BDFAD6C0D /* TrackOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */; };
 		3B650BB91CF54466B3354592 /* SyncPlaylistsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */; };
 		3BAE7B65ED32E06EBC959AFE /* PlanCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C68001EE22B1D000F6E200B /* PlanCopy.swift */; };
+		3CF31145889A0833FEA1DED9 /* WidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40B7CC9ED27E85FCB8D7526F /* WidgetSnapshotTests.swift */; };
 		3DCDB6D036CB14FFF7498778 /* ConfidenceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC832933336424869C9D99A /* ConfidenceScorer.swift */; };
 		3E890D54A7B605F694709410 /* OnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9686A18BE21C554D67A33D3C /* OnboardingTests.swift */; };
 		3F790A5FEF5DA537CB6DD81E /* SeamPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1509544D2B1A5B1777C147E /* SeamPresentation.swift */; };
@@ -152,6 +154,7 @@
 		F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291636D886E30D528329E146 /* SeamValues.swift */; };
 		F34175A2334B7EF41B5409AE /* OperationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75340A5AC68EB42570B931B2 /* OperationRunner.swift */; };
 		F36C93F992192F62D5385A73 /* SyncedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3073E1EB8D8C79289BB88F9 /* SyncedView.swift */; };
+		F3943FDA9DEAF7B7FA793824 /* WidgetSnapshotBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B9FCEC2F9A2B240C44E94A /* WidgetSnapshotBuilder.swift */; };
 		F48CE69BF07DAFBF3C25A80B /* ActivityLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D96F2E1B49D79E67BD8B77F /* ActivityLogic.swift */; };
 		F5847AB37BEF40D8D5620A80 /* AppPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4987EAE27BB0FCACD3F2C72F /* AppPreferencesTests.swift */; };
 		F60A528030762805709F8651 /* DesignComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773B87050646909E8EFEC9C6 /* DesignComponentTests.swift */; };
@@ -206,9 +209,11 @@
 		37F8FBF68C2E348E5EADCDE0 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicyTests.swift; sourceTree = "<group>"; };
 		3929A08DC28B4A4A936BA809 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		39B9FCEC2F9A2B240C44E94A /* WidgetSnapshotBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotBuilder.swift; sourceTree = "<group>"; };
 		3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolverTests.swift; sourceTree = "<group>"; };
 		3D96F2E1B49D79E67BD8B77F /* ActivityLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLogic.swift; sourceTree = "<group>"; };
 		3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageA.swift; sourceTree = "<group>"; };
+		40B7CC9ED27E85FCB8D7526F /* WidgetSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotTests.swift; sourceTree = "<group>"; };
 		42F95E6D658D51F4DECAFB85 /* RulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesView.swift; sourceTree = "<group>"; };
 		43A74EE097E172BA0BF2CCF2 /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
 		446C8A791BD2EA3CC9B5DCEA /* TrackOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackOrder.swift; sourceTree = "<group>"; };
@@ -253,6 +258,7 @@
 		77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoPlannerTests.swift; sourceTree = "<group>"; };
 		783AC2466C7B861B46004A94 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		79ACCC062661486131F641F5 /* SyncPlaylistsIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPlaylistsIntent.swift; sourceTree = "<group>"; };
+		7A034B4128214013EAF309BB /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		7A63C5B853F72AFC55FC7FE9 /* SpotifyConnect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyConnect.swift; sourceTree = "<group>"; };
 		7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeltaEngine.swift; sourceTree = "<group>"; };
 		7B6638EBCBA9366F1597BFA2 /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
@@ -388,8 +394,17 @@
 				AC76ADAE2E31C6E6C1F60B3F /* Notifications */,
 				A5754AAA5A9E4D58BD26C427 /* Storage */,
 				95A14FDDB6002E9833F34F38 /* Sync */,
+				7540B7700F1D13BE36303414 /* Widgets */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		114214D7A41B5269B7E7E019 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				7A034B4128214013EAF309BB /* WidgetSnapshot.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		158B47033FC0C446EDF9C873 /* SelfTest */ = {
@@ -464,6 +479,7 @@
 				174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */,
 				77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */,
 				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
+				40B7CC9ED27E85FCB8D7526F /* WidgetSnapshotTests.swift */,
 				FC7978E6553415361166F294 /* Fixtures */,
 			);
 			path = AntiphonTests;
@@ -495,6 +511,7 @@
 			children = (
 				83CB5F7EE232FB0F5042B431 /* Antiphon */,
 				AA7A4AAA7E3EA40ED891D449 /* Packages */,
+				114214D7A41B5269B7E7E019 /* Shared */,
 				5A46916FF2F79E8BC3D3D2F0 /* Tests */,
 				31BAC7EEACF65DCBDAD4CD97 /* Products */,
 			);
@@ -560,6 +577,14 @@
 				1691BDDC0F7D0DE0E12E6CC8 /* SyncsRoot.swift */,
 			);
 			path = Syncs;
+			sourceTree = "<group>";
+		};
+		7540B7700F1D13BE36303414 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				39B9FCEC2F9A2B240C44E94A /* WidgetSnapshotBuilder.swift */,
+			);
+			path = Widgets;
 			sourceTree = "<group>";
 		};
 		7D8504E265D08417752BADE1 /* SyncFlow */ = {
@@ -847,7 +872,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -924,6 +949,7 @@
 				3901E403AFD0306BDFAD6C0D /* TrackOrderTests.swift in Sources */,
 				BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */,
 				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
+				3CF31145889A0833FEA1DED9 /* WidgetSnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1048,6 +1074,8 @@
 				FA771915EBE80700E807997D /* TwinSuggester.swift in Sources */,
 				862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */,
 				92F84BEF78F7D93A05CC83E1 /* VersionTag.swift in Sources */,
+				33DFFC5BB95D380CC1CF9692 /* WidgetSnapshot.swift in Sources */,
+				F3943FDA9DEAF7B7FA793824 /* WidgetSnapshotBuilder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1065,7 +1093,6 @@
 		0C54C1AC49D802D6F21E89FD /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Light AppIcon-Dark";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
@@ -1116,7 +1143,6 @@
 		46A98AEC19FB3436CF50BA66 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Light AppIcon-Dark";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Antiphon/Antiphon.entitlements;
@@ -1149,6 +1175,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1236,6 +1263,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANTIPHON_BUNDLE_ID = com.kounex.antiphon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
