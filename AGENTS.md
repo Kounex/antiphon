@@ -8,8 +8,6 @@ Read this first, then `docs/redesign-plan.md` (decisions D1–D7, the screen map
 
 - **Work happens on `main`.** The iOS 26 redesign (M0–M8 plus the review fixes) was merged on 2026-10-11 and `redesign/ios26` is deleted. Commit and push to `main` after each unit of work. TestFlight builds are cut from `main`, but only when the user asks.
 - **Next milestone: M9.** App Group, widgets with "Sync all" (`LiveActivityIntent`), Live Activity, actionable notifications, share extension (plan rows 9.01–9.03). Wait for the user to start it.
-- **Open follow-ups** (not started):
-  - The Spotify saved-track total isn't shown in onboarding (waiting on the user: keep or drop).
 - **Design sources:** the design system artifact `TXKAkq1pkYhFFF593kxH63` and the storyboard `BF77MNwKAG2ZbZNv6mL15Q` (boards 1–9). Read them with the Artifact tool if needed.
 
 ## Commands

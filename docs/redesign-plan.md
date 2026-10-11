@@ -540,5 +540,6 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 ### Background lookups by time, not count (2026-10-11)
 
 - A background run plans for at most 12 seconds (`LookupBudget`, `AppConstants.Sync.backgroundLookupTime`) instead of at most 25 tracks, then applies what it has; the rest stay pending for the next run. The budget counts the playlist reads too, always allows one lookup (a slow connection still makes progress), and the up-front ISRC prefetch covers the first 100 candidates. Previews the person waits for have no budget.
+- **Dropped (the person's call):** the Spotify saved-track total in onboarding. It was informational only and Liked Songs aren't synced (D6).
 - **Verified:** 325 unit tests pass (new: the budget stops once spent, always allows one lookup, previews are unlimited). The `monitor` self-test passed 18 of 18 on device; its runs are small, so the budget wasn't reached there.
 
