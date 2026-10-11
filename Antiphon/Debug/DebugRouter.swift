@@ -130,6 +130,15 @@ struct DebugRouteView: View {
             model.openConflict = .init(item: PreviewFixtures.conflicts[0], others: [PreviewFixtures.conflicts[1]])
         case "problems": model.syncsPath = [.problems]
         case "settings": model.showsSettings = true
+        case let flip? where flip.hasPrefix("settings-flip-"):
+            // Opens Settings in one theme and switches with the sheet open.
+            let parts = flip.dropFirst("settings-flip-".count).split(separator: "-").map(String.init)
+            AppPreferences.shared.appearance = AppAppearance(rawValue: parts.first ?? "light") ?? .light
+            model.showsSettings = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                AppPreferences.shared.appearance = AppAppearance(rawValue: parts.last ?? "dark") ?? .dark
+            }
         case let page? where page.hasPrefix("settings/"):
             model.showsSettings = true
             DebugRoute.settingsPage = String(page.dropFirst("settings/".count))

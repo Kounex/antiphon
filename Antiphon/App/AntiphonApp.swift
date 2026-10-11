@@ -89,8 +89,9 @@ struct AntiphonApp: App {
                 rootView
                 #endif
             }
-            .preferredColorScheme(appearance.colorScheme)
+            .onAppear { AppearanceApplier.apply(appearance) }
             .onChange(of: appearance) { _, appearance in
+                AppearanceApplier.apply(appearance)
                 guard !Self.isHostingTests, !Self.isDebugRoute else { return }
                 Task { await AppIconSwitcher.apply(appearance) }
             }

@@ -26,11 +26,31 @@ enum AppAppearance: String, CaseIterable, Sendable {
         }
     }
 
+    var interfaceStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
     var title: String {
         switch self {
         case .system: "System"
         case .light: "Light"
         case .dark: "Dark"
+        }
+    }
+}
+
+/// Applies the theme to the app's windows. Set on the window, it reaches
+/// sheets that are already open; `preferredColorScheme` doesn't.
+@MainActor
+enum AppearanceApplier {
+    static func apply(_ appearance: AppAppearance) {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows { window.overrideUserInterfaceStyle = appearance.interfaceStyle }
         }
     }
 }

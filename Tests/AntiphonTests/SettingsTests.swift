@@ -278,6 +278,7 @@ struct AppearanceTests {
         #expect(AppAppearance.light.colorScheme == .light)
         #expect(AppAppearance.dark.colorScheme == .dark)
         #expect(AppAppearance.allCases.map(\.title) == ["System", "Light", "Dark"])
+        #expect(AppAppearance.allCases.map(\.interfaceStyle) == [.unspecified, .light, .dark])
     }
 
     @Test("The Home Screen icon follows: System keeps the adaptive icon")
