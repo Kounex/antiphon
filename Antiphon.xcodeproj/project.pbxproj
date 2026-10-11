@@ -61,6 +61,7 @@
 		63962143772E511CF4DDE635 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67EC887433FA149952795669 /* AppPreferences.swift */; };
 		6676B664D0725944346073C8 /* SelfTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0085F7D9C506DA5E0BF429 /* SelfTestView.swift */; };
 		67FF2BC710244F3B702E02BE /* LibraryAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87016CCC1C5DF86317A4510 /* LibraryAnchor.swift */; };
+		69A292B04000498E69A0A2CA /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35C789234FCC27B78FC26C1A /* AppAppearance.swift */; };
 		6ACF0F30BBC33ED705020491 /* LibraryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA76EC68C80D261262F402B /* LibraryModels.swift */; };
 		6AF434B9D75877EEF7ED8FE8 /* SyncChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF368C02A6229077F37D46AB /* SyncChange.swift */; };
 		6B4012B49A6E898DC7167FD3 /* SpotifyEndpoints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */; };
@@ -200,6 +201,7 @@
 		2DC582DCB07326E66F767033 /* ConflictSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictSheet.swift; sourceTree = "<group>"; };
 		328E95FD8DB619F55B5CD210 /* PlanBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanBuilder.swift; sourceTree = "<group>"; };
 		35A50DF1887F1DB62DAC96D7 /* SelfTestRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfTestRunner.swift; sourceTree = "<group>"; };
+		35C789234FCC27B78FC26C1A /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
 		37E42179D70BD924D4064F32 /* SettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModel.swift; sourceTree = "<group>"; };
 		37F8FBF68C2E348E5EADCDE0 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		3886388B47659D29F8D2D55F /* ConfidencePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicyTests.swift; sourceTree = "<group>"; };
@@ -649,6 +651,7 @@
 		A5754AAA5A9E4D58BD26C427 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				35C789234FCC27B78FC26C1A /* AppAppearance.swift */,
 				67EC887433FA149952795669 /* AppPreferences.swift */,
 				B44555A4D1FC05272BC09979 /* KeychainManager.swift */,
 				652E661E77A42F95F038ABBD /* SharedModelContainer.swift */,
@@ -844,7 +847,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -934,6 +937,7 @@
 				C35CC31596929309F31499CD /* ActivityRepository.swift in Sources */,
 				8649DCD4F49B813A8FA17624 /* ActivityView.swift in Sources */,
 				C37CCD209F0537AA78AA08E9 /* AntiphonApp.swift in Sources */,
+				69A292B04000498E69A0A2CA /* AppAppearance.swift in Sources */,
 				0F714A0B104A0C31F8557040 /* AppConstants.swift in Sources */,
 				63962143772E511CF4DDE635 /* AppPreferences.swift in Sources */,
 				4A6FF23538A5B39D8F63ADDC /* AppShell.swift in Sources */,

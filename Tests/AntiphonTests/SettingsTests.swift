@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 @testable import Antiphon
 
@@ -266,5 +267,26 @@ struct SettingsStoreTests {
         #expect(try context.fetchCount(FetchDescriptor<CachedTrack>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<SyncLog>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<SyncChange>()) == 0)
+    }
+}
+
+@Suite("Appearance")
+struct AppearanceTests {
+    @Test("System follows iOS; light and dark override it")
+    func schemes() {
+        #expect(AppAppearance.system.colorScheme == nil)
+        #expect(AppAppearance.light.colorScheme == .light)
+        #expect(AppAppearance.dark.colorScheme == .dark)
+        #expect(AppAppearance.allCases.map(\.title) == ["System", "Light", "Dark"])
+    }
+
+    @Test("Stored by name, System when unset")
+    func stored() {
+        let defaults = UserDefaults(suiteName: "appearance-\(UUID().uuidString)")!
+        let preferences = AppPreferences(defaults: defaults)
+        #expect(preferences.appearance == .system)
+        preferences.appearance = .dark
+        #expect(defaults.string(forKey: AppAppearance.storageKey) == "dark")
+        #expect(preferences.appearance == .dark)
     }
 }

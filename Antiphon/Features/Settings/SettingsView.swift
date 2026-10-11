@@ -16,6 +16,7 @@ struct SettingsView: View {
     @Environment(SyncCoordinator.self) private var syncCoordinator
     @State private var confirmsReset = false
     @State private var resetError: String?
+    @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
 
     private var appVersion: String {
         let info = Bundle.main.infoDictionary
@@ -55,6 +56,15 @@ struct SettingsView: View {
                     }
                 }
                 .listRowBackground(Color.canvasRaised)
+
+                Section("Appearance") {
+                    Picker("Theme", selection: $appearance) {
+                        ForEach(AppAppearance.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
 
                 Section("Antiphon") {
                     if let url = model.exportURL {
@@ -111,10 +121,12 @@ struct SettingsView: View {
 
     private var header: some View {
         VStack(spacing: Space.s2) {
-            Text(model.initials ?? "A")
-                .font(.title2.weight(.semibold)).foregroundStyle(Color.ink)
+            Image("AntiphonIcon")
+                .resizable()
                 .frame(width: 72, height: 72)
-                .background(Color.threadSoft, in: .circle)
+                .clipShape(.rect(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                .accessibilityHidden(true)
             Text(model.name).font(.antiphonTitle2).foregroundStyle(Color.ink)
             Text(model.header).font(.footnote).foregroundStyle(Color.inkMuted)
         }

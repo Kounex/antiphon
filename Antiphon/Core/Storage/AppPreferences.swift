@@ -204,6 +204,13 @@ final class AppPreferences: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.showsCollaboratorNames) }
     }
 
+    // MARK: - Appearance
+
+    var appearance: AppAppearance {
+        get { defaults.string(forKey: AppAppearance.storageKey).flatMap(AppAppearance.init) ?? .system }
+        set { defaults.set(newValue.rawValue, forKey: AppAppearance.storageKey) }
+    }
+
     // MARK: - Onboarding
 
     var hasCompletedOnboarding: Bool {

@@ -15,6 +15,7 @@ struct AntiphonApp: App {
     let onboardingModel: OnboardingModel
     /// First launch shows onboarding; people who already have seams skip it.
     @State private var showsOnboarding: Bool
+    @AppStorage(AppAppearance.storageKey) private var appearance: AppAppearance = .system
 
     /// Unit tests launch the app as their host; keep it away from the real
     /// store and background scheduler while they run.
@@ -74,18 +75,21 @@ struct AntiphonApp: App {
 
     var body: some Scene {
         WindowGroup {
-            #if DEBUG
-            if let route = DebugRoute.current {
-                DebugRouteView(route: route)
-                    .environment(spotifyAuth)
-                    .environment(syncCoordinator)
-                    .modelContainer(modelContainer)
-            } else {
+            Group {
+                #if DEBUG
+                if let route = DebugRoute.current {
+                    DebugRouteView(route: route)
+                        .environment(spotifyAuth)
+                        .environment(syncCoordinator)
+                        .modelContainer(modelContainer)
+                } else {
+                    rootView
+                }
+                #else
                 rootView
+                #endif
             }
-            #else
-            rootView
-            #endif
+            .preferredColorScheme(appearance.colorScheme)
         }
         .modelContainer(modelContainer)
         .onChange(of: scenePhase) { oldPhase, newPhase in
