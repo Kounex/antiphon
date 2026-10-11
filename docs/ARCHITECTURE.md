@@ -17,7 +17,7 @@ Antiphon uses modern Swift Concurrency (`async/await`) and strict compiler isola
 ### 1. Actor Isolation (`SyncEngine`)
 All heavy network fetches, database computations, and alignment algorithms run inside the `SyncEngine` actor.
 * **Database Context isolation**: The actor creates its own dedicated `ModelContext` using `ModelContext(modelContainer)`. Because actors serialize execution, database transactions run safely off the main thread, preventing UI lag and thread violation crashes.
-* **Resume Interruption Checks**: The engine records `lastInterruptedAt` if an active sync is cancelled or interrupted (e.g., app goes to background). When restarted, the engine skips Stage A and resumes Stage B matching using existing pending database states.
+* **Interruptions**: The engine records `lastInterruptedAt` if an active sync is cancelled or interrupted (e.g., app goes to background) and rolls unwritten rows back to pending. Every run applies a plan, so the next one (a preview, or a background run that plans unattended) starts from a fresh Stage A; interrupted seams go first in background runs.
 
 ### 2. Token Provider (`SpotifyTokenProvider` actor)
 `SpotifyTokenProvider` is a self-contained actor that manages Spotify access token lifecycle — reading tokens from Keychain, refreshing when expired, and writing updated tokens back. Any code that needs a Spotify token — foreground UI, background task, or App Intent — simply creates `SpotifyTokenProvider()` and calls `validAccessToken()`. The Keychain is the shared source of truth; multiple provider instances never share mutable in-memory state.

@@ -29,31 +29,44 @@ enum PlacementStep {
         }
     }
 
+    /// A track the step moved, for the run's log (undo puts it back).
+    struct Moved: Sendable {
+        let track: CatalogTrack
+        let from: Int
+        let to: Int
+    }
+
     /// Reads both playlists and reorders `platform` if the placed rows aren't
-    /// where they belong. Returns whether it wrote.
+    /// where they belong. Returns the tracks it moved.
     @discardableResult
     static func place(_ placing: Set<String>, on platform: Platform, playlistId: String, otherPlaylistId: String,
-                      rows: [Row], editor: some PlaylistEditor) async throws -> Bool {
-        guard !placing.isEmpty else { return false }
-        let target = try await editor.tracks(in: playlistId, on: platform).map(\.id)
+                      rows: [Row], editor: some PlaylistEditor) async throws -> [Moved] {
+        guard !placing.isEmpty else { return [] }
+        let target = try await editor.tracks(in: playlistId, on: platform)
         let reference = try await editor.tracks(in: otherPlaylistId, on: platform.other).map(\.id)
-        guard let order = desiredIDs(target: target, reference: reference, rows: rows, placing: placing, on: platform) else {
-            return false
+        guard let order = desiredIDs(target: target.map(\.id), reference: reference, rows: rows, placing: placing, on: platform) else {
+            return []
         }
         try await editor.reorder(playlistId, on: platform, to: order)
-        return true
+        return moved(target, to: order)
     }
 
     /// "Same order": reads both playlists and reorders `platform` to follow
-    /// the other side. Returns whether it wrote.
+    /// the other side. Returns the tracks it moved.
     @discardableResult
     static func mirror(on platform: Platform, playlistId: String, otherPlaylistId: String,
-                       rows: [Row], editor: some PlaylistEditor) async throws -> Bool {
-        let target = try await editor.tracks(in: playlistId, on: platform).map(\.id)
+                       rows: [Row], editor: some PlaylistEditor) async throws -> [Moved] {
+        let target = try await editor.tracks(in: playlistId, on: platform)
         let reference = try await editor.tracks(in: otherPlaylistId, on: platform.other).map(\.id)
-        guard let order = mirroredIDs(target: target, reference: reference, rows: rows, on: platform) else { return false }
+        guard let order = mirroredIDs(target: target.map(\.id), reference: reference, rows: rows, on: platform) else { return [] }
         try await editor.reorder(playlistId, on: platform, to: order)
-        return true
+        return moved(target, to: order)
+    }
+
+    private static func moved(_ target: [CatalogTrack], to order: [String]) -> [Moved] {
+        TrackOrder.movedTracks(from: target.map(\.id), to: order).map { move in
+            Moved(track: target[move.from], from: move.from, to: move.to)
+        }
     }
 
     /// `target`'s IDs following `reference`'s order, or `nil` if they already do.

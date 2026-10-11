@@ -70,7 +70,7 @@ actor SyncPlanner {
         let live = try await fetchLiveTracks(pairId: pairId)
         let stageA = try DryRunStageA.run(
             container: modelContainer, pairId: pairId, action: action,
-            trackMatcher: TrackMatcher(spotifyClient: spotifyClient, appleMusicManager: appleMusicManager),
+            trackMatcher: TrackMatcher(),
             spotifyTracks: live.spotify, appleMusicTracks: live.appleMusic
         )
 

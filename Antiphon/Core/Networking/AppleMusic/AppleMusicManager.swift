@@ -253,21 +253,6 @@ final class AppleMusicManager {
     
     // MARK: - Catalog Search
     
-    /// Searches the Apple Music catalog for a song by ISRC code.
-    /// This is the primary matching strategy for cross-platform sync.
-    func searchByISRC(_ isrc: String) async throws -> Song? {
-        try await ensureAuthorized()
-        
-        do {
-            let request = MusicCatalogResourceRequest<Song>(matching: \.isrc, equalTo: isrc)
-            let response = try await request.response()
-            return response.items.first
-        } catch {
-            print("[AppleMusic] ISRC search failed for '\(isrc)': \(error)")
-            throw error
-        }
-    }
-    
     /// Searches the Apple Music catalog by query string (fuzzy fallback).
     func searchCatalog(query: String, limit: Int = 10) async throws -> [Song] {
         try await ensureAuthorized()

@@ -68,13 +68,11 @@ Stage A executes quick list alignments in memory. Exact-ISRC matching uses $O(1)
 
 Stage B resolves the matching details on the target platforms and commits writes in batches:
 
-### 1. Batch ISRC Catalog Pre-Resolution
-Before resolving tracks one by one, the engine batches all Apple Music catalog lookups by grouping up to 25 ISRCs inside a single `MusicCatalogResourceRequest`. This avoids making serial, individual network requests, saving significant sync overhead.
+### 1. Applying the plan
+Every run applies a `PlannedSync` (a preview's, or one `monitorSync` builds unattended). Stage B does what the plan decided for each pending row, nothing else: `.add` queues the write, `.review` leaves the row waiting in Review, `.unavailable` marks it missing, rows the plan didn't cover stay pending for the next run. Matching itself happens while planning, in `MatchFinder` (ISRC, then title and artist searches, scored by `ConfidenceScorer`).
 
-### 2. Target Matching Fallback Rules
-For each pending track, `TrackMatcher` searches the opposite platform:
-1. **ISRC Search**: Queries the target platform directory for the track's specific ISRC code.
-2. **Fuzzy Search**: If ISRC search fails, it searches using the track's normalized title and primary artist name, selecting the candidate with the highest similarity score.
+### 2. Loading planned Apple Music songs
+The plan's Apple Music matches are loaded by catalog ID, 25 per `MusicCatalogResourceRequest`. If one can't be loaded (network), its row stays pending instead of being called missing.
 
 ### 3. String Normalization Rules
 To handle differences in title formatting, string titles are normalized inside `String+Extensions.swift` prior to fuzzy scoring:

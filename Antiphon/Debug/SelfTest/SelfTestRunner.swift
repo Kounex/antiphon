@@ -275,6 +275,21 @@ final class SelfTestRunner {
         apple = try await env.appleTracks().map(\.title)
         expect(apple.last?.localizedCaseInsensitiveContains("Holocene") == true, "Holocene still in its place (\(apple))")
 
+        // Undo puts the hand-made order back: the run logged what it moved.
+        guard let reorderRun = try await env.repository.runs().first else { throw SelfTestError("no reorder run in History") }
+        log("history: \(ActivityCopy.line(reorderRun))")
+        expect(reorderRun.changes.contains { $0.kind == .move }, "the run recorded its moves")
+        let undoPlan = try await env.sync.undoPreview(runId: reorderRun.id)
+        log("undo says: \(undoPlan.summary)")
+        _ = try await env.sync.undo(runId: reorderRun.id)
+        apple = try await env.appleTracks().map(\.title)
+        expect(apple.first?.localizedCaseInsensitiveContains("Faint") == true
+               && apple.last?.localizedCaseInsensitiveContains("Holocene") == true,
+               "undo restores the order before the run: Faint first again, Holocene last (\(apple))")
+        planned = try await env.preview()
+        try await env.apply(planned, trigger: .manual)
+        try await checkOrder(env, "after syncing again")
+
         // Holocene now also on Spotify, second: matched, then put in order.
         _ = try await env.editor.add([seeds.holocene], to: spotifyId, on: .spotify)
         try await move(env, title: "Holocene", to: 1, on: .spotify)
@@ -516,17 +531,21 @@ final class SelfTestRunner {
         expect(spotify.contains { $0.localizedCaseInsensitiveContains("Pump It") }, "Pump It reached Spotify (\(spotify))")
 
         let runs = try await env.repository.runs()
-        guard let run = runs.first(where: { $0.changes.count == 2 }) else { throw SelfTestError("no run with the two adds") }
+        guard let run = runs.first(where: { $0.count(.add, on: .spotify) == 1 && $0.count(.add, on: .appleMusic) == 1 }) else {
+            throw SelfTestError("no run with the two adds")
+        }
         log("history: \(runs.map { ActivityCopy.line($0) })")
         expect(run.canUndo, "the sync can be undone")
         let undoPlan = try await env.sync.undoPreview(runId: run.id)
         log("undo says: \(undoPlan.summary) \(undoPlan.guidedNote ?? "")")
-        expect(undoPlan.operations.count == 2 && undoPlan.guided.isEmpty && undoPlan.skipped.isEmpty,
-               "undo plans two removals (\(undoPlan.operations.count) ops, \(undoPlan.guided.count) guided, \(undoPlan.skipped.count) skipped)")
+        let removals = undoPlan.operations.filter { $0.kind == .remove }.count
+        let moves = undoPlan.operations.count - removals
+        expect(removals == 2 && moves == run.changes.filter { $0.kind == .move }.count && undoPlan.guided.isEmpty && undoPlan.skipped.isEmpty,
+               "undo plans two removals and puts moved tracks back (\(removals) removals, \(moves) moves, \(undoPlan.guided.count) guided, \(undoPlan.skipped.count) skipped)")
 
         let outcome = try await env.sync.undo(runId: run.id)
         log("undo landed \(outcome.landed.map { "\($0.track.title) on \($0.platform.rawValue)" }), guided \(outcome.guided.count), skipped \(outcome.skipped.count)")
-        expect(outcome.landed.count == 2, "both removals landed")
+        expect(outcome.landed.filter { $0.kind == .remove }.count == 2, "both removals landed")
 
         spotify = try await env.editor.tracks(in: spotifyId, on: .spotify).map(\.title)
         expect(!spotify.contains { $0.localizedCaseInsensitiveContains("Pump It") }, "Pump It is gone from Spotify (\(spotify))")

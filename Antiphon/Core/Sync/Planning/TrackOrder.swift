@@ -46,6 +46,69 @@ enum TrackOrder {
         return target.map { shared.contains($0) ? next.next() ?? $0 : $0 }
     }
 
+    /// A track whose position a reorder changed.
+    struct MovedTrack: Equatable, Sendable {
+        let id: String
+        let from: Int
+        let to: Int
+    }
+
+    /// The tracks a reorder from `before` to `after` (same items) moved, in
+    /// their new order. Tracks that only shifted because others moved past
+    /// them aren't listed: the longest run that kept its relative order
+    /// stays, everything else moved. Copies are told apart by occurrence.
+    static func movedTracks(from before: [String], to after: [String]) -> [MovedTrack] {
+        var positions: [String: [Int]] = [:]
+        for (index, id) in before.enumerated() { positions[id, default: []].append(index) }
+        var origins: [Int] = []   // each `after` slot's index in `before`, or -1
+        for id in after {
+            if let from = positions[id]?.first { positions[id]?.removeFirst(); origins.append(from) } else { origins.append(-1) }
+        }
+        let kept = longestIncreasing(origins.enumerated().filter { $0.element >= 0 }.map(\.offset), by: origins)
+        return origins.enumerated().compactMap { index, from in
+            from >= 0 && !kept.contains(index) ? MovedTrack(id: after[index], from: from, to: index) : nil
+        }
+    }
+
+    /// Indices (from `candidates`) of a longest subsequence whose `values`
+    /// increase. Patience sorting, O(n log n).
+    private static func longestIncreasing(_ candidates: [Int], by values: [Int]) -> Set<Int> {
+        var tails: [Int] = []          // candidate index ending each pile
+        var previous: [Int: Int] = [:]
+        for candidate in candidates {
+            var low = 0, high = tails.count
+            while low < high {
+                let mid = (low + high) / 2
+                if values[tails[mid]] < values[candidate] { low = mid + 1 } else { high = mid }
+            }
+            if low > 0 { previous[candidate] = tails[low - 1] }
+            if low == tails.count { tails.append(candidate) } else { tails[low] = candidate }
+        }
+        var result = Set<Int>()
+        var current = tails.last
+        while let index = current {
+            result.insert(index)
+            current = previous[index]
+        }
+        return result
+    }
+
+    /// `current` with each moved track back at its old index; everything else
+    /// fills the other slots in its current order. `nil` when a moved track is
+    /// gone or the indices don't fit.
+    static func restoring(_ current: [String], moving: [(id: String, to: Int)]) -> [String]? {
+        var rest = current
+        var slots = [String?](repeating: nil, count: current.count)
+        for (id, index) in moving {
+            guard current.indices.contains(index), slots[index] == nil,
+                  let position = rest.firstIndex(of: id) else { return nil }
+            rest.remove(at: position)
+            slots[index] = id
+        }
+        var others = rest.makeIterator()
+        return slots.map { $0 ?? others.next() ?? "" }
+    }
+
     /// The whole playlist in `order`: the slots that hold the ordered tracks
     /// get them in sequence, and every other item (podcast episodes,
     /// unavailable items) stays where it is. Spotify counts positions over

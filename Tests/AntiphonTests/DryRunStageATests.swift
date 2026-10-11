@@ -21,7 +21,7 @@ struct DryRunStageATests {
                             isrc: isrc, durationMs: 200_000, artworkURL: nil)
     }
 
-    private let matcher = TrackMatcher(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
+    private let matcher = TrackMatcher()
 
     private func seedPair(in container: ModelContainer, direction: SyncDirection, syncedTracks: [Int]) throws -> UUID {
         let context = ModelContext(container)

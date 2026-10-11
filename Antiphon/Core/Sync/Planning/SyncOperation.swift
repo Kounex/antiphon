@@ -7,6 +7,14 @@ struct SyncOperation: Sendable, Equatable {
         case add
         case remove
         case move(from: Int, to: Int)
+
+        /// Same kind of write, whatever the indices: batched together.
+        func sameKind(as other: Kind) -> Bool {
+            switch (self, other) {
+            case (.add, .add), (.remove, .remove), (.move, .move): true
+            default: false
+            }
+        }
     }
 
     let kind: Kind

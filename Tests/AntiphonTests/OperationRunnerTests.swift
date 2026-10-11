@@ -299,6 +299,35 @@ struct OperationRunnerTests {
         #expect(editor.edits == [.init(kind: "remove", platform: .appleMusic, playlistId: "p.am", trackIds: ["i.n2", "i.n1"])])
     }
 
+    @Test("Undo puts reordered tracks back in their old places")
+    func undoMoves() async throws {
+        let f = try makeFixture()
+        let context = ModelContext(f.container)
+        let pair = try #require(try context.fetch(FetchDescriptor<SyncPair>()).first)
+        let track = { (id: String) in CatalogTrack(platform: .spotify, id: "spotify:track:\(id)", title: id, artist: "A") }
+        let log = SyncLog(action: .manualSync, result: .success, tracksAdded: 0)
+        log.syncPair = pair
+        context.insert(log)
+        // "Same order" moved C to the front: A B C → C A B.
+        for (n, move) in [("C", (2, 0)), ("A", (0, 1)), ("B", (1, 2))].enumerated() {
+            let change = SyncChange(platform: .spotify, kind: .move, track: track(move.0), fromIndex: move.1.0, toIndex: move.1.1)
+            change.sequence = n
+            change.run = log
+            context.insert(change)
+        }
+        try context.save()
+        let editor = FakeEditor(live: [.spotify: ["C", "A", "B"].map(track)])
+        let runner = OperationRunner(modelContainer: f.container, editor: editor, capabilities: .spotifyOnly)
+
+        #expect(try await runner.undoPreview(runId: log.id).summary == "Puts the 3 moved tracks back on Spotify.")
+        _ = try await runner.undo(runId: log.id)
+
+        #expect(editor.edits == [.init(kind: "reorder", platform: .spotify, playlistId: "sp",
+                                       trackIds: ["spotify:track:A", "spotify:track:B", "spotify:track:C"])])
+        #expect(try await editor.tracks(in: "sp", on: .spotify).map(\.title) == ["A", "B", "C"])
+        #expect(try logs(f).first { $0.id == log.id }?.undoneAt != nil)
+    }
+
     @Test("A run can only be undone once")
     func undoOnce() async throws {
         let f = try makeFixture()

@@ -88,6 +88,31 @@ struct TrackOrderTests {
         #expect(TrackOrder.fillingTrackSlots(["A", "B"], with: ["A"]) == ["A", "B"])
     }
 
+    // MARK: - Recording and undoing moves
+
+    @Test("A reorder is recorded as the tracks that moved, not the ones it shifted")
+    func movedTracks() {
+        #expect(TrackOrder.movedTracks(from: ["A", "B", "C", "N"], to: ["A", "N", "B", "C"]) == [.init(id: "N", from: 3, to: 1)])
+        #expect(TrackOrder.movedTracks(from: ["A", "B", "C"], to: ["C", "A", "B"]) == [.init(id: "C", from: 2, to: 0)])
+        #expect(TrackOrder.movedTracks(from: ["A", "B"], to: ["A", "B"]).isEmpty)
+        let reversed = TrackOrder.movedTracks(from: ["A", "B", "C"], to: ["C", "B", "A"])
+        #expect(reversed.count == 2, "one track keeps its place relative to the others")
+        #expect(TrackOrder.restoring(["C", "B", "A"], moving: reversed.map { ($0.id, $0.from) }) == ["A", "B", "C"])
+    }
+
+    @Test("Undo puts moved tracks back; tracks added since keep their order")
+    func restoring() {
+        let moved = TrackOrder.movedTracks(from: ["A", "B", "C", "N"], to: ["A", "N", "B", "C"])
+        let back = moved.map { ($0.id, $0.from) }
+        #expect(TrackOrder.restoring(["A", "N", "B", "C"], moving: back) == ["A", "B", "C", "N"])
+        #expect(TrackOrder.restoring(["A", "N", "B", "C", "X"], moving: back) == ["A", "B", "C", "N", "X"])
+    }
+
+    @Test("No order to restore when a moved track is gone")
+    func restoringMissing() {
+        #expect(TrackOrder.restoring(["A", "B"], moving: [("Z", 0)]) == nil)
+    }
+
     // MARK: - Apple Music entries
 
     @Test("Apple Music entries are put in the desired order, none dropped")

@@ -149,14 +149,6 @@ actor SpotifyAPIClient {
     
     // MARK: - Search
     
-    /// Searches for a track by ISRC code.
-    func searchByISRC(_ isrc: String, market: String? = nil) async throws -> SpotifyTrack? {
-        let response: SpotifySearchResponse = try await request(
-            endpoint: .searchByISRC(isrc: isrc, market: market)
-        )
-        return response.tracks?.items.first
-    }
-    
     /// Searches for tracks by query string. Spotify caps `limit` at 10 for
     /// Development Mode apps (February 2026), so larger values are clamped.
     func search(query: String, type: String = "track", market: String? = nil, limit: Int = 10) async throws -> [SpotifyTrack] {

@@ -238,7 +238,15 @@ actor OperationRunner {
             try await editor.remove(tracks, from: playlistId, on: first.platform)
             return group
         case .move:
-            throw PlaylistEditError.unsupported
+            // Puts each track back at the index it had before the run moved it.
+            let current = try await editor.tracks(in: playlistId, on: first.platform).map(\.id)
+            let back = group.compactMap { operation -> (id: String, to: Int)? in
+                if case .move(_, let to) = operation.kind { return (operation.track.id, to) }
+                return nil
+            }
+            guard let order = TrackOrder.restoring(current, moving: back) else { throw Failure.trackNotFound }
+            try await editor.reorder(playlistId, on: first.platform, to: order)
+            return group
         }
     }
 
@@ -258,7 +266,7 @@ actor OperationRunner {
     /// Consecutive operations of the same kind on the same platform, batched.
     private func grouped(_ operations: [SyncOperation]) -> [[SyncOperation]] {
         operations.reduce(into: [[SyncOperation]]()) { groups, op in
-            if let last = groups.last?.last, last.platform == op.platform, last.kind == op.kind {
+            if let last = groups.last?.last, last.platform == op.platform, last.kind.sameKind(as: op.kind) {
                 groups[groups.count - 1].append(op)
             } else {
                 groups.append([op])
@@ -289,7 +297,10 @@ actor OperationRunner {
             case .remove: .remove
             case .move: .move
             }
-            let change = SyncChange(platform: operation.platform, kind: kind, track: operation.track)
+            var indices: (from: Int?, to: Int?) = (nil, nil)
+            if case .move(let from, let to) = operation.kind { indices = (from, to) }
+            let change = SyncChange(platform: operation.platform, kind: kind, track: operation.track,
+                                    fromIndex: indices.from, toIndex: indices.to)
             change.sequence = index
             change.run = log
             context.insert(change)

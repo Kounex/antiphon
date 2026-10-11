@@ -60,12 +60,12 @@ final class SyncCoordinator {
     
     /// Starts a sync for a given pair in the background.
     /// Returns immediately — observe `syncingPairIds` for progress.
-    /// Pass `planned` to apply exactly what a preview showed (close matches
+    /// Applies exactly what a preview showed (close matches
     /// in `approving` are added too).
     func startSync(
         pairId: UUID,
         action: SyncAction,
-        planned: PlannedSync? = nil,
+        planned: PlannedSync,
         approving: Set<TrackKey> = [],
         trigger: SyncTrigger? = nil
     ) {
