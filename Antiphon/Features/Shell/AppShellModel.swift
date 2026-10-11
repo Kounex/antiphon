@@ -73,6 +73,8 @@ final class AppShellModel {
     let index: TrackIndex
     let availability: AvailabilityService
     let activity: ActivityRepository
+    let settings: SettingsStore
+    let appleMusicAccount: AppleMusicAccountReader
     /// Activity's navigation.
     var activityPath: [ActivityRoute] = []
     @ObservationIgnored private(set) lazy var activityModel = ActivityModel(activity: activity)
@@ -106,9 +108,12 @@ final class AppShellModel {
 
     init(seams: SeamRepository, accounts: AccountsService, sync: SyncService, library: LibraryService,
          reviews: ReviewRepository, problems: ProblemsRepository, catalogSearch: CatalogSearchService,
-         index: TrackIndex, availability: AvailabilityService, activity: ActivityRepository) {
+         index: TrackIndex, availability: AvailabilityService, activity: ActivityRepository,
+         settings: SettingsStore, appleMusicAccount: AppleMusicAccountReader) {
         self.index = index
         self.activity = activity
+        self.settings = settings
+        self.appleMusicAccount = appleMusicAccount
         self.availability = availability
         self.seamRepository = seams
         self.accounts = accounts
@@ -158,6 +163,10 @@ final class AppShellModel {
         let model = NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
         if let source = newSeamSource { model.preselect(source) }
         return model
+    }
+
+    func makeSettings() -> SettingsModel {
+        SettingsModel(store: settings, accounts: accounts, appleMusic: appleMusicAccount)
     }
 
     func makeRunDetail(_ runId: UUID) -> RunDetailModel {

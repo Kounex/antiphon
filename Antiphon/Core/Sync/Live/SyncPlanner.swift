@@ -35,6 +35,7 @@ actor SyncPlanner {
     private let versionPreferences: VersionPreferences
     /// Overrides the per-seam capabilities (tests, previews).
     private let capabilities: PlatformCapabilities?
+    private let recheck: RecheckCadence
 
     init(
         modelContainer: ModelContainer,
@@ -42,8 +43,10 @@ actor SyncPlanner {
         appleMusicManager: AppleMusicManager,
         confidence: ConfidencePolicy,
         versionPreferences: VersionPreferences = .standard,
-        capabilities: PlatformCapabilities? = nil
+        capabilities: PlatformCapabilities? = nil,
+        recheck: RecheckCadence = .weekly
     ) {
+        self.recheck = recheck
         self.versionPreferences = versionPreferences
         self.modelContainer = modelContainer
         self.spotifyClient = spotifyClient
@@ -62,7 +65,8 @@ actor SyncPlanner {
 
         let toMatch = stageA.rows.filter { row in
             guard row.removalFlag == nil else { return false }
-            let needsWork = row.state == .pending || (row.state == .failed && row.retryCount < PlanBuilder.maxRetries)
+            let needsWork = row.state == .pending || (row.state == .failed
+                && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: recheck, now: Date()))
             return needsWork && PlanBuilder.allows(stageA.direction, from: row.source.platform)
         }
 
@@ -111,7 +115,8 @@ actor SyncPlanner {
             confidence: confidence,
             rows: stageA.rows,
             outcomes: outcomes,
-            appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove
+            appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove,
+            recheck: recheck
         ))
         plan.uncheckedCount = unchecked
         if let target = live.mirrorTarget {

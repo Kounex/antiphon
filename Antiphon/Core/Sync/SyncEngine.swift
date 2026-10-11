@@ -46,7 +46,8 @@ actor SyncEngine {
     /// Performs a delta sync for all monitored SyncPairs.
     /// Called by foreground sync, AppIntent, and BGAppRefreshTask.
     @discardableResult
-    func syncAllMonitored(trigger: SyncTrigger = .monitor) async -> [SyncResult] {
+    /// `only`: the seams a background run found due; `nil` syncs every monitored seam.
+    func syncAllMonitored(only: Set<UUID>? = nil, trigger: SyncTrigger = .monitor) async -> [SyncResult] {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
@@ -71,6 +72,7 @@ actor SyncEngine {
         for pair in sorted {
             // Check cancellation between pairs
             if Task.isCancelled { break }
+            if let only, !only.contains(pair.id) { continue }
             
             // Skip pairs synced recently (per-pair cooldown)
             if let lastSync = pair.lastSyncedAt,
@@ -418,7 +420,12 @@ actor SyncEngine {
                 // ── STAGE B: Match tracks one-by-one ──
                 // ══════════════════════════════════════════════════
                 
-                let pendingTracks = cachedTracks.filter { $0.syncState == .pending || ($0.syncState == .failed && $0.retryCount < 3) }
+                let recheck = AppPreferences.shared.recheckCadence
+                let now = Date()
+                let pendingTracks = cachedTracks.filter {
+                    $0.syncState == .pending || ($0.syncState == .failed
+                        && AvailabilityRecheck.isDue(retryCount: $0.retryCount, lastAttempt: $0.lastSyncAttempt, cadence: recheck, now: now))
+                }
                 let totalTracks = cachedTracks.count
                 let alreadyCompleted = totalTracks - pendingTracks.count
                 

@@ -56,6 +56,8 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "album" { try await originalAlbum() }
             if scenario == nil || scenario == "library" { try await libraryReadOnly() }
             if scenario == nil || scenario == "undo" { try await undoTwoWay() }
+            if scenario == nil || scenario == "recheck" { try await recheckUnavailable() }
+            if scenario == nil || scenario == "monitor" { try await monitorRun() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -320,6 +322,97 @@ final class SelfTestRunner {
         }
     }
 
+    // MARK: - Scenario: unavailable tracks are looked up again
+
+    private func recheckUnavailable() async throws {
+        log("== Recheck a track that wasn't found, one way into Antiphon's Apple Music playlist")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up", "Faint"])
+        try await env.apply(try await env.preview(), trigger: .manual)
+
+        // Faint as if it hadn't been found three times, last tried 8 days ago.
+        try await removeOnApple(env, title: "Faint")
+        try env.markUnavailable(title: "Faint", lastTried: Date().addingTimeInterval(-8 * 86_400))
+        let preferences = AppPreferences.shared
+        let saved = preferences.recheckCadence
+        defer { preferences.recheckCadence = saved }
+
+        preferences.recheckCadence = .never
+        var planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.automaticAddCount == 0, "with “Never”, a track that wasn't found stays unchecked")
+
+        preferences.recheckCadence = .weekly
+        planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.side(.appleMusic).automaticAdds.map(\.source.title).contains { $0.localizedCaseInsensitiveContains("Faint") },
+               "weekly: after 8 days it's looked up again and planned")
+        try await env.apply(planned, trigger: .manual)
+        let apple = try await waitForApple(env, titles: ["Faint"])
+        expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Faint") }, "the sync adds it to Apple Music")
+        planned = try await env.preview()
+        expect(planned.plan.isEmpty, "settled afterwards")
+        if !planned.plan.isEmpty { describe(planned.plan) }
+    }
+
+    // MARK: - Scenario: a background run, called directly
+
+    private func monitorRun() async throws {
+        log("== A background monitoring run (called directly; iOS decides when it really runs)")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up"])
+
+        // The person's settings, in a throwaway suite.
+        let defaults = UserDefaults(suiteName: "antiphon-selftest-monitor")!
+        defaults.removePersistentDomain(forName: "antiphon-selftest-monitor")
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.monitorIntervalMinutes = 60
+        preferences.notifyNewTracks = .eachSync
+
+        _ = try await env.editor.add([seeds.midnightCity], to: spotifyId, on: .spotify)
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-10 * 60))
+        var report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        log("synced 10 min ago, hourly: \(report.summary)")
+        expect(report.due.isEmpty && report.results.isEmpty, "not due yet: nothing runs")
+
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+        preferences.wifiOnly = true
+        report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: false, lowPower: false, post: false)
+        expect(report.blocker == .notOnWiFi && report.results.isEmpty, "Wi-Fi only, on cellular: skipped")
+        preferences.wifiOnly = false
+        let minute = Calendar.current.component(.hour, from: Date()) * 60 + Calendar.current.component(.minute, from: Date())
+        preferences.quietHours = .init(startMinute: max(0, minute - 5), endMinute: min(24 * 60 - 1, minute + 5))
+        report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        expect(report.blocker == .quietHours && report.results.isEmpty, "quiet hours: skipped")
+        preferences.quietHours = nil
+
+        report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        log("due: \(report.summary); messages \(report.messages.map { "\($0.kind.rawValue): \($0.body)" })")
+        expect(report.due == [env.pairId], "due after its hour")
+        expect(report.results.first?.status == .success && report.results.first?.tracksAdded == 1,
+               "the run adds the new track (\(report.results.map { "\($0.status) +\($0.tracksAdded)" }))")
+        expect(report.messages.contains { $0.kind == .newTracks && $0.body == "1 new track in self-test." }, "and says so")
+        let apple = try await waitForApple(env, titles: ["Midnight City"])
+        expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "Midnight City is on Apple Music")
+        let runs = try await env.repository.runs()
+        expect(runs.first?.trigger == .monitor, "History shows it as watching")
+        let fresh = try await env.repository.newTracks()
+        expect(fresh.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "and it's under New tracks")
+        defaults.removePersistentDomain(forName: "antiphon-selftest-monitor")
+    }
+
     // MARK: - Scenario: undo a two-way sync
 
     private func undoTwoWay() async throws {
@@ -542,6 +635,38 @@ final class SelfTestRunner {
                 throw SelfTestError("no row for \(title)")
             }
             row.source = .spotify
+            row.removalFlag = nil
+            row.removalFlaggedAt = nil
+            row.removalKeptAt = nil
+            try context.save()
+        }
+
+        /// Monitored, as if last synced at `lastSynced`.
+        @MainActor
+        func setMonitored(lastSynced: Date) throws {
+            let context = ModelContext(container)
+            guard let pair = try context.fetch(FetchDescriptor<SyncPair>()).first(where: { $0.id == pairId }) else {
+                throw SelfTestError("no seam")
+            }
+            pair.isMonitored = true
+            pair.monitorIntervalMinutes = nil
+            pair.lastSyncedAt = lastSynced
+            try context.save()
+        }
+
+        /// A one-sided row that wasn't found after every try.
+        @MainActor
+        func markUnavailable(title: String, lastTried: Date) throws {
+            let context = ModelContext(container)
+            guard let row = try context.fetch(FetchDescriptor<CachedTrack>())
+                .first(where: { $0.syncPair?.id == pairId && $0.title.localizedCaseInsensitiveContains(title) }) else {
+                throw SelfTestError("no row for \(title)")
+            }
+            row.appleMusicTrackId = nil
+            row.source = .spotify
+            row.syncState = .failed
+            row.retryCount = PlanBuilder.maxRetries
+            row.lastSyncAttempt = lastTried
             row.removalFlag = nil
             row.removalFlaggedAt = nil
             row.removalKeptAt = nil

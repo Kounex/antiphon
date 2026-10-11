@@ -112,7 +112,8 @@ extension CachedTrack {
             removalFlag: removalFlag,
             removalKept: removalKeptAt != nil,
             retryCount: retryCount,
-            removalFlaggedAt: removalFlaggedAt
+            removalFlaggedAt: removalFlaggedAt,
+            lastAttempt: lastSyncAttempt
         )
     }
 }

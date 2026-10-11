@@ -81,10 +81,8 @@ struct AppShell: View {
                 model.openConflict = nil
             }
         }
-        .sheet(isPresented: $model.showsSettings) {
-            // Replaced by the new Settings in M8.
-            SettingsView()
-                .environment(\.colorScheme, .dark)
+        .sheet(isPresented: $model.showsSettings, onDismiss: { Task { await model.refresh() } }) {
+            SettingsView(model: model.makeSettings())
         }
         .task(id: syncCoordinator.syncingPairIds) { await model.refresh() }
     }

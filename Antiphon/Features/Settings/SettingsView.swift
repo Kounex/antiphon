@@ -1,312 +1,536 @@
+import AntiphonDesign
 import SwiftUI
-import MusicKit
+import UIKit
 
-/// The main settings view with sections for platform connections,
-/// sync preferences, and app information.
+enum SettingsPage: String, Hashable {
+    case spotify, appleMusic, defaults, matching, monitoring, notifications, help
+}
+
+/// Settings opens from the avatar on every tab. Accounts come first with
+/// their live status, then the four sync defaults, each showing its value.
 struct SettingsView: View {
+    @State var model: SettingsModel
+    @State private var path: [SettingsPage] = []
     @Environment(\.dismiss) private var dismiss
     @Environment(SpotifyAuthManager.self) private var spotifyAuth
     @Environment(SyncCoordinator.self) private var syncCoordinator
-    @Environment(\.modelContext) private var modelContext
-
-    @State private var appleMusicManager = AppleMusicManager()
-    @State private var showBYOKGuide = false
-    @State private var showResetConfirmation = false
+    @State private var confirmsReset = false
     @State private var resetError: String?
-    @AppStorage("syncIntervalMinutes") private var syncIntervalMinutes = AppConstants.Sync.defaultSyncIntervalMinutes
-    /// Same key as `AppPreferences.releaseChoice`.
-    @AppStorage("releaseChoice") private var releaseChoice = ReleaseChoice.sourceAlbum
 
     private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "–") (\(info?["CFBundleVersion"] as? String ?? "–"))"
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.appBackground.ignoresSafeArea()
+        NavigationStack(path: $path) {
+            List {
+                header.plainRow()
 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // App header
-                        appHeader
-                            .padding(.top, 8)
-
-                        // Platform connections
-                        platformSection
-
-                        // Sync preferences
-                        syncPreferencesSection
-
-                        // Data management
-                        dataSection
-
-                        // About
-                        aboutSection
+                Section("Accounts") {
+                    NavigationLink(value: SettingsPage.spotify) {
+                        row("Spotify", value: model.spotifyStatus, service: .spotify, ok: model.accounts.isSpotifyConnected)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 32)
+                    NavigationLink(value: SettingsPage.appleMusic) {
+                        row("Apple Music", value: model.appleMusic.storefront ?? model.appleMusic.statusText,
+                            service: .appleMusic, ok: model.appleMusic.access == .allowed)
+                    }
                 }
+                .listRowBackground(Color.canvasRaised)
+
+                Section("Syncing") {
+                    NavigationLink(value: SettingsPage.defaults) {
+                        LabeledContent { Text(SettingsCopy.newSeamDefaults(model.newSeamRemoval)) } label: {
+                            Label("New seam defaults", systemImage: "link.badge.plus")
+                        }
+                    }
+                    NavigationLink(value: SettingsPage.matching) {
+                        LabeledContent { Text("\(model.threshold)%") } label: { Label("Matching", systemImage: "equal.circle") }
+                    }
+                    NavigationLink(value: SettingsPage.monitoring) {
+                        LabeledContent { Text(model.monitoringValue) } label: { Label("Monitoring", systemImage: "dot.radiowaves.left.and.right") }
+                    }
+                    NavigationLink(value: SettingsPage.notifications) {
+                        LabeledContent { Text(model.notificationsValue) } label: { Label("Notifications", systemImage: "bell") }
+                    }
+                }
+                .listRowBackground(Color.canvasRaised)
+
+                Section("Antiphon") {
+                    if let url = model.exportURL {
+                        ShareLink(item: url) { Label("Export sync history", systemImage: "square.and.arrow.up") }
+                    }
+                    NavigationLink(value: SettingsPage.help) { Label("Help and privacy", systemImage: "hand.raised") }
+                    LabeledContent("Version", value: appVersion)
+                }
+                .listRowBackground(Color.canvasRaised)
+
+                Section {
+                    Button("Reset all data", role: .destructive) { confirmsReset = true }
+                } footer: {
+                    Text("Unlinks every seam, clears history and signs out of Spotify. Your playlists stay exactly as they are on both services.")
+                }
+                .listRowBackground(Color.canvasRaised)
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Color.canvas)
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Settings")
-                        .font(.appTitle3)
-                        .foregroundStyle(Color.textPrimary)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(Color.textSecondary)
-                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.tint(.thread) }
             }
-            .sheet(isPresented: $showBYOKGuide) {
-                BYOKGuideView()
-            }
-            .alert("Reset All Data?", isPresented: $showResetConfirmation) {
-                Button("Cancel", role: .cancel) {}
-                Button("Reset", role: .destructive) {
-                    resetAllData()
-                }
+            .confirmationDialog("Reset all data?", isPresented: $confirmsReset, titleVisibility: .visible) {
+                Button("Reset all data", role: .destructive) { Task { await reset() } }
             } message: {
-                Text("This will unlink all playlists, clear sync history, and sign out of Spotify. Your playlists on both platforms will not be affected.")
+                Text("Every seam is unlinked and history is cleared. Nothing changes in your playlists.")
             }
-            .alert("Reset Failed", isPresented: Binding(
-                get: { resetError != nil },
-                set: { if !$0 { resetError = nil } }
-            )) {
+            .alert("Couldn't reset", isPresented: Binding(get: { resetError != nil }, set: { if !$0 { resetError = nil } })) {
                 Button("OK", role: .cancel) {}
-            } message: {
-                Text(resetError ?? "An unknown error occurred.")
+            } message: { Text(resetError ?? "") }
+            .navigationDestination(for: SettingsPage.self) { page in
+                switch page {
+                case .spotify: SpotifyAccountView(model: model)
+                case .appleMusic: AppleMusicAccountView(model: model)
+                case .defaults: NewSeamDefaultsView(model: model)
+                case .matching: MatchingSettingsView(model: model)
+                case .monitoring: MonitoringSettingsView(model: model)
+                case .notifications: NotificationSettingsView(model: model)
+                case .help: HelpPrivacyView()
+                }
             }
+            .task { await model.load() }
+            #if DEBUG
+            .onAppear {
+                if let page = DebugRoute.settingsPage.flatMap(SettingsPage.init(rawValue:)), path.isEmpty { path = [page] }
+            }
+            #endif
         }
-        .presentationBackground(Color.appBackground)
+        .tint(.thread)
     }
 
-    // MARK: - App Header
-
-    private var appHeader: some View {
-        VStack(spacing: 12) {
-            Image("AppLogo")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+    private var header: some View {
+        VStack(spacing: Space.s2) {
+            Text(model.initials ?? "A")
+                .font(.title2.weight(.semibold)).foregroundStyle(Color.ink)
                 .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: Color.appleMusicPink.opacity(0.2), radius: 12, y: 4)
-
-            Text("Antiphon")
-                .font(.appTitle)
-                .foregroundStyle(Color.textPrimary)
-
-            Text("v\(appVersion)")
-                .font(.appCaption)
-                .foregroundStyle(Color.textTertiary)
+                .background(Color.threadSoft, in: .circle)
+            Text(model.name).font(.antiphonTitle2).foregroundStyle(Color.ink)
+            Text(model.header).font(.footnote).foregroundStyle(Color.inkMuted)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Platform Connections
-
-    private var platformSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Connections", icon: "link")
-
-            // Spotify
-            SpotifyConnectionCard(
-                spotifyAuth: spotifyAuth,
-                onSetupBYOK: { showBYOKGuide = true }
-            )
-
-            // Apple Music
-            AppleMusicConnectionCard(appleMusicManager: appleMusicManager)
+    private func row(_ title: String, value: String, service: MusicService, ok: Bool) -> some View {
+        HStack(spacing: Space.s3) {
+            PlatformDot(service: service)
+            Text(title).foregroundStyle(Color.ink)
+            Spacer()
+            Text(value).foregroundStyle(ok ? Color.inkMuted : Color.statusFailed).lineLimit(1)
         }
     }
 
-    // MARK: - Sync Preferences
+    private func reset() async {
+        await syncCoordinator.cancelAllSyncs()
+        spotifyAuth.logout()
+        KeychainManager.deleteAll()
+        do {
+            try await model.resetAll()
+        } catch {
+            resetError = "Antiphon couldn't clear its data: \(error.localizedDescription)"
+        }
+    }
+}
 
-    private var syncPreferencesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Sync", icon: "arrow.triangle.2.circlepath")
+// MARK: - Accounts
 
-            VStack(spacing: 0) {
-                // Sync interval
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Background Interval")
-                            .font(.appBody)
-                            .foregroundStyle(Color.textPrimary)
-                        Text("How often to check for changes")
-                            .font(.appCaption)
-                            .foregroundStyle(Color.textTertiary)
-                    }
+/// Permissions in plain words, including what Antiphon will never do.
+/// Disconnecting explains its effect before you tap.
+struct SpotifyAccountView: View {
+    let model: SettingsModel
+    @Environment(SpotifyAuthManager.self) private var spotifyAuth
+    @State private var confirmsDisconnect = false
 
-                    Spacer()
-
-                    Picker("", selection: $syncIntervalMinutes) {
-                        Text("15 min").tag(15)
-                        Text("30 min").tag(30)
-                        Text("1 hour").tag(60)
-                        Text("4 hours").tag(240)
-                    }
-                    .tint(Color.textSecondary)
+    var body: some View {
+        List {
+            VStack(spacing: Space.s2) {
+                PlatformDot(service: .spotify, size: 28)
+                Text(spotifyAuth.userProfile?.displayName ?? (spotifyAuth.isAuthenticated ? "Spotify" : "Not connected"))
+                    .font(.antiphonTitle2).foregroundStyle(Color.ink)
+                if let line = SettingsCopy.spotifyLine(product: spotifyAuth.userProfile?.product,
+                                                       signedInAt: spotifyAuth.isAuthenticated ? model.preferences.spotifySignedInAt : nil) {
+                    Text(line).font(.footnote).foregroundStyle(Color.inkMuted)
                 }
-                .padding(14)
+            }
+            .frame(maxWidth: .infinity)
+            .plainRow()
 
-                Divider().overlay(Color.subtleBorder)
+            if !spotifyAuth.isAuthenticated {
+                SpotifyConnectForm(auth: spotifyAuth)
+                    .padding(Space.s4)
+                    .background(Color.canvasRaised, in: .rect(cornerRadius: Radius.card))
+                    .plainRow()
+            }
 
-                // Which album a match comes from
-                VStack(alignment: .leading, spacing: 6) {
+            Section("Antiphon can") {
+                permission("See your playlists", allowed: true)
+                permission("Create and edit playlists", allowed: true)
+                permission("See your Liked Songs", allowed: true)
+                permission("Upload playlist covers", allowed: true)
+                permission("Play music, follow, post", allowed: false)
+            }
+            .listRowBackground(Color.canvasRaised)
+
+            Section("Used in") {
+                LabeledContent("Seams", value: "\(model.usage.seams)")
+                LabeledContent("Playlists Antiphon made", value: "\(model.usage.madeOnSpotify)")
+            }
+            .listRowBackground(Color.canvasRaised)
+
+            if spotifyAuth.isAuthenticated {
+                Section {
+                    Button("Disconnect Spotify", role: .destructive) { confirmsDisconnect = true }
+                } footer: {
+                    Text(SettingsCopy.disconnectEffect(seams: model.usage.seams))
+                }
+                .listRowBackground(Color.canvasRaised)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Spotify")
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Disconnect Spotify?", isPresented: $confirmsDisconnect, titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) {
+                spotifyAuth.logout()
+                model.preferences.spotifySignedInAt = nil
+            }
+        } message: {
+            Text(SettingsCopy.disconnectEffect(seams: model.usage.seams))
+        }
+    }
+
+    private func permission(_ text: String, allowed: Bool) -> some View {
+        HStack {
+            Image(systemName: allowed ? "checkmark.circle.fill" : "xmark.circle")
+                .foregroundStyle(allowed ? Color.statusSynced : Color.inkFaint)
+            Text(text).foregroundStyle(Color.ink)
+            Spacer()
+            if !allowed { Text("Never").foregroundStyle(Color.inkMuted) }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct AppleMusicAccountView: View {
+    let model: SettingsModel
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        List {
+            VStack(spacing: Space.s2) {
+                PlatformDot(service: .appleMusic, size: 28)
+                Text("Apple Music").font(.antiphonTitle2).foregroundStyle(Color.ink)
+                Text([model.appleMusic.statusText, model.appleMusic.storefront].compactMap { $0 }.joined(separator: " · "))
+                    .font(.footnote).foregroundStyle(Color.inkMuted)
+            }
+            .frame(maxWidth: .infinity)
+            .plainRow()
+
+            if model.appleMusic.hasSubscription == false {
+                Banner(tone: .review, symbol: "exclamationmark.circle.fill", title: "No Apple Music subscription",
+                       message: "Antiphon can read your playlists, but adding catalog tracks needs a subscription.")
+                    .plainRow()
+            }
+
+            Section("Antiphon can") {
+                Label("See your library playlists", systemImage: "checkmark.circle.fill")
+                Label("Create playlists and add tracks", systemImage: "checkmark.circle.fill")
+                Label("Remove and reorder tracks in playlists it created", systemImage: "checkmark.circle.fill")
+            }
+            .foregroundStyle(Color.ink)
+            .listRowBackground(Color.canvasRaised)
+
+            Section("Used in") {
+                LabeledContent("Seams", value: "\(model.usage.seams)")
+                LabeledContent("Playlists Antiphon made", value: "\(model.usage.madeOnAppleMusic)")
+            }
+            .listRowBackground(Color.canvasRaised)
+
+            Section {
+                Button("Open iOS Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }
+            } footer: {
+                Text("Apple Music access is managed by iOS. Turning it off stops syncing; your playlists stay as they are.")
+            }
+            .listRowBackground(Color.canvasRaised)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Apple Music")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Sync defaults
+
+struct NewSeamDefaultsView: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        List {
+            Section {
+                RemovalChoice(selection: $model.newSeamRemoval).plainRow()
+            } footer: {
+                Text("Two-way seams ask before removing unless you choose otherwise in a seam's rules.")
+            }
+            Section {
+                Toggle("Keep watching new seams", isOn: $model.newSeamMonitoring).tint(.thread)
+            } footer: {
+                Text(model.newSeamMonitoring
+                     ? "New seams check for changes about every \(RulesCopy.intervalPhrase(model.interval)) when iOS allows."
+                     : "New seams only sync when you ask.")
+            }
+            .listRowBackground(Color.canvasRaised)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("New seam defaults")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// "Only add" or "Mirror exactly", as cards with a full sentence each, so
+/// the difference is never a guess. Also used in onboarding.
+struct RemovalChoice: View {
+    @Binding var selection: RemovalPolicy
+
+    var body: some View {
+        VStack(spacing: Space.s3) {
+            card(.keep, title: "Only add", badge: "Recommended",
+                 text: "New tracks get copied. Nothing is ever removed without asking you.")
+            card(.mirror, title: "Mirror exactly", badge: nil,
+                 text: "Adds and removes, so both playlists stay identical. You can undo any sync from Activity.")
+        }
+    }
+
+    private func card(_ policy: RemovalPolicy, title: String, badge: String?, text: String) -> some View {
+        let isOn = selection == policy || (policy == .keep && selection == .ask)
+        return Button { selection = policy } label: {
+            HStack(alignment: .top, spacing: Space.s3) {
+                Image(systemName: isOn ? "largecircle.fill.circle" : "circle")
+                    .font(.title3).foregroundStyle(isOn ? Color.thread : Color.inkFaint)
+                VStack(alignment: .leading, spacing: Space.s1) {
                     HStack {
-                        Text("Album to match")
-                            .font(.appBody)
-                            .foregroundStyle(Color.textPrimary)
-                        Spacer()
-                        Picker("Album to match", selection: $releaseChoice) {
-                            Text("Same as source").tag(ReleaseChoice.sourceAlbum)
-                            Text("Original album").tag(ReleaseChoice.original)
+                        Text(title).font(.headline).foregroundStyle(Color.ink)
+                        if let badge {
+                            Text(badge).font(.caption.weight(.semibold)).foregroundStyle(Color.thread)
+                                .padding(.horizontal, Space.s2).padding(.vertical, 2)
+                                .background(Color.threadSoft, in: .capsule)
                         }
-                        .tint(Color.textSecondary)
                     }
-                    Text(RulesCopy.release(releaseChoice))
-                        .font(.appCaption)
-                        .foregroundStyle(Color.textTertiary)
+                    Text(text).font(.subheadline).foregroundStyle(Color.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(14)
+                Spacer(minLength: 0)
             }
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.subtleBorder, lineWidth: 1)
-                    )
-            )
-
-            // Safety threshold description (non-interactive, footer style)
-            HStack(spacing: 6) {
-                Image(systemName: "shield.checkered")
-                    .font(.appCaption)
-                    .foregroundStyle(Color.syncSuccess)
-                Text("Safety threshold will abort a sync if more than \(Int(AppConstants.Sync.safetyThresholdPercentage * 100))% of tracks would be removed, protecting against API failures.")
-                    .font(.appCaption)
-                    .foregroundStyle(Color.textTertiary)
-            }
-            .padding(.horizontal, 4)
+            .padding(Space.s4)
+            .background(Color.canvasRaised, in: .rect(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(isOn ? Color.thread : .clear, lineWidth: 2))
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
+}
 
-    // MARK: - Data Section
+/// The threshold slider is grounded in the person's own history.
+struct MatchingSettingsView: View {
+    @Bindable var model: SettingsModel
 
-    private var dataSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Data", icon: "externaldrive")
-
-            Button {
-                showResetConfirmation = true
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.counterclockwise")
-                    Text("Reset All Data")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.appCaption)
-                        .foregroundStyle(Color.textTertiary)
+    var body: some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: Space.s2) {
+                    Text(MatchingCopy.threshold(model.threshold)).font(.headline).foregroundStyle(Color.ink)
+                    Slider(value: Binding(get: { Double(model.threshold) }, set: { model.threshold = Int($0.rounded()) }),
+                           in: Double(ConfidencePolicy.reviewFloor + 10)...100, step: 1)
+                        .tint(.thread)
+                    HStack {
+                        Text("Ask about everything")
+                        Spacer()
+                        Text("Trust Antiphon")
+                    }
+                    .font(.caption).foregroundStyle(Color.inkMuted)
+                    Text(model.wouldAsk).font(.footnote).foregroundStyle(Color.inkMuted)
                 }
-                .font(.appBody)
-                .foregroundStyle(Color.syncError)
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.cardBackground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.subtleBorder, lineWidth: 1)
-                        )
-                )
+                .padding(.vertical, Space.s1)
+            } footer: {
+                Text("Matches at or above this are added without asking. Below \(ConfidencePolicy.reviewFloor)% a track counts as not found.")
             }
+            .listRowBackground(Color.canvasRaised)
+
+            Section("When versions differ, prefer") {
+                Picker("Explicit or clean", selection: $model.explicit) {
+                    ForEach(ExplicitPreference.allCases, id: \.self) { Text(SettingsCopy.explicit($0)).tag($0) }
+                }
+                Toggle("Original over remaster", isOn: $model.preferOriginal)
+                Toggle(isOn: $model.neverLive) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Never use live versions")
+                        Text("Unless the source is live").font(.footnote).foregroundStyle(Color.inkMuted)
+                    }
+                }
+                Toggle("Allow radio edits", isOn: $model.allowRadioEdits)
+                Picker("Album to match", selection: $model.release) {
+                    Text("Same as source").tag(ReleaseChoice.sourceAlbum)
+                    Text("Original album").tag(ReleaseChoice.original)
+                }
+            }
+            .tint(.thread)
+            .listRowBackground(Color.canvasRaised)
+
+            Section {
+                Picker("Check again", selection: $model.recheck) {
+                    ForEach(RecheckCadence.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+            } header: {
+                Text("Unavailable tracks")
+            } footer: {
+                Text("Tracks that weren't found are tried three times, then looked up again on this schedule, because catalogs change.")
+            }
+            .listRowBackground(Color.canvasRaised)
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Matching")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct MonitoringSettingsView: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        List {
+            Section {
+                ChipBar(RulesCopy.intervals.map { .init($0, RulesCopy.intervalLabel($0)) }, selection: $model.interval)
+                    .plainRow()
+            } header: {
+                Text("Check playlists")
+            } footer: {
+                Text("For seams that don't set their own. iOS decides the exact moment; Antiphon asks to check about every \(RulesCopy.intervalPhrase(model.interval)).")
+            }
+
+            Section {
+                Toggle("Only on Wi-Fi", isOn: $model.wifiOnly)
+                Toggle("Pause in Low Power Mode", isOn: $model.pauseInLowPower)
+                Toggle("Quiet hours", isOn: Binding(get: { model.quietHoursOn }, set: { model.quietHoursOn = $0 }))
+                if let hours = model.quietHours {
+                    DatePicker("From", selection: time(\.startMinute, hours), displayedComponents: .hourAndMinute)
+                    DatePicker("To", selection: time(\.endMinute, hours), displayedComponents: .hourAndMinute)
+                }
+            } footer: {
+                Text(model.quietHours.map { "No checks or notifications \(SettingsCopy.quietHours($0))." }
+                     ?? "Checks run whenever iOS lets Antiphon run.")
+            }
+            .tint(.thread)
+            .listRowBackground(Color.canvasRaised)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Monitoring")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - About
-
-    private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "About", icon: "info.circle")
-
-            VStack(spacing: 0) {
-                AboutRow(label: "Version", value: appVersion)
-                Divider().background(Color.subtleBorder)
-                AboutRow(label: "iOS", value: UIDevice.current.systemVersion)
-                Divider().background(Color.subtleBorder)
-                AboutRow(label: "Sync Engine", value: "ISRC + Fuzzy Match")
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.subtleBorder, lineWidth: 1)
-                    )
-            )
+    private func time(_ part: WritableKeyPath<MonitorGates.QuietHours, Int>, _ hours: MonitorGates.QuietHours) -> Binding<Date> {
+        Binding {
+            Calendar.current.startOfDay(for: Date()).addingTimeInterval(Double(hours[keyPath: part]) * 60)
+        } set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            var changed = hours
+            changed[keyPath: part] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+            model.quietHours = changed
         }
     }
+}
 
-    // MARK: - Helpers
+/// Split by whether you need to act. Routine syncs batch into a summary.
+struct NotificationSettingsView: View {
+    @Bindable var model: SettingsModel
+    @Environment(\.openURL) private var openURL
 
-    private func resetAllData() {
-        // Stop in-flight syncs first — otherwise they keep writing into the
-        // store we're about to wipe and re-insert dangling rows.
-        Task {
-            await syncCoordinator.cancelAllSyncs()
+    var body: some View {
+        List {
+            if model.notificationStatus == .denied {
+                Banner(tone: .review, symbol: "bell.slash.fill", title: "Notifications are off for Antiphon",
+                       message: "Turn them on in iOS Settings to hear about anything below.") {
+                    Button("Open iOS Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
+                }
+                .plainRow()
+            }
+            Section {
+                toggle("When I need to decide", detail: "Close matches, removals to answer", isOn: $model.notifyDecide)
+                toggle("When something breaks", detail: "Sign-ins, deleted playlists, failed syncs", isOn: $model.notifyBreaks)
+                Picker("New tracks synced", selection: $model.notifyNewTracks) {
+                    ForEach(MonitorNotifications.NewTracks.allCases, id: \.self) { Text(SettingsCopy.newTracks($0)).tag($0) }
+                }
+                toggle("Weekly digest", detail: "Sundays at 10:00", isOn: $model.weeklyDigest)
+            } footer: {
+                Text("The daily summary arrives at 19:00 with what monitoring synced so far that day. iOS decides when Antiphon runs, so tracks added late may only show up in the next day's summary.")
+            }
+            .tint(.thread)
+            .listRowBackground(Color.canvasRaised)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Notifications")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 
-            spotifyAuth.logout()
-            KeychainManager.deleteAll()
-
-            do {
-                try modelContext.delete(model: SyncPair.self)
-                try modelContext.delete(model: SyncLog.self)
-                try modelContext.delete(model: CachedTrack.self)
-                try modelContext.save()
-            } catch {
-                resetError = "Failed to clear local data: \(error.localizedDescription)"
+    private func toggle(_ title: String, detail: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(detail).font(.footnote).foregroundStyle(Color.inkMuted)
             }
         }
     }
 }
 
-// MARK: - Section Header
-
-struct SectionHeader: View {
-    let title: String
-    let icon: String
+struct HelpPrivacyView: View {
+    @State private var showsGuide = false
 
     var body: some View {
-        Label(title, systemImage: icon)
-            .font(.appCaptionBold)
-            .foregroundStyle(Color.textSecondary)
-            .textCase(.uppercase)
-    }
-}
-
-// MARK: - About Row
-
-struct AboutRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.appBody)
-                .foregroundStyle(Color.textPrimary)
-            Spacer()
-            Text(value)
-                .font(.appBody)
-                .foregroundStyle(Color.textTertiary)
+        List {
+            Section("Privacy") {
+                Text("Antiphon runs on this iPhone. It talks to Spotify and Apple Music directly; there's no Antiphon server and no account.")
+                Text("Sign-ins stay in the iOS Keychain. Your seams and history stay in Antiphon's storage on this device.")
+                Text("Antiphon only reads and edits playlists. It never plays, follows or posts anything.")
+            }
+            .font(.subheadline).foregroundStyle(Color.ink)
+            .listRowBackground(Color.canvasRaised)
+            Section("Help") {
+                Button("How to get a Spotify client ID") { showsGuide = true }
+            }
+            .tint(.thread)
+            .listRowBackground(Color.canvasRaised)
         }
-        .padding(14)
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
+        .navigationTitle("Help and privacy")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showsGuide) { SpotifyKeyGuide() }
     }
 }

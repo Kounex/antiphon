@@ -6,6 +6,8 @@ import SwiftUI
 ///     -AntiphonScreen catalog/SeamLine
 /// Unknown values fall back to the normal root.
 enum DebugRoute {
+    /// The Settings page to push: `shell/settings/<page>`.
+    @MainActor static var settingsPage: String?
     /// Which sync-flow phase to show for `shell/preview|syncing|synced`.
     @MainActor static var flowPhase: String?
     /// Opens scrolled to the bottom, to check the toolbar over content.
@@ -71,7 +73,8 @@ struct DebugRouteView: View {
                                   sync: PreviewSyncService(), library: PreviewLibraryService(),
                                   reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
                                   index: repository, availability: PreviewAvailabilityService(),
-                                  activity: repository)
+                                  activity: repository, settings: repository,
+                                  appleMusicAccount: PreviewAppleMusicAccountReader())
         switch option {
         case "library": model.selectedTab = .library
         case "library-playlist":
@@ -108,6 +111,9 @@ struct DebugRouteView: View {
             model.openConflict = .init(item: PreviewFixtures.conflicts[0], others: [PreviewFixtures.conflicts[1]])
         case "problems": model.syncsPath = [.problems]
         case "settings": model.showsSettings = true
+        case let page? where page.hasPrefix("settings/"):
+            model.showsSettings = true
+            DebugRoute.settingsPage = String(page.dropFirst("settings/".count))
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))

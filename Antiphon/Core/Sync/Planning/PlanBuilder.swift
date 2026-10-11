@@ -11,6 +11,8 @@ struct PlanRow: Sendable {
     let removalKept: Bool
     let retryCount: Int
     var removalFlaggedAt: Date? = nil
+    /// When matching was last tried, for rechecking tracks that weren't found.
+    var lastAttempt: Date? = nil
 
     var key: TrackKey { TrackKey(source) }
 }
@@ -27,6 +29,8 @@ struct PlanInput: Sendable {
     let outcomes: [TrackKey: MatchOutcome]
     /// Whether removing tracks on Apple Music has been proven to work.
     let appleMusicCanRemove: Bool
+    /// How often tracks that weren't found are looked up again.
+    var recheck: RecheckCadence = .weekly
 }
 
 /// Turns Stage A's cache state plus match results into a `SyncPlan`.
@@ -53,7 +57,8 @@ enum PlanBuilder {
                 continue
             }
 
-            let needsWork = row.state == .pending || (row.state == .failed && row.retryCount < maxRetries)
+            let needsWork = row.state == .pending || (row.state == .failed
+                && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: input.recheck, now: now))
             let target = row.source.platform.other
             guard needsWork, allows(input.direction, from: row.source.platform),
                   let outcome = input.outcomes[row.key] else { continue }

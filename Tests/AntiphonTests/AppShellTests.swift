@@ -83,7 +83,8 @@ struct AppShellTests {
         let model = AppShellModel(seams: repository, accounts: PreviewAccounts(), sync: PreviewSyncService(), library: PreviewLibraryService(),
                                   reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
                                   index: repository, availability: PreviewAvailabilityService(),
-                                  activity: repository)
+                                  activity: repository, settings: repository,
+                                  appleMusicAccount: PreviewAppleMusicAccountReader())
         await model.refresh()
         #expect(model.reviewCount == 5)
     }

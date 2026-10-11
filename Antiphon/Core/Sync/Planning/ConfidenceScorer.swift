@@ -12,8 +12,19 @@ struct VersionPreferences: Equatable, Sendable {
     var acceptRemasters = false
     /// Which release of a recording to pick when several match.
     var release: ReleaseChoice = .sourceAlbum
+    /// Which of an explicit and a clean version counts as the same.
+    var explicit: ExplicitPreference = .sameAsSource
+    /// Live versions become close matches (never automatic) instead of
+    /// being left out. A live source matches live versions either way.
+    var allowLive = false
+    /// Treat a radio edit as the same recording.
+    var allowRadioEdits = false
 
     static let standard = VersionPreferences()
+}
+
+enum ExplicitPreference: String, CaseIterable, Sendable {
+    case sameAsSource, explicit, clean
 }
 
 /// Which album a match comes from when the same recording is on several.
@@ -59,15 +70,25 @@ enum ConfidenceScorer {
             }
         }
 
-        if let a = source.isExplicit, let b = candidate.isExplicit, a != b {
+        // The wanted flavour: the source's, or the one the person prefers.
+        let wantsExplicit: Bool? = switch preferences.explicit {
+        case .sameAsSource: source.isExplicit
+        case .explicit: true
+        case .clean: false
+        }
+        if let want = wantsExplicit, let b = candidate.isExplicit, want != b {
             confidence -= explicitPenalty
             isVersionDifference = true
         }
 
         var differingKinds = Set(sourceTitle.tags.symmetricDifference(candidateTitle.tags).map(Kind.init))
         if preferences.acceptRemasters { differingKinds.remove(.remaster) }
+        if preferences.allowRadioEdits { differingKinds.remove(.radioEdit) }
+        if preferences.explicit != .sameAsSource { differingKinds.remove(.clean) }
         if !differingKinds.isEmpty {
-            confidence -= differingKinds.reduce(0) { $0 + $1.penalty }
+            confidence -= differingKinds.reduce(0) { total, kind in
+                total + (kind == .live && preferences.allowLive ? Kind.allowedLivePenalty : kind.penalty)
+            }
             isVersionDifference = true
         }
 
@@ -111,6 +132,9 @@ enum ConfidenceScorer {
             case .remix: self = .remix
             }
         }
+
+        /// Allowed live versions land in the close-match band.
+        static let allowedLivePenalty = 20
 
         var penalty: Int {
             switch self {

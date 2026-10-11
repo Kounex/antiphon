@@ -45,7 +45,9 @@ struct AntiphonApp: App {
             catalogSearch: LiveCatalogSearchService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager()),
             index: repository,
             availability: LiveAvailabilityService(),
-            activity: repository
+            activity: repository,
+            settings: repository,
+            appleMusicAccount: LiveAppleMusicAccountReader()
         )
 
         // Register background tasks (handler creates its own auth instances)
@@ -74,12 +76,13 @@ struct AntiphonApp: App {
             guard !Self.isHostingTests, !Self.isDebugRoute else { return }
             switch newPhase {
             case .active:
-                NotificationManager.requestPermissionIfNeeded()
+                // Notification permission is asked for in onboarding, or when
+                // a notification is turned on in Settings.
                 // A background token-refresh failure may have cleared the
                 // Keychain — re-sync the observable auth state with reality.
                 spotifyAuth.refreshAuthStatus()
             case .background:
-                BackgroundTaskManager.scheduleBackgroundRefresh()
+                BackgroundTaskManager.scheduleBackgroundRefresh(modelContainer: modelContainer)
             default:
                 break
             }

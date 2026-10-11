@@ -133,16 +133,31 @@ struct PlanBuilderTests {
 
     @Test("Failed tracks are retried until their third attempt")
     func retryLimit() {
-        let rows = [
-            row(1, from: .spotify, state: .failed, retries: 2),
-            row(2, from: .spotify, state: .failed, retries: 3)
-        ]
+        var third = row(2, from: .spotify, state: .failed, retries: 3)
+        third.lastAttempt = Date()
+        let rows = [row(1, from: .spotify, state: .failed, retries: 2), third]
         let outcomes = [
             TrackKey(track(1, on: .spotify)): outcome(1, on: .appleMusic, confidence: 100),
             TrackKey(track(2, on: .spotify)): outcome(2, on: .appleMusic, confidence: 100)
         ]
         let plan = PlanBuilder.build(input(direction: .spotifyToApple, rows: rows, outcomes: outcomes))
         #expect(plan.side(.appleMusic).automaticAdds.map(\.source.id) == ["spotify:track:1"])
+    }
+
+    @Test("After the third try, a track is looked up again on the recheck cadence")
+    func recheckCadence() {
+        var stale = row(2, from: .spotify, state: .failed, retries: 3)
+        stale.lastAttempt = Date().addingTimeInterval(-8 * 86_400)
+        var recent = row(3, from: .spotify, state: .failed, retries: 3)
+        recent.lastAttempt = Date().addingTimeInterval(-3600)
+        let outcomes = [
+            TrackKey(track(2, on: .spotify)): outcome(2, on: .appleMusic, confidence: 100),
+            TrackKey(track(3, on: .spotify)): outcome(3, on: .appleMusic, confidence: 100)
+        ]
+        var weekly = input(direction: .spotifyToApple, rows: [stale, recent], outcomes: outcomes)
+        #expect(PlanBuilder.build(weekly).side(.appleMusic).automaticAdds.map(\.source.id) == ["spotify:track:2"])
+        weekly.recheck = .never
+        #expect(PlanBuilder.build(weekly).automaticAddCount == 0)
     }
 
     // MARK: - Removals

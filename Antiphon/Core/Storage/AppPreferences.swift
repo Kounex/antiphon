@@ -28,6 +28,18 @@ final class AppPreferences: @unchecked Sendable {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let recentSearches = "recentSearches"
         static let showsCollaboratorNames = "showsCollaboratorNames"
+        static let explicitPreference = "explicitPreference"
+        static let allowLive = "allowLive"
+        static let allowRadioEdits = "allowRadioEdits"
+        static let recheckCadence = "recheckCadence"
+        static let wifiOnly = "monitorWiFiOnly"
+        static let pauseInLowPower = "monitorPauseInLowPower"
+        static let quietHours = "monitorQuietHours"
+        static let notifyDecide = "notifyDecide"
+        static let notifyBreaks = "notifyBreaks"
+        static let notifyNewTracks = "notifyNewTracks"
+        static let weeklyDigest = "notifyWeeklyDigest"
+        static let spotifySignedInAt = "spotifySignedInAt"
     }
 
     // MARK: - Matching
@@ -57,8 +69,31 @@ final class AppPreferences: @unchecked Sendable {
         set { defaults.set(newValue.rawValue, forKey: Key.releaseChoice) }
     }
 
+    var explicitPreference: ExplicitPreference {
+        get { defaults.string(forKey: Key.explicitPreference).flatMap(ExplicitPreference.init) ?? .sameAsSource }
+        set { defaults.set(newValue.rawValue, forKey: Key.explicitPreference) }
+    }
+
+    /// Off: live versions are never used unless the source is live.
+    var allowLive: Bool {
+        get { defaults.bool(forKey: Key.allowLive) }
+        set { defaults.set(newValue, forKey: Key.allowLive) }
+    }
+
+    var allowRadioEdits: Bool {
+        get { defaults.bool(forKey: Key.allowRadioEdits) }
+        set { defaults.set(newValue, forKey: Key.allowRadioEdits) }
+    }
+
+    /// How often tracks that weren't found are looked up again.
+    var recheckCadence: RecheckCadence {
+        get { defaults.string(forKey: Key.recheckCadence).flatMap(RecheckCadence.init) ?? .weekly }
+        set { defaults.set(newValue.rawValue, forKey: Key.recheckCadence) }
+    }
+
     var versionPreferences: VersionPreferences {
-        VersionPreferences(acceptRemasters: acceptRemasters, release: releaseChoice)
+        VersionPreferences(acceptRemasters: acceptRemasters, release: releaseChoice, explicit: explicitPreference,
+                           allowLive: allowLive, allowRadioEdits: allowRadioEdits)
     }
 
     var confidencePolicy: ConfidencePolicy {
@@ -87,6 +122,71 @@ final class AppPreferences: @unchecked Sendable {
                 ?? 15
         }
         set { defaults.set(newValue, forKey: Key.monitorIntervalMinutes) }
+    }
+
+    // MARK: - Monitoring gates
+
+    var wifiOnly: Bool {
+        get { defaults.bool(forKey: Key.wifiOnly) }
+        set { defaults.set(newValue, forKey: Key.wifiOnly) }
+    }
+
+    var pauseInLowPower: Bool {
+        get { defaults.object(forKey: Key.pauseInLowPower) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.pauseInLowPower) }
+    }
+
+    /// `nil`: no quiet hours.
+    var quietHours: MonitorGates.QuietHours? {
+        get { defaults.data(forKey: Key.quietHours).flatMap { try? JSONDecoder().decode(MonitorGates.QuietHours.self, from: $0) } }
+        set {
+            if let newValue, let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: Key.quietHours)
+            } else {
+                defaults.removeObject(forKey: Key.quietHours)
+            }
+        }
+    }
+
+    var monitorGates: MonitorGates.Settings {
+        MonitorGates.Settings(wifiOnly: wifiOnly, pauseInLowPower: pauseInLowPower, quietHours: quietHours)
+    }
+
+    // MARK: - Notifications
+
+    /// Close matches and removals waiting for an answer.
+    var notifyDecide: Bool {
+        get { defaults.object(forKey: Key.notifyDecide) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.notifyDecide) }
+    }
+
+    /// Sign-ins, deleted playlists, failed syncs.
+    var notifyBreaks: Bool {
+        get { defaults.object(forKey: Key.notifyBreaks) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.notifyBreaks) }
+    }
+
+    var notifyNewTracks: MonitorNotifications.NewTracks {
+        get { defaults.string(forKey: Key.notifyNewTracks).flatMap(MonitorNotifications.NewTracks.init) ?? .dailySummary }
+        set { defaults.set(newValue.rawValue, forKey: Key.notifyNewTracks) }
+    }
+
+    /// Sundays at 10:00.
+    var weeklyDigest: Bool {
+        get { defaults.bool(forKey: Key.weeklyDigest) }
+        set { defaults.set(newValue, forKey: Key.weeklyDigest) }
+    }
+
+    var notificationPreferences: MonitorNotifications.Preferences {
+        MonitorNotifications.Preferences(decide: notifyDecide, breaks: notifyBreaks, newTracks: notifyNewTracks)
+    }
+
+    // MARK: - Accounts
+
+    /// Written when a Spotify sign-in completes.
+    var spotifySignedInAt: Date? {
+        get { defaults.object(forKey: Key.spotifySignedInAt) as? Date }
+        set { defaults.set(newValue, forKey: Key.spotifySignedInAt) }
     }
 
     // MARK: - Search
