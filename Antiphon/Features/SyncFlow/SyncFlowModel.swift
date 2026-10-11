@@ -118,7 +118,7 @@ final class SyncFlowModel {
         switch afterApply {
         case .showResult: "Sync \(PlanCopy.count(writeCount, "track")) now"
         case .openConflicts: "Decide about \(PlanCopy.count(conflictCount, "removal"))"
-        case .dismiss: "Done"
+        case .dismiss: planned?.plan.reorders.map { "Reorder \($0.rawValue)" } ?? "Done"
         }
     }
 

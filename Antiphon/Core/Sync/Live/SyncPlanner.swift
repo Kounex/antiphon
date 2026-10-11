@@ -114,6 +114,12 @@ actor SyncPlanner {
             appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove
         ))
         plan.uncheckedCount = unchecked
+        if let target = live.mirrorTarget {
+            let ids: [Platform: [String]] = [.spotify: spotifyPlaylist.map(\.id), .appleMusic: applePlaylist.map(\.id)]
+            let reorder = PlacementStep.mirroredIDs(target: ids[target] ?? [], reference: ids[target.other] ?? [],
+                                                    rows: stageA.rows.map(PlacementStep.Row.init), on: target)
+            plan.reorders = reorder == nil ? nil : target
+        }
 
         return PlannedSync(
             plan: plan,
@@ -133,6 +139,7 @@ actor SyncPlanner {
         }
         let spotifyId = pair.spotifyPlaylistId
         let appleId = pair.appleMusicPlaylistId
+        let mirrorTarget = pair.mirrorTarget
         // A playlist Antiphon is about to create counts as Antiphon's.
         let capabilities = PlatformCapabilities.forSeam(
             appleMusicCreatedByAntiphon: pair.appleMusicCreatedByAntiphon || appleId.hasPrefix("pending-creation-")
@@ -153,19 +160,21 @@ actor SyncPlanner {
             ? [] : try await spotifyClient.getPlaylistTracks(playlistId: spotifyId)
 
         guard !appleId.hasPrefix("pending-creation-") else {
-            return LiveTracks(spotify: spotify, appleMusic: [], capabilities: capabilities)
+            return LiveTracks(spotify: spotify, appleMusic: [], capabilities: capabilities, mirrorTarget: nil)
         }
         let playlists = try await appleMusicManager.fetchUserPlaylists()
         guard let playlist = playlists.first(where: { $0.id.rawValue == appleId }) else {
             throw SyncError.appleMusicPlaylistNotFound
         }
         let appleMusic = try await appleMusicManager.fetchPlaylistTracks(for: playlist, localISRCLookup: lookup)
-        return LiveTracks(spotify: spotify, appleMusic: appleMusic, capabilities: capabilities)
+        return LiveTracks(spotify: spotify, appleMusic: appleMusic, capabilities: capabilities, mirrorTarget: mirrorTarget)
     }
 
     private struct LiveTracks {
         let spotify: [SpotifyPlaylistItem]
         let appleMusic: [AppleMusicTrackInfo]
         let capabilities: PlatformCapabilities
+        /// "Same order": the playlist that follows the other side.
+        let mirrorTarget: Platform?
     }
 }

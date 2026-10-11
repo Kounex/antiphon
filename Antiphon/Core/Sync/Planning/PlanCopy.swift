@@ -5,6 +5,15 @@ import Foundation
 enum PlanCopy {
 
     static func headline(for plan: SyncPlan) -> String {
+        guard let reordered = plan.reorders else { return changesHeadline(for: plan) }
+        let order = "\(reordered.rawValue) is put in \(reordered.other.rawValue)'s order."
+        if plan.automaticAddCount == 0 && plan.removalCount == 0 && plan.reviewCount == 0 && plan.conflicts.isEmpty {
+            return order
+        }
+        return "\(changesHeadline(for: plan)) \(order)"
+    }
+
+    private static func changesHeadline(for plan: SyncPlan) -> String {
         let removals = plan.removalCount
         let adds = plan.automaticAddCount
 

@@ -87,6 +87,7 @@ struct DebugRouteView: View {
         case "conflict":
             model.openConflict = .init(item: PreviewFixtures.conflicts[0], others: [PreviewFixtures.conflicts[1]])
         case "problems": model.syncsPath = [.problems]
+        case "settings": model.showsSettings = true
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))

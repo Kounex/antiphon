@@ -38,6 +38,8 @@ final class SelfTestRunner {
     static let userSideSpotifyName = "Antiphon Self-Test (own AM)"
     /// Created by the person in the Music app: Antiphon can only append.
     static let userOwnedAppleName = "Antiphon Test"
+    /// One way with "Same order", Antiphon-created on both sides.
+    static let sameOrderName = "Antiphon Self-Test (same order)"
 
     // MARK: - Run
 
@@ -48,6 +50,8 @@ final class SelfTestRunner {
         log("Start \(Date().formatted(date: .omitted, time: .standard)), scenario: \(scenario ?? "all")")
         do {
             if scenario == nil || scenario == "twoway" { try await twoWayOnOwnedPlaylists() }
+            if scenario == nil || scenario == "sameorder" { try await sameOrderOneWay() }
+            if scenario == nil || scenario == "album" { try await originalAlbum() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -216,6 +220,102 @@ final class SelfTestRunner {
         if !planned.plan.isEmpty { describe(planned.plan) }
     }
 
+    // MARK: - Scenario: one way, "Same order"
+
+    private func sameOrderOneWay() async throws {
+        log("== One way with Same order, both playlists Antiphon's")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint, seeds.midnightCity])
+        try await resetApple(appleId)
+
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true, placement: .mirror)
+        var planned = try await env.preview(first: true)
+        describe(planned.plan)
+        try await env.apply(planned, trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up", "Faint", "Midnight City"])
+        try await checkOrder(env, "after the first sync")
+        planned = try await env.preview()
+        try await env.apply(planned, trigger: .manual)
+
+        // A track only on Apple Music keeps its slot.
+        let holocene = try await appleCatalogTrack("Holocene Bon Iver", album: "Bon Iver")
+        _ = try await env.editor.add([holocene], to: appleId, on: .appleMusic)
+        _ = try await waitForApple(env, titles: ["Holocene"])
+
+        // Reordered on Spotify → Apple Music follows.
+        try await move(env, title: "Midnight City", to: 0, on: .spotify)
+        planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.reorders == .appleMusic, "the preview says Apple Music is put in Spotify's order")
+        expect(planned.plan.automaticAddCount == 0 && planned.plan.removalCount == 0 && planned.plan.conflicts.isEmpty,
+               "reordering adds, removes and asks nothing")
+        log("headline: \(PlanCopy.headline(for: planned.plan))")
+        try await env.apply(planned, trigger: .manual)
+        try await checkOrder(env, "after reordering Spotify")
+        var apple = try await env.appleTracks().map(\.title)
+        expect(apple.last?.localizedCaseInsensitiveContains("Holocene") == true, "the Apple Music-only track keeps its place (\(apple))")
+
+        // Reordered by hand on Apple Music → put back in Spotify's order.
+        try await move(env, title: "Faint", to: 0, on: .appleMusic)
+        planned = try await env.preview()
+        expect(planned.plan.reorders == .appleMusic, "a hand-made Apple Music order is noticed")
+        try await env.apply(planned, trigger: .manual)
+        try await checkOrder(env, "after reordering Apple Music by hand")
+        apple = try await env.appleTracks().map(\.title)
+        expect(apple.last?.localizedCaseInsensitiveContains("Holocene") == true, "Holocene still in its place (\(apple))")
+
+        // Holocene now also on Spotify, second: matched, then put in order.
+        _ = try await env.editor.add([seeds.holocene], to: spotifyId, on: .spotify)
+        try await move(env, title: "Holocene", to: 1, on: .spotify)
+        planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.reorders == .appleMusic, "the preview sees Holocene's new place")
+        try await env.apply(planned, trigger: .manual)
+        try await checkOrder(env, "after adding Holocene second on Spotify")
+
+        // A track new to both, added third on Spotify, lands third.
+        let pumpIt = try await spotifyTrack("track:Pump It artist:Black Eyed Peas", album: "Monkey Business")
+        _ = try await env.editor.add([pumpIt], to: spotifyId, on: .spotify)
+        try await move(env, title: "Pump It", to: 2, on: .spotify)
+        planned = try await env.preview()
+        describe(planned.plan)
+        expect(planned.plan.automaticAddCount == 1, "Pump It is added")
+        try await env.apply(planned, trigger: .manual)
+        apple = try await waitForApple(env, titles: ["Pump It"]).map(\.title)
+        try await checkOrder(env, "after adding Pump It third on Spotify")
+        planned = try await env.preview()
+        expect(planned.plan.isEmpty, "in sync at the end (Same order)")
+        if !planned.plan.isEmpty { describe(planned.plan) }
+    }
+
+    // MARK: - Read only: which album "Original album" picks
+
+    private func originalAlbum() async throws {
+        log("== Original album (read only)")
+        let catalog = AppleMusicTrackCatalog(manager: AppleMusicManager())
+        let cases: [(query: String, album: String, original: String)] = [
+            ("track:Waiting for the End artist:Linkin Park", "Papercuts", "A Thousand Suns"),
+            ("track:Word Up artist:Korn", "Greatest Hits", "Greatest Hits")
+        ]
+        for item in cases {
+            let source = try await spotifyTrack(item.query, album: item.album)
+            log("source: \(source.title) — \(source.album ?? "-") [\(source.isrc ?? "-")]")
+            for choice in ReleaseChoice.allCases {
+                let outcome = try await MatchFinder.find(source, in: catalog, targetPlaylist: [], preferences: VersionPreferences(release: choice))
+                let picks = ([outcome.best].compactMap { $0 } + outcome.alternatives)
+                    .map { "\($0.track.album ?? "?") (\($0.track.releaseYear.map(String.init) ?? "?")) \($0.confidence)%" }
+                log("  \(choice): \(picks.joined(separator: " | "))")
+                let album = outcome.best?.track.album ?? "-"
+                expect((outcome.best?.confidence ?? 0) >= MatchFinder.strongMatch, "\(source.title), \(choice): a solid match (\(album))")
+                let expected = choice == .original ? item.original : ReleasePreference.baseAlbum(source.album ?? "")
+                expect(ReleasePreference.baseAlbum(album).localizedCaseInsensitiveContains(ReleasePreference.baseAlbum(expected)),
+                       "\(source.title), \(choice): from \(expected) (got \(album))")
+            }
+        }
+    }
+
     // MARK: - Scenario: one way into the person's own Apple Music playlist
 
     private func oneWayOnPersonsPlaylist() async throws {
@@ -269,7 +369,8 @@ final class SelfTestRunner {
         let editor = LivePlaylistEditor(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
 
         @MainActor
-        init(spotifyId: String, appleId: String, direction: SyncDirection, appleOwned: Bool) throws {
+        init(spotifyId: String, appleId: String, direction: SyncDirection, appleOwned: Bool,
+             placement: TrackPlacement? = nil) throws {
             let url = URL.applicationSupportDirectory.appending(path: "selftest-\(UUID().uuidString).store")
             container = try SharedModelContainer.make(url: url)
             let context = ModelContext(container)
@@ -277,6 +378,7 @@ final class SelfTestRunner {
                                 appleMusicPlaylistId: appleId, appleMusicPlaylistName: "self-test", syncDirection: direction)
             pair.spotifyCreatedByAntiphon = true
             pair.appleMusicCreatedByAntiphon = appleOwned
+            pair.newTrackPlacement = placement
             context.insert(pair)
             try context.save()
             pairId = pair.id
@@ -434,15 +536,19 @@ final class SelfTestRunner {
 
     /// Moves a track to the second place, like a person dragging it there.
     private func moveToSecond(_ env: Env, title: String, on platform: Platform) async throws {
+        try await move(env, title: title, to: 1, on: platform)
+    }
+
+    private func move(_ env: Env, title: String, to position: Int, on platform: Platform) async throws {
         let playlistId = platform == .spotify ? env.spotifyId : env.appleId
         var ids = try await env.editor.tracks(in: playlistId, on: platform).map { ($0.id, $0.title) }
         guard let index = ids.firstIndex(where: { $0.1.localizedCaseInsensitiveContains(title) }) else {
             throw SelfTestError("\(title) isn't on \(platform.rawValue) to move")
         }
         let moved = ids.remove(at: index)
-        ids.insert(moved, at: min(1, ids.count))
+        ids.insert(moved, at: min(position, ids.count))
         try await env.editor.reorder(playlistId, on: platform, to: ids.map(\.0))
-        log("moved \(title) to second place on \(platform.rawValue)")
+        log("moved \(title) to position \(position + 1) on \(platform.rawValue): \(ids.map(\.1))")
     }
 
     /// Tracks on both sides are in the same order on both sides.

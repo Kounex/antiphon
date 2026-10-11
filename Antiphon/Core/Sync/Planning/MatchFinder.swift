@@ -6,6 +6,12 @@ protocol TrackCatalog: Sendable {
     var platform: Platform { get }
     func tracks(withISRC isrc: String) async throws -> [CatalogTrack]
     func search(_ query: String, limit: Int) async throws -> [CatalogTrack]
+    /// Release types for catalog IDs whose tracks didn't come with one.
+    func albumKinds(for ids: [String]) async -> [String: AlbumKind]
+}
+
+extension TrackCatalog {
+    func albumKinds(for ids: [String]) async -> [String: AlbumKind] { [:] }
 }
 
 /// Finds a track's counterpart in another catalog and scores every candidate.
@@ -35,10 +41,11 @@ enum MatchFinder {
         }
 
         var scored = found.map { candidate(source, $0) }
+        let plainQuery = "\(source.artist.normalizedForMatching) \(source.title.normalizedForMatching)"
+        var searchedPlain = false
         if !scored.contains(where: { $0.reason == .isrc }) {
-            let query = "\(source.artist.normalizedForMatching) \(source.title.normalizedForMatching)"
-            let results = try await catalog.search(query, limit: searchLimit)
-            scored += results.map { candidate(source, $0) }
+            scored += try await catalog.search(plainQuery, limit: searchLimit).map { candidate(source, $0) }
+            searchedPlain = true
         }
 
         // The same recording often has a different ISRC on its original album
@@ -51,6 +58,31 @@ enum MatchFinder {
             scored += results.map { candidate(source, $0) }
         }
 
+        // Asked for the original album, but the ISRC only found compilations
+        // or singles:
+        // the studio album often has its own ISRC, so search for it too.
+        if preferences.release == .original, !searchedPlain,
+           !scored.contains(where: { candidate in
+               candidate.confidence >= strongMatch && ReleasePreference.isStudioAlbum(candidate.track)
+           }) {
+            scored += try await catalog.search(plainQuery, limit: searchLimit).map { candidate(source, $0) }
+        }
+
+        // The original album needs to know compilations that don't say so
+        // in their title ("It's Hard Rock, Hallelujah!").
+        if preferences.release == .original {
+            let unknown = scored.filter { $0.confidence >= strongMatch && $0.track.albumKind == nil }.map(\.track.id)
+            let kinds = await catalog.albumKinds(for: Array(Set(unknown)))
+            if !kinds.isEmpty {
+                scored = scored.map { candidate in
+                    guard let kind = kinds[candidate.track.id] else { return candidate }
+                    var track = candidate.track
+                    track.albumKind = kind
+                    return MatchCandidate(track: track, confidence: candidate.confidence, reason: candidate.reason)
+                }
+            }
+        }
+
         var seen = Set<String>()
         let ranked = scored
             .sorted { a, b in
@@ -59,8 +91,8 @@ enum MatchFinder {
                 // album over compilations); otherwise confidence decides.
                 let strongA = a.confidence >= strongMatch, strongB = b.confidence >= strongMatch
                 if strongA != strongB { return strongA }
-                let releaseA = ReleasePreference.rank(a.track, for: source)
-                let releaseB = ReleasePreference.rank(b.track, for: source)
+                let releaseA = ReleasePreference.rank(a.track, for: source, choice: preferences.release)
+                let releaseB = ReleasePreference.rank(b.track, for: source, choice: preferences.release)
                 if strongA {
                     return releaseA != releaseB ? releaseA > releaseB : a.confidence > b.confidence
                 }

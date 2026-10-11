@@ -8,12 +8,20 @@ final class FakeCatalog: TrackCatalog, Sendable {
     let platform: Platform
     private let byISRC: [String: [CatalogTrack]]
     private let searchResults: [CatalogTrack]
+    private let kinds: [String: AlbumKind]
     private let calls = Mutex<[String]>([])
 
-    init(platform: Platform = .appleMusic, byISRC: [String: [CatalogTrack]] = [:], searchResults: [CatalogTrack] = []) {
+    init(platform: Platform = .appleMusic, byISRC: [String: [CatalogTrack]] = [:], searchResults: [CatalogTrack] = [],
+         albumKinds: [String: AlbumKind] = [:]) {
         self.platform = platform
         self.byISRC = byISRC
         self.searchResults = searchResults
+        self.kinds = albumKinds
+    }
+
+    func albumKinds(for ids: [String]) async -> [String: AlbumKind] {
+        calls.withLock { $0.append("kinds:\(ids.count)") }
+        return kinds.filter { ids.contains($0.key) }
     }
 
     var recordedCalls: [String] { calls.withLock { $0 } }

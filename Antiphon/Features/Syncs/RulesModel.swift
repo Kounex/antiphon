@@ -33,6 +33,8 @@ final class RulesModel {
         // A one-way seam can't ask; a two-way seam asks by default.
         if rules.direction == .bidirectional, self.rules?.direction != .bidirectional { rules.removalPolicy = .ask }
         if rules.direction != .bidirectional, rules.removalPolicy == .ask { rules.removalPolicy = .keep }
+        // "Same order" is one-way only.
+        if rules.direction == .bidirectional, rules.placement == .mirror { rules.placement = .sourceOrder }
         self.rules = rules
         if rules.isPaused != wasPaused {
             toast = rules.isPaused ? "Paused. Antiphon won't change \(seamName) until you turn this back on." : "Resumed."

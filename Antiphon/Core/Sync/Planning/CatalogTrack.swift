@@ -19,6 +19,8 @@ struct CatalogTrack: Hashable, Sendable, Codable {
     var artworkURL: String? = nil
     /// A short audio preview (Apple Music catalog songs only).
     var previewURL: String? = nil
+    /// What the catalog says the release is, when it says.
+    var albumKind: AlbumKind? = nil
 
     /// A web link to the track on its platform, when one can be built.
     var webURL: URL? {
@@ -30,6 +32,14 @@ struct CatalogTrack: Hashable, Sendable, Codable {
             return nil
         }
     }
+}
+
+/// A release's type as the catalog reports it (Spotify's `album_type`,
+/// Apple Music's compilation and single flags).
+enum AlbumKind: String, Codable, Sendable {
+    case album
+    case single
+    case compilation
 }
 
 /// Why Antiphon thinks two tracks are the same recording, strongest first.

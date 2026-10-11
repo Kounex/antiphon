@@ -19,6 +19,7 @@ final class AppPreferences: @unchecked Sendable {
         static let autoAddThreshold = "autoAddThreshold"
         static let reviewQueueEnabled = "reviewQueueEnabled"
         static let acceptRemasters = "acceptRemasters"
+        static let releaseChoice = "releaseChoice"
         static let newSeamRemovalPolicy = "newSeamRemovalPolicy"
         static let newSeamMonitoring = "newSeamMonitoring"
         static let monitorIntervalMinutes = "monitorIntervalMinutes"
@@ -48,8 +49,14 @@ final class AppPreferences: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.acceptRemasters) }
     }
 
+    /// Which album a match comes from: the source's, or the original.
+    var releaseChoice: ReleaseChoice {
+        get { defaults.string(forKey: Key.releaseChoice).flatMap(ReleaseChoice.init) ?? .sourceAlbum }
+        set { defaults.set(newValue.rawValue, forKey: Key.releaseChoice) }
+    }
+
     var versionPreferences: VersionPreferences {
-        VersionPreferences(acceptRemasters: acceptRemasters)
+        VersionPreferences(acceptRemasters: acceptRemasters, release: releaseChoice)
     }
 
     var confidencePolicy: ConfidencePolicy {

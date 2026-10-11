@@ -19,6 +19,14 @@ enum PlacementStep {
         init(_ row: CachedTrack) {
             self.init(key: row.id.uuidString, spotifyId: row.spotifyTrackUri, appleMusicId: row.appleMusicTrackId)
         }
+
+        /// A dry-run row: the track on its own side plus its counterpart.
+        init(_ row: PlanRow) {
+            let own = row.source.id
+            self.init(key: "\(row.source.platform.rawValue):\(own)",
+                      spotifyId: row.source.platform == .spotify ? own : row.counterpartId,
+                      appleMusicId: row.source.platform == .appleMusic ? own : row.counterpartId)
+        }
     }
 
     /// Reads both playlists and reorders `platform` if the placed rows aren't
@@ -36,17 +44,55 @@ enum PlacementStep {
         return true
     }
 
+    /// "Same order": reads both playlists and reorders `platform` to follow
+    /// the other side. Returns whether it wrote.
+    @discardableResult
+    static func mirror(on platform: Platform, playlistId: String, otherPlaylistId: String,
+                       rows: [Row], editor: some PlaylistEditor) async throws -> Bool {
+        let target = try await editor.tracks(in: playlistId, on: platform).map(\.id)
+        let reference = try await editor.tracks(in: otherPlaylistId, on: platform.other).map(\.id)
+        guard let order = mirroredIDs(target: target, reference: reference, rows: rows, on: platform) else { return false }
+        try await editor.reorder(playlistId, on: platform, to: order)
+        return true
+    }
+
+    /// `target`'s IDs following `reference`'s order, or `nil` if they already do.
+    static func mirroredIDs(target: [String], reference: [String], rows: [Row], on platform: Platform) -> [String]? {
+        let keyed = Keyed(rows)
+        let targetKeys = keyed.keys(target, on: platform)
+        let idByKey = Dictionary(uniqueKeysWithValues: zip(targetKeys, target))
+        let desired = TrackOrder.mirrored(target: targetKeys, reference: keyed.keys(reference, on: platform.other))
+        guard desired != targetKeys else { return nil }
+        return desired.compactMap { idByKey[$0] }
+    }
+
     /// `target`'s IDs in the order they belong, or `nil` if already right.
     /// IDs go through the rows so both sides compare; tracks Antiphon
     /// doesn't know, and second copies, keep their own identity.
     static func desiredIDs(target: [String], reference: [String], rows: [Row], placing: Set<String>,
                            on platform: Platform) -> [String]? {
+        let keyed = Keyed(rows)
+        let targetKeys = keyed.keys(target, on: platform)
+        let idByKey = Dictionary(uniqueKeysWithValues: zip(targetKeys, target))
+        let desired = TrackOrder.desired(target: targetKeys, reference: keyed.keys(reference, on: platform.other),
+                                         placing: Set(placing.map { "\($0)#0" }))
+        guard desired != targetKeys else { return nil }
+        return desired.compactMap { idByKey[$0] }
+    }
+
+    /// Platform IDs as row keys, so both sides compare. Tracks Antiphon
+    /// doesn't know, and second copies, keep their own identity.
+    private struct Keyed {
         var keyBySpotify: [String: String] = [:]
         var keyByApple: [String: String] = [:]
-        for row in rows {
-            if let id = row.spotifyId { keyBySpotify[id] = row.key }
-            if let id = row.appleMusicId { keyByApple[id] = row.key }
+
+        init(_ rows: [Row]) {
+            for row in rows {
+                if let id = row.spotifyId { keyBySpotify[id] = row.key }
+                if let id = row.appleMusicId { keyByApple[id] = row.key }
+            }
         }
+
         func keys(_ ids: [String], on platform: Platform) -> [String] {
             let lookup = platform == .spotify ? keyBySpotify : keyByApple
             var seen: [String: Int] = [:]
@@ -57,11 +103,5 @@ enum PlacementStep {
                 return "\(base)#\(copy)"
             }
         }
-        let targetKeys = keys(target, on: platform)
-        let idByKey = Dictionary(uniqueKeysWithValues: zip(targetKeys, target))
-        let desired = TrackOrder.desired(target: targetKeys, reference: keys(reference, on: platform.other),
-                                         placing: Set(placing.map { "\($0)#0" }))
-        guard desired != targetKeys else { return nil }
-        return desired.compactMap { idByKey[$0] }
     }
 }

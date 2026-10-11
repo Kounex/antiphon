@@ -19,7 +19,7 @@ struct FixedPlanService: SyncService {
 @MainActor
 struct SyncFlowModelTests {
 
-    private func plan(adds: Int = 0, conflicts: Int = 0) -> PlannedSync {
+    private func plan(adds: Int = 0, conflicts: Int = 0, reorders: Platform? = nil) -> PlannedSync {
         let id = UUID()
         var apple = SyncPlan.Side(platform: .appleMusic)
         apple.automaticAdds = (0..<adds).map { n in
@@ -30,7 +30,8 @@ struct SyncFlowModelTests {
             let t = CatalogTrack(platform: .spotify, id: "c\(n)", title: "Holocene", artist: "Bon Iver")
             return SyncPlan.Conflict(key: TrackKey(t), track: t, removedFrom: .appleMusic, noticedAt: nil)
         }
-        let p = SyncPlan(pairId: id, createdAt: .now, sides: [.appleMusic: apple], conflicts: removed, inSyncCount: 0)
+        var p = SyncPlan(pairId: id, createdAt: .now, sides: [.appleMusic: apple], conflicts: removed, inSyncCount: 0)
+        p.reorders = reorders
         return PlannedSync(plan: p, fingerprint: PlaylistFingerprint(spotifyTracks: [], appleMusicTracks: []), sourcePlatform: .spotify)
     }
 
@@ -59,6 +60,13 @@ struct SyncFlowModelTests {
     func nothing() async {
         let m = await model(plan())
         #expect(m.primaryTitle == "Done")
+        #expect(m.afterApply == .dismiss)
+    }
+
+    @Test("Only the order changed: the button says so, applying reorders and closes")
+    func reorderOnly() async {
+        let m = await model(plan(reorders: .appleMusic))
+        #expect(m.primaryTitle == "Reorder Apple Music")
         #expect(m.afterApply == .dismiss)
     }
 

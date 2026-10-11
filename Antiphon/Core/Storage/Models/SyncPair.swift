@@ -95,13 +95,26 @@ extension SyncPair {
 
     /// Nothing is removed by default: one-way seams keep removed tracks,
     /// two-way seams turn a removal into a question.
-    var effectivePlacement: TrackPlacement { newTrackPlacement ?? .sourceOrder }
+    /// "Same order" only exists one way: two people reordering both sides
+    /// would undo each other.
+    var effectivePlacement: TrackPlacement {
+        let placement = newTrackPlacement ?? .sourceOrder
+        return placement == .mirror && isTwoWay ? .sourceOrder : placement
+    }
 
     /// Whether Antiphon places new tracks on `platform`. Apple Music only lets
     /// apps reorder playlists they created; elsewhere tracks go at the end.
     func canPlace(on platform: Platform) -> Bool {
-        guard effectivePlacement == .sourceOrder else { return false }
+        guard effectivePlacement != .end else { return false }
         return platform == .spotify || appleMusicCreatedByAntiphon
+    }
+
+    /// The playlist that follows the source's whole order ("Same order"),
+    /// if this seam mirrors and that playlist can be reordered.
+    var mirrorTarget: Platform? {
+        guard effectivePlacement == .mirror else { return nil }
+        let target: Platform = syncDirection == .appleToSpotify ? .spotify : .appleMusic
+        return canPlace(on: target) ? target : nil
     }
 
     var effectiveRemovalPolicy: RemovalPolicy {
@@ -125,6 +138,8 @@ enum RemovalPolicy: String, Codable, CaseIterable, Sendable {
 enum TrackPlacement: String, Codable, Sendable {
     /// After the same neighbour as on the other side. The default.
     case sourceOrder
+    /// One-way: the target follows the source's whole order, reorders too.
+    case mirror
     case end
 }
 

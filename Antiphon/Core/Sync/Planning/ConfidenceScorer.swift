@@ -10,8 +10,19 @@ import Foundation
 struct VersionPreferences: Equatable, Sendable {
     /// Treat a remaster as the same recording as the original.
     var acceptRemasters = false
+    /// Which release of a recording to pick when several match.
+    var release: ReleaseChoice = .sourceAlbum
 
     static let standard = VersionPreferences()
+}
+
+/// Which album a match comes from when the same recording is on several.
+/// Only chooses between releases of one recording, never between versions.
+enum ReleaseChoice: String, CaseIterable, Sendable {
+    /// The source's own album; if that's missing, the original album.
+    case sourceAlbum
+    /// The original studio album, even when the source is on a compilation.
+    case original
 }
 
 enum ConfidenceScorer {

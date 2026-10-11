@@ -43,6 +43,17 @@ struct PlanCopyTests {
         #expect(PlanCopy.headline(for: plan()) == "Everything is already in sync.")
     }
 
+    @Test("Same order: a reordered source is news, not \"in sync\"")
+    func reorderOnly() {
+        var p = plan()
+        p.reorders = .appleMusic
+        #expect(!p.isEmpty)
+        #expect(PlanCopy.headline(for: p) == "Apple Music is put in Spotify's order.")
+        p = plan(adds: [.appleMusic: 2])
+        p.reorders = .appleMusic
+        #expect(PlanCopy.headline(for: p) == "Nothing is removed. 2 tracks are added. Apple Music is put in Spotify's order.")
+    }
+
     @Test("Only close matches: nothing is added until you decide")
     func onlyReview() {
         #expect(PlanCopy.headline(for: plan(review: 3)) == "Nothing is removed. Nothing is added until you review 3 close matches.")

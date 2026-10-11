@@ -165,6 +165,26 @@ struct SyncsScreensTests {
                 == "New tracks go at the end of the playlist.")
     }
 
+    @Test("Same order copy says the target follows the source, and where Apple Music can't")
+    func mirrorCopy() {
+        #expect(RulesCopy.order(.mirror, direction: .spotifyToApple, appleMusicCanReorder: true)
+                == "Apple Music follows Spotify's order, also when you reorder Spotify. Tracks only on Apple Music keep their place.")
+        #expect(RulesCopy.order(.mirror, direction: .spotifyToApple, appleMusicCanReorder: false)
+                == "New tracks go at the end on Apple Music: Apple only lets apps reorder playlists they created.")
+        #expect(RulesCopy.order(.mirror, direction: .appleToSpotify, appleMusicCanReorder: false)
+                == "Spotify follows Apple Music's order, also when you reorder Apple Music. Tracks only on Spotify keep their place.")
+        #expect(RulesCopy.orderOptions(for: .spotifyToApple).map(\.value) == [.sourceOrder, .mirror, .end])
+        #expect(RulesCopy.orderOptions(for: .bidirectional).map(\.value) == [.sourceOrder, .end])
+    }
+
+    @Test("Release copy says which album Antiphon picks")
+    func releaseCopy() {
+        #expect(RulesCopy.release(.sourceAlbum)
+                == "The same album as the source. If that album isn't available, the original album.")
+        #expect(RulesCopy.release(.original)
+                == "The original studio album, also when the source track comes from a compilation.")
+    }
+
     @Test("Monitoring copy is honest about timing")
     func monitoringCopy() {
         #expect(RulesCopy.monitoring(isOn: true, interval: 15, direction: .spotifyToApple) == "Checks Spotify about every 15 min and syncs new tracks. iOS decides the exact moment.")

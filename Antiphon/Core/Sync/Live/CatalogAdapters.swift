@@ -11,7 +11,8 @@ extension CatalogTrack {
             album: track.album?.name, durationMs: track.durationMs, isrc: track.isrc,
             isExplicit: track.explicit,
             releaseYear: track.album?.releaseDate.flatMap { Int($0.prefix(4)) },
-            artworkURL: track.album?.images?.first?.url
+            artworkURL: track.album?.images?.first?.url,
+            albumKind: track.album?.albumType.flatMap(AlbumKind.init)
         )
     }
 
@@ -110,5 +111,24 @@ final class AppleMusicTrackCatalog: TrackCatalog, Sendable {
 
     func search(_ query: String, limit: Int) async throws -> [CatalogTrack] {
         try await manager.searchCatalog(query: query, limit: limit).map(CatalogTrack.init)
+    }
+
+    /// One request for the songs' albums. Search results don't carry them.
+    func albumKinds(for ids: [String]) async -> [String: AlbumKind] {
+        guard !ids.isEmpty else { return [:] }
+        do {
+            var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids.map { MusicItemID($0) })
+            request.properties = [.albums]
+            var kinds: [String: AlbumKind] = [:]
+            for song in try await request.response().items {
+                guard let album = song.albums?.first else { continue }
+                kinds[song.id.rawValue] = album.isCompilation == true || album.artistName == "Various Artists" ? .compilation
+                    : album.isSingle == true ? .single : .album
+            }
+            return kinds
+        } catch {
+            print("[AppleMusicTrackCatalog] Album lookup failed: \(error.localizedDescription)")
+            return [:]
+        }
     }
 }

@@ -176,10 +176,13 @@ struct SpotifyAlbum: Codable {
     let name: String
     let images: [SpotifyImage]?
     let releaseDate: String?
+    /// "album", "single" or "compilation".
+    var albumType: String? = nil
     
     enum CodingKeys: String, CodingKey {
         case id, name, images
         case releaseDate = "release_date"
+        case albumType = "album_type"
     }
 }
 

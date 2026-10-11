@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var resetError: String?
     @AppStorage("syncIntervalMinutes") private var syncIntervalMinutes = AppConstants.Sync.defaultSyncIntervalMinutes
+    /// Same key as `AppPreferences.releaseChoice`.
+    @AppStorage("releaseChoice") private var releaseChoice = ReleaseChoice.sourceAlbum
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
@@ -149,6 +151,28 @@ struct SettingsView: View {
                         Text("4 hours").tag(240)
                     }
                     .tint(Color.textSecondary)
+                }
+                .padding(14)
+
+                Divider().overlay(Color.subtleBorder)
+
+                // Which album a match comes from
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Album to match")
+                            .font(.appBody)
+                            .foregroundStyle(Color.textPrimary)
+                        Spacer()
+                        Picker("Album to match", selection: $releaseChoice) {
+                            Text("Same as source").tag(ReleaseChoice.sourceAlbum)
+                            Text("Original album").tag(ReleaseChoice.original)
+                        }
+                        .tint(Color.textSecondary)
+                    }
+                    Text(RulesCopy.release(releaseChoice))
+                        .font(.appCaption)
+                        .foregroundStyle(Color.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(14)
             }

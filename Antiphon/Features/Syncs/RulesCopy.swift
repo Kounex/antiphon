@@ -1,3 +1,4 @@
+import AntiphonDesign
 import Foundation
 
 /// One-line consequences for each seam rule. Each rewrites itself when the
@@ -32,9 +33,26 @@ enum RulesCopy {
         }
     }
 
+    /// "Same order" is one-way only: on two-way seams both sides' order counts.
+    static func orderOptions(for direction: SyncDirection) -> [DirectionPicker<TrackPlacement>.Option] {
+        let samePlace = DirectionPicker<TrackPlacement>.Option(.sourceOrder, title: "Same place")
+        let end = DirectionPicker<TrackPlacement>.Option(.end, title: "At the end")
+        guard direction != .bidirectional else { return [samePlace, end] }
+        return [samePlace, .init(.mirror, title: "Same order"), end]
+    }
+
     static func order(_ placement: TrackPlacement, direction: SyncDirection, appleMusicCanReorder: Bool) -> String {
-        guard placement == .sourceOrder else { return "New tracks go at the end of the playlist." }
         let appleLimit = "Apple only lets apps reorder playlists they created."
+        switch placement {
+        case .end: return "New tracks go at the end of the playlist."
+        case .mirror where direction == .spotifyToApple:
+            return appleMusicCanReorder
+                ? "Apple Music follows Spotify's order, also when you reorder Spotify. Tracks only on Apple Music keep their place."
+                : "New tracks go at the end on Apple Music: \(appleLimit)"
+        case .mirror where direction == .appleToSpotify:
+            return "Spotify follows Apple Music's order, also when you reorder Apple Music. Tracks only on Spotify keep their place."
+        case .mirror, .sourceOrder: break
+        }
         switch direction {
         case .spotifyToApple:
             return appleMusicCanReorder ? "New tracks go where they are on Spotify." : "New tracks go at the end on Apple Music: \(appleLimit)"
@@ -43,6 +61,13 @@ enum RulesCopy {
         case .bidirectional:
             let both = "New tracks go next to the same tracks as on the other side."
             return appleMusicCanReorder ? both : "\(both) On Apple Music they go at the end: \(appleLimit)"
+        }
+    }
+
+    static func release(_ choice: ReleaseChoice) -> String {
+        switch choice {
+        case .sourceAlbum: "The same album as the source. If that album isn't available, the original album."
+        case .original: "The original studio album, also when the source track comes from a compilation."
         }
     }
 

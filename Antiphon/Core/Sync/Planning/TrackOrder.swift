@@ -38,6 +38,14 @@ enum TrackOrder {
         return result
     }
 
+    /// `target` with the tracks it shares with `reference` in the reference's
+    /// order. Tracks only on the target keep their slot. IDs are unique.
+    static func mirrored(target: [String], reference: [String]) -> [String] {
+        let shared = Set(target).intersection(reference)
+        var next = reference.filter(shared.contains).makeIterator()
+        return target.map { shared.contains($0) ? next.next() ?? $0 : $0 }
+    }
+
     /// Moves that turn `current` into `desired` (same items, other order).
     /// Each move brings the next out-of-place run forward.
     static func moves(from current: [String], to desired: [String]) -> [Move] {

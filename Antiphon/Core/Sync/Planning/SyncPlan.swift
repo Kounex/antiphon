@@ -36,6 +36,8 @@ struct SyncPlan: Sendable {
     let inSyncCount: Int
     /// Tracks the planner couldn't look up this time; they stay pending.
     var uncheckedCount: Int = 0
+    /// "Same order": this playlist is reordered to follow the other side.
+    var reorders: Platform? = nil
 
     struct Side: Sendable, Equatable {
         let platform: Platform
@@ -93,7 +95,9 @@ struct SyncPlan: Sendable {
     var removalCount: Int {
         sides.values.reduce(0) { $0 + $1.removals.filter { !$0.isGuided }.count }
     }
-    var isEmpty: Bool { automaticAddCount == 0 && reviewCount == 0 && removalCount == 0 && conflicts.isEmpty }
+    var isEmpty: Bool {
+        automaticAddCount == 0 && reviewCount == 0 && removalCount == 0 && conflicts.isEmpty && reorders == nil
+    }
 }
 
 // MARK: - Decisions

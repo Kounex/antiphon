@@ -4,21 +4,35 @@ import Foundation
 /// matches — typically the same recording (same ISRC) on the original album
 /// and on compilations.
 ///
-/// Order: the source's own album, then not a compilation (unless the source
-/// is on one), then the earliest release year.
+/// `.sourceAlbum` order: the source's own album, then not a compilation
+/// (unless the source is on one), then the earliest release year.
+/// `.original` order: a studio album, the earliest year, an album over a
+/// single, the standard edition, then the source's album.
 enum ReleasePreference {
 
-    /// Sort key for a release, higher is better: album match strength,
-    /// then not a compilation (unless the source is one), then earlier year.
-    static func rank(_ candidate: CatalogTrack, for source: CatalogTrack) -> (Int, Int, Int) {
-        let sourceIsCompilation = source.album.map(isCompilation) ?? false
-        let isComp = candidate.album.map(isCompilation) ?? false
-        return (albumMatch(candidate, source), sourceIsCompilation || !isComp ? 1 : 0, -(candidate.releaseYear ?? 9999))
+    /// Sort key for a release, higher is better.
+    static func rank(_ candidate: CatalogTrack, for source: CatalogTrack,
+                     choice: ReleaseChoice = .sourceAlbum) -> (Int, Int, Int, Int, Int) {
+        let album = candidate.album ?? ""
+        let notCompilation = isCompilation(candidate) ? 0 : 1
+        let earlier = -(candidate.releaseYear ?? 9999)
+        switch choice {
+        case .sourceAlbum:
+            let sourceIsCompilation = isCompilation(source)
+            return (albumMatch(candidate, source), sourceIsCompilation ? 1 : notCompilation, earlier, 0, 0)
+        case .original:
+            // A studio album wins; otherwise whatever came first, where a
+            // compilation beats a single from the same year.
+            let notSingle = isSingle(candidate) ? 0 : 1
+            return (notCompilation * notSingle, earlier, notSingle, isSpecialEdition(album) ? 0 : 1,
+                    albumMatch(candidate, source))
+        }
     }
 
     /// Whether `a` should be preferred over `b` for `source`, as releases.
-    static func prefers(_ a: CatalogTrack, over b: CatalogTrack, for source: CatalogTrack) -> Bool {
-        rank(a, for: source) > rank(b, for: source)
+    static func prefers(_ a: CatalogTrack, over b: CatalogTrack, for source: CatalogTrack,
+                        choice: ReleaseChoice = .sourceAlbum) -> Bool {
+        rank(a, for: source, choice: choice) > rank(b, for: source, choice: choice)
     }
 
     /// 3: the same album title. 2: the same album in another edition
@@ -42,9 +56,33 @@ enum ReleasePreference {
         "compilation", "playlist", "mixtape", "workout", "party"
     ]
 
+    /// The catalog's album type, or else the title.
+    static func isCompilation(_ track: CatalogTrack) -> Bool {
+        track.albumKind == .compilation || isCompilation(track.album ?? "")
+    }
+
+    static func isSingle(_ track: CatalogTrack) -> Bool {
+        track.albumKind == .single || isSingle(track.album ?? "")
+    }
+
+    static func isStudioAlbum(_ track: CatalogTrack) -> Bool {
+        !isCompilation(track) && !isSingle(track)
+    }
+
     static func isCompilation(_ album: String) -> Bool {
         let title = album.lowercased()
         return compilationMarkers.contains { title.contains($0) }
+    }
+
+    /// Deluxe, anniversary, remastered and similar editions.
+    static func isSpecialEdition(_ album: String) -> Bool {
+        album.lowercased().range(of: #"\b(deluxe|expanded|bonus|anniversary|edition|remaster(ed)?|special|collector'?s|super)\b"#,
+                                 options: .regularExpression) != nil
+    }
+
+    /// Apple Music names singles and EPs "… - Single" and "… - EP".
+    static func isSingle(_ album: String) -> Bool {
+        album.lowercased().range(of: #"\s-\s(single|ep)$"#, options: .regularExpression) != nil
     }
 
     private static func collapse(_ text: String) -> String {

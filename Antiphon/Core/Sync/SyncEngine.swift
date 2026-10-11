@@ -1023,9 +1023,23 @@ actor SyncEngine {
     /// Returns the cache rows whose tracks are gone from both playlists.
     /// Moves this run's additions next to their neighbours on the other
     /// side. Best effort: if it fails, they stay at the end where they landed.
+    /// With "Same order", the target follows the source's whole order instead.
     private func placeAddedTracks(pair: SyncPair, cachedTracks: [CachedTrack], run: RunContext) async {
         let rows = cachedTracks.map(PlacementStep.Row.init)
         let editor = LivePlaylistEditor(spotifyClient: spotifyClient, appleMusicManager: appleMusicManager)
+        if let target = pair.mirrorTarget {
+            let (playlistId, otherId) = target == .spotify
+                ? (pair.spotifyPlaylistId, pair.appleMusicPlaylistId)
+                : (pair.appleMusicPlaylistId, pair.spotifyPlaylistId)
+            do {
+                let moved = try await PlacementStep.mirror(on: target, playlistId: playlistId, otherPlaylistId: otherId,
+                                                           rows: rows, editor: editor)
+                if moved { print("[SyncEngine] Reordered \(target.rawValue) to follow the source") }
+            } catch {
+                print("[SyncEngine] Reordering \(target.rawValue) failed; order unchanged: \(error)")
+            }
+            return
+        }
         for (platform, keys) in run.addedRows where pair.canPlace(on: platform) {
             let (playlistId, otherId) = platform == .spotify
                 ? (pair.spotifyPlaylistId, pair.appleMusicPlaylistId)

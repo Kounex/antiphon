@@ -152,3 +152,125 @@ struct RestoreReleaseTests {
         #expect(try await ReleaseResolver.catalogTrack(for: removed, in: catalog) == nil)
     }
 }
+
+@Suite("Original album preference")
+struct OriginalAlbumTests {
+    private let original = VersionPreferences(release: .original)
+
+    private func am(_ id: String, album: String, year: Int, isrc: String = "USWB10002407") -> CatalogTrack {
+        CatalogTrack(platform: .appleMusic, id: id, title: "In the End", artist: "Linkin Park", album: album,
+                     durationMs: 216_000, isrc: isrc, releaseYear: year)
+    }
+
+    private let fromCompilation = CatalogTrack(platform: .spotify, id: "s", title: "In the End", artist: "Linkin Park",
+                                               album: "Greatest Hits", durationMs: 216_000, isrc: "USWB10002407")
+
+    @Test("A source on a compilation gets the studio album")
+    func compilationSourceGetsStudioAlbum() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("hits", album: "Greatest Hits", year: 2023), am("studio", album: "Hybrid Theory", year: 2000)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "studio")
+    }
+
+    @Test("The default still follows the source's album")
+    func defaultFollowsSource() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("hits", album: "Greatest Hits", year: 2023), am("studio", album: "Hybrid Theory", year: 2000)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [])
+        #expect(outcome.best?.track.id == "hits")
+    }
+
+    @Test("The standard edition beats the deluxe one from the same year")
+    func standardOverDeluxe() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("deluxe", album: "Hybrid Theory (Deluxe Edition)", year: 2000), am("studio", album: "Hybrid Theory", year: 2000)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "studio")
+    }
+
+    @Test("The album beats the single, even when the single came first")
+    func albumOverSingle() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("single", album: "In the End - Single", year: 1999), am("studio", album: "Hybrid Theory", year: 2000)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "studio")
+    }
+
+    @Test("Only compilations: the earliest one")
+    func onlyCompilations() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("later", album: "Rock Anthems 2000s", year: 2019), am("first", album: "Greatest Hits", year: 2004)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "first")
+    }
+
+    @Test("When the ISRC only finds compilations, a search looks for the studio album")
+    func searchesForStudioAlbum() async throws {
+        let catalog = FakeCatalog(
+            byISRC: ["USWB10002407": [am("hits", album: "Greatest Hits", year: 2023)]],
+            searchResults: [am("studio", album: "Hybrid Theory", year: 2000, isrc: "USWB19900001")]
+        )
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "studio")
+        #expect(catalog.recordedCalls == ["isrc:USWB10002407", "search:linkin park in the end", "kinds:2"])
+    }
+
+    @Test("A song that first came out on a compilation keeps that compilation over its single")
+    func compilationOriginal() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("single", album: "Word Up! - Single", year: 2004), am("hits", album: "Greatest Hits, Vol. 1", year: 2004)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "hits")
+    }
+
+    @Test("A single that came out before any compilation is the original")
+    func standaloneSingle() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [
+            am("best", album: "The Best Of", year: 2015), am("single", album: "In the End - Single", year: 2010)
+        ]])
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "single")
+    }
+
+    @Test("A various-artists compilation without a telling title is known by the catalog's album type")
+    func catalogCompilation() async throws {
+        let catalog = FakeCatalog(
+            byISRC: ["USWB10002407": [am("hard-rock", album: "It's Hard Rock, Hallelujah!", year: 2004),
+                                      am("hits", album: "Greatest Hits", year: 2004)]],
+            albumKinds: ["hard-rock": .compilation]
+        )
+        let outcome = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [], preferences: original)
+        #expect(outcome.best?.track.id == "hits")
+    }
+
+    @Test("Album types are only looked up for the original album")
+    func kindsOnlyWhenNeeded() async throws {
+        let catalog = FakeCatalog(byISRC: ["USWB10002407": [am("hits", album: "Greatest Hits", year: 2004)]])
+        _ = try await MatchFinder.find(fromCompilation, in: catalog, targetPlaylist: [])
+        #expect(!catalog.recordedCalls.contains { $0.hasPrefix("kinds:") })
+    }
+
+    @Test("Spotify's album type comes along with the track")
+    func spotifyAlbumType() throws {
+        let json = #"{"id":"x","name":"Word Up!","uri":"spotify:track:x","duration_ms":173000,"type":"track","album":{"id":"a","name":"It's Hard Rock, Hallelujah!","album_type":"compilation"}}"#
+        let track = try JSONDecoder().decode(SpotifyTrack.self, from: Data(json.utf8))
+        #expect(CatalogTrack(track).albumKind == .compilation)
+    }
+
+    @Test("Edition and single titles are recognized")
+    func titles() {
+        #expect(ReleasePreference.isSpecialEdition("Hybrid Theory (20th Anniversary Edition)"))
+        #expect(ReleasePreference.isSpecialEdition("Meteora (Deluxe)"))
+        #expect(!ReleasePreference.isSpecialEdition("Hybrid Theory"))
+        #expect(ReleasePreference.isSingle("In the End - Single"))
+        #expect(ReleasePreference.isSingle("Lost - EP"))
+        #expect(!ReleasePreference.isSingle("Hybrid Theory"))
+    }
+}

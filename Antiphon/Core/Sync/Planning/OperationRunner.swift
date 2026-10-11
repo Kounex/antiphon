@@ -173,7 +173,17 @@ actor OperationRunner {
         let rows = pair.cachedTracks.map(PlacementStep.Row.init)
         let playlists: [Platform: String] = [.spotify: pair.spotifyPlaylistId, .appleMusic: pair.appleMusicPlaylistId]
         let allowed = Platform.allCases.filter { platform in
-            pair.effectivePlacement == .sourceOrder && (platform == .spotify || capabilities(for: pair).appleMusicCanReorder)
+            pair.effectivePlacement != .end && (platform == .spotify || capabilities(for: pair).appleMusicCanReorder)
+        }
+        if pair.effectivePlacement == .mirror, placing.values.contains(where: { !$0.isEmpty }) {
+            let target: Platform = pair.syncDirection == .appleToSpotify ? .spotify : .appleMusic
+            guard allowed.contains(target), let playlistId = playlists[target], let otherId = playlists[target.other] else { return }
+            do {
+                try await PlacementStep.mirror(on: target, playlistId: playlistId, otherPlaylistId: otherId, rows: rows, editor: editor)
+            } catch {
+                print("[OperationRunner] Reordering \(target.rawValue) failed; order unchanged: \(error)")
+            }
+            return
         }
         for (platform, keys) in placing where allowed.contains(platform) {
             guard let playlistId = playlists[platform], let otherId = playlists[platform.other] else { continue }

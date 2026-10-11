@@ -113,7 +113,7 @@ struct RulesView: View {
         Section("Track order") {
             DirectionPicker(
                 "Where new tracks go",
-                options: [.init(.sourceOrder, title: "Same place"), .init(.end, title: "At the end")],
+                options: RulesCopy.orderOptions(for: rules.direction),
                 selection: Binding(get: { rules.placement }, set: { placement in model.update { $0.placement = placement } }),
                 consequence: RulesCopy.order(rules.placement, direction: rules.direction, appleMusicCanReorder: rules.appleMusicCanReorder)
             )
