@@ -51,4 +51,8 @@ enum CatalogFailure: Equatable {
 /// Thrown by the planner when a lookup error makes the whole preview impossible.
 struct PlanningStopped: Error, Equatable {
     let message: String
+    /// What stopped it, so a background run can record the problem.
+    var underlying: (any Error)? = nil
+
+    static func == (lhs: PlanningStopped, rhs: PlanningStopped) -> Bool { lhs.message == rhs.message }
 }

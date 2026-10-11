@@ -26,5 +26,7 @@ enum AppConstants {
         static let defaultSyncIntervalMinutes: Int = 30
         /// Minimum interval between syncs (5 minutes).
         static let minimumSyncIntervalSeconds: TimeInterval = 300
+        /// Tracks a background run looks up at most; the rest wait for the next run.
+        static let backgroundLookupLimit = 25
     }
 }

@@ -46,6 +46,19 @@ enum TrackOrder {
         return target.map { shared.contains($0) ? next.next() ?? $0 : $0 }
     }
 
+    /// The whole playlist in `order`: the slots that hold the ordered tracks
+    /// get them in sequence, and every other item (podcast episodes,
+    /// unavailable items) stays where it is. Spotify counts positions over
+    /// all items, so moves must be worked out on this full list.
+    /// `nil` when `order` names tracks the playlist doesn't hold (as often).
+    static func fillingTrackSlots(_ items: [String], with order: [String]) -> [String]? {
+        let ordered = Set(order)
+        let tracks = items.filter { ordered.contains($0) }
+        guard tracks.sorted() == order.sorted() else { return nil }
+        var next = order.makeIterator()
+        return items.map { ordered.contains($0) ? next.next() ?? $0 : $0 }
+    }
+
     /// Moves that turn `current` into `desired` (same items, other order).
     /// Each move brings the next out-of-place run forward.
     static func moves(from current: [String], to desired: [String]) -> [Move] {

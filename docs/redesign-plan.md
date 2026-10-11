@@ -510,3 +510,17 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **Scripts stop on a failed build.** `build-dev.sh` uses `pipefail`, `screenshot.sh --install` checks the build before installing, and `selftest.sh` stops when the build or the install fails instead of running the previous app.
 - **Removed:** the unused `AppAppearance.colorScheme` and `SettingsModel.initials`.
 - **Verified:** 303 unit tests pass; after the flip route a `light` screenshot is light again; the `icon` self-test passed 5 of 5 on device, including Light then Dark at once.
+
+### Full-codebase review fixes: sync engine and background runs (2026-10-11)
+
+- **Background runs use the plan.** `syncAllMonitored` used to run Stage B's old `TrackMatcher` path, which added any match at 60% or more without asking. It now plans like a preview (`SyncPlanner.plan(unattended:limit:)`, the person's matching, version and recheck settings) and applies it approving nothing. Two-way removals are left for the next preview (D2); one-way Mirror removals apply. At most 25 tracks are looked up per run, so a run that iOS ends early still makes progress next time. Seams waiting for a rebuild aren't synced in the background, and a seam a person is syncing is skipped.
+- **"Missing" isn't "failed".** A track the other catalog doesn't carry makes a run partial; only tracks that hit an error fail it (`SyncResultStatus.after`). Close matches waiting in Review also make it partial, and the run message counts them ("2 to review").
+- **Matching respects owned entries.** Stage A's fuzzy and ISRC passes no longer claim a target entry another row owns, so a second "Intro" by the same artist is added instead of passing as in sync.
+- **Spotify reorder counts every item.** Positions come from the full item list (`getPlaylistItems`), with episodes and unavailable items kept in their slots (`TrackOrder.fillingTrackSlots`).
+- **The removal safety stop puts its flags back** (`RemovalSafety.Snapshot`), so a second broken read is caught again.
+- **Seam counts ask the plan's question rule** (`PlanBuilder.asks`): Keep and Mirror seams no longer show removals as "to review", and one-way Ask seams do.
+- **Spotify busy isn't "signed out".** A refresh that fails with 429, 5xx or no response is `refreshUnavailable` (temporary); only a rejected token (4xx) shows "Spotify signed you out".
+- **Smaller:** Apple Music adds are recorded under the library ID they're anchored to, so seam detail marks them New; a cancelled run no longer subtracts its rolled-back adds twice; a planned song that fails to load stays pending instead of "Not on Apple Music"; Apple Music playlist reads follow further batches (`allTracks(of:)`).
+- **Scripts:** `selftest.sh` waits for a locked phone and fails when the self-test doesn't finish or any check fails.
+- **Verified:** 318 unit tests pass (new: question rule vs plan for every flag/direction/policy, run status, owned entries in both directions, which fail on the old code, slot filling, refresh status, snapshot restore, unattended policy). On device, the full self-test passed 105 of 105. The `monitor` scenario now also sets the auto-add bar to 100: Faint (99%) waited in Review with a "Your call" notification and wasn't added, Holocene (100%) was added, and the run reported partial. The independent review of this change caught that two-way Mirror seams would have had removals carried out unseen; that is now prevented (`unattendedPolicy`). The self-test needs the dev app on screen: a suspended app stalls its network and Apple Music calls.
+

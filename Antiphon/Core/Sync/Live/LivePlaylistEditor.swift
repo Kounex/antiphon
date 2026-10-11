@@ -55,8 +55,15 @@ struct LivePlaylistEditor: PlaylistEditor {
                 var seen: [String: Int] = [:]
                 return ids.map { id in defer { seen[id, default: 0] += 1 }; return "\(id)#\(seen[id, default: 0])" }
             }
-            let current = try await tracks(in: playlistId, on: .spotify).map(\.id)
-            for move in TrackOrder.moves(from: tagged(current), to: tagged(order)) {
+            // Positions count every item, so episodes and unavailable items
+            // stay in the list (and in their place).
+            let items = try await spotifyClient.getPlaylistItems(playlistId: playlistId).enumerated().map { index, item in
+                item.track?.uri ?? "unavailable:\(index)"
+            }
+            guard let desired = TrackOrder.fillingTrackSlots(items, with: order) else {
+                throw OperationRunner.Failure.trackNotFound
+            }
+            for move in TrackOrder.moves(from: tagged(items), to: tagged(desired)) {
                 try await spotifyClient.reorderPlaylistItems(playlistId: playlistId, rangeStart: move.rangeStart,
                                                              insertBefore: move.insertBefore, rangeLength: move.rangeLength)
             }

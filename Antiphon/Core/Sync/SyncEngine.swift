@@ -47,13 +47,17 @@ actor SyncEngine {
     /// Called by foreground sync, AppIntent, and BGAppRefreshTask.
     @discardableResult
     /// `only`: the seams a background run found due; `nil` syncs every monitored seam.
-    func syncAllMonitored(only: Set<UUID>? = nil, trigger: SyncTrigger = .monitor) async -> [SyncResult] {
+    func syncAllMonitored(only: Set<UUID>? = nil, trigger: SyncTrigger = .monitor,
+                          preferences: AppPreferences = .shared) async -> [SyncResult] {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
             // A seam's first sync is always previewed by the person, never run
             // by monitoring.
-            predicate: #Predicate { $0.isMonitored == true && $0.pausedAt == nil && $0.lastSyncedAt != nil }
+            // A rebuild (after a direction change) is previewed by the person too.
+            predicate: #Predicate {
+                $0.isMonitored == true && $0.pausedAt == nil && $0.lastSyncedAt != nil && $0.needsRebuild == false
+            }
         )
         
         guard let monitoredPairs = try? context.fetch(descriptor) else {
@@ -80,7 +84,7 @@ actor SyncEngine {
                 continue
             }
             
-            let result = await syncSinglePair(pair, context: context, action: .monitorSync, run: RunContext(trigger: trigger))
+            let result = await monitorSync(pair, context: context, trigger: trigger, preferences: preferences)
             results.append(result)
         }
         
@@ -89,6 +93,59 @@ actor SyncEngine {
         return results
     }
     
+    /// A run nobody previews applies the same plan a preview would show,
+    /// approving nothing: strong matches are added, close matches wait in
+    /// Review, removals follow the seam's policy (Mirror removes, Ask asks).
+    private func monitorSync(_ pair: SyncPair, context: ModelContext, trigger: SyncTrigger,
+                             preferences: AppPreferences) async -> SyncResult {
+        // A sync already running for this seam (started by the person) wins;
+        // don't plan against playlists it is changing.
+        let pairId = pair.id
+        guard !inProgressSyncPairs.withLock({ $0.contains(pairId) }) else {
+            return SyncResult(pairId: pair.id, status: .partial, message: SyncError.syncAlreadyInProgress.localizedDescription)
+        }
+        let planner = SyncPlanner(
+            modelContainer: modelContainer, spotifyClient: spotifyClient, appleMusicManager: appleMusicManager,
+            confidence: preferences.confidencePolicy, versionPreferences: preferences.versionPreferences,
+            recheck: preferences.recheckCadence
+        )
+        let run = RunContext(trigger: trigger)
+        let planned: PlannedSync
+        do {
+            planned = try await planner.plan(pairId: pair.id, action: .monitorSync, unattended: true,
+                                             limit: AppConstants.Sync.backgroundLookupLimit)
+        } catch {
+            // iOS ending the background run cancels the requests in flight.
+            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
+                return SyncResult(pairId: pair.id, status: .partial, message: "Sync interrupted")
+            }
+            return failedRun(error, pair: pair, context: context, action: .monitorSync, run: run)
+        }
+        // If a playlist changes between planning and applying, nothing is
+        // written (`isStale`) and the next run plans again.
+        return await syncSinglePair(pair, context: context, action: .monitorSync,
+                                    run: RunContext(trigger: trigger, planned: planned))
+    }
+
+    /// Records a run that stopped on `error`: the seam's state, a problem
+    /// the person can act on (if it is one), and the History entry.
+    private func failedRun(_ error: any Error, pair: SyncPair, context: ModelContext, action: SyncAction,
+                           run: RunContext, tracksAdded: Int = 0, tracksFailed: Int = 0) -> SyncResult {
+        let message = "Sync failed: \((error as? PlanningStopped)?.message ?? error.localizedDescription)"
+        pair.lastSyncResult = .failed
+        pair.lastSyncMessage = message
+        let cause = (error as? PlanningStopped)?.underlying ?? error
+        if let problem = ProblemClassifier.problem(for: cause, seamName: pair.spotifyPlaylistName) {
+            ProblemStore.record(problem, for: pair, in: context)
+        }
+        logSync(pair: pair, context: context, action: action, run: run,
+               result: .failed,
+               tracksAdded: tracksAdded, tracksRemoved: 0,
+               tracksFailed: tracksFailed, tracksMatched: 0,
+               details: message)
+        return SyncResult(pairId: pair.id, status: .failed, message: message)
+    }
+
     /// Performs a sync for a specific SyncPair.
     /// Accepts an optional progress callback for real-time UI updates.
     @discardableResult
@@ -330,6 +387,7 @@ actor SyncEngine {
                 
                 // Rows flagged from here on are this sync's new removals.
                 let alignStartedAt = Date()
+                let removalSnapshot = RemovalSafety.Snapshot(cachedTracks)
 
                 // Rows matched in Stage B (or manually) may hold a catalog Song ID
                 // rather than the playlist's library ID. Re-anchor them before
@@ -407,6 +465,9 @@ actor SyncEngine {
                     let totalRemovals = RemovalSafety.newRemovals(in: cachedTracks, since: alignStartedAt)
                     let removalPercentage = Double(totalRemovals) / Double(cachedTracks.count)
                     let message = "Safety threshold triggered: \(totalRemovals) tracks would be removed (\(Int(removalPercentage * 100))%). Sync aborted."
+                    // Nothing was removed: put the flags back so the next
+                    // sync looks at the same rows afresh.
+                    removalSnapshot.restore(cachedTracks)
                     pair.lastSyncResult = .failed
                     pair.lastSyncMessage = message
                     logSync(pair: pair, context: context, action: action, run: run,
@@ -481,11 +542,12 @@ actor SyncEngine {
             let totalRemovalFlags = cachedTracks.filter { $0.removalFlag != nil }.count
             let totalUnmatched = cachedTracks.filter { $0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed }.count
             let totalMatched = cachedTracks.count
-            let resultStatus: SyncResultStatus = totalUnmatched > 0 ? .failed : (totalRemovalFlags > 0 ? .partial : .success)
+            let resultStatus = SyncResultStatus.after(cachedTracks)
             
             let message = buildSyncMessage(
                 flagged: totalRemovalFlags,
                 unmatched: totalUnmatched,
+                review: cachedTracks.filter { $0.removalFlag == nil && $0.effectiveSyncState == .needsReview }.count,
                 total: totalMatched
             )
             
@@ -522,20 +584,8 @@ actor SyncEngine {
                                       tracksAdded: tracksAdded, tracksFailed: tracksFailed,
                                       cachedTracks: cachedTracks, run: run)
         } catch {
-            let message = "Sync failed: \(error.localizedDescription)"
-            pair.lastSyncResult = .failed
-            pair.lastSyncMessage = message
-            if let problem = ProblemClassifier.problem(for: error, seamName: pair.spotifyPlaylistName) {
-                ProblemStore.record(problem, for: pair, in: context)
-            }
-            
-            logSync(pair: pair, context: context, action: action, run: run,
-                   result: .failed,
-                   tracksAdded: tracksAdded, tracksRemoved: 0,
-                   tracksFailed: tracksFailed, tracksMatched: 0,
-                   details: message)
-            
-            return SyncResult(pairId: pair.id, status: .failed, message: message)
+            return failedRun(error, pair: pair, context: context, action: action, run: run,
+                             tracksAdded: tracksAdded, tracksFailed: tracksFailed)
         }
     }
     
@@ -706,6 +756,10 @@ actor SyncEngine {
                         track.source = .both
                         track.unmatchedPlatform = nil
                         recordEvidence(plannedMatch, on: track)
+                    } else if plannedMatch != nil {
+                        // The plan found it, but fetching the song failed
+                        // (network): it isn't missing. Try again next sync.
+                        track.syncState = .pending
                     } else {
                         track.syncState = .failed
                         track.unmatchedPlatform = .appleMusic
@@ -798,6 +852,11 @@ actor SyncEngine {
                 context: context
             )
             added -= rolledBack
+            // Rolled back once: nothing is left to write or roll back below.
+            spotifyUrisToAdd.removeAll()
+            queuedSpotifyWrites.removeAll()
+            appleMusicSongsToAdd.removeAll()
+            queuedAppleMusicWrites.removeAll()
         }
         
         // Batch-add Spotify tracks if any
@@ -876,12 +935,13 @@ actor SyncEngine {
                         to: amPlaylist,
                         onSongAdded: reportAdded
                     )
-                    for write in queuedAppleMusicWrites {
-                        run.recordAdd(of: write.track, on: .appleMusic, id: write.songId)
-                    }
+                    // Recorded under the ID the row keeps (the library ID once
+                    // anchored), so seam detail can tell which rows are new.
                     let anchors = await appleMusicManager.libraryIDs(for: appleMusicSongsToAdd, in: amPlaylist)
                     for write in queuedAppleMusicWrites {
-                        if let libraryID = anchors[write.songId] { write.track.appleMusicTrackId = libraryID }
+                        let id = anchors[write.songId] ?? write.songId
+                        write.track.appleMusicTrackId = id
+                        run.recordAdd(of: write.track, on: .appleMusic, id: id)
                     }
                 } catch {
                     // Songs are added one at a time, so only roll back the ones
@@ -1182,19 +1242,22 @@ actor SyncEngine {
         run.changes = []
     }
     
-    private func buildSyncMessage(flagged: Int, unmatched: Int, total: Int) -> String {
+    private func buildSyncMessage(flagged: Int, unmatched: Int, review: Int, total: Int) -> String {
         if total == 0 {
             return "No tracks in playlist"
         }
-        let synced = total - flagged - unmatched
+        let synced = total - flagged - unmatched - review
         
-        if unmatched == 0 && flagged == 0 {
+        if unmatched == 0 && flagged == 0 && review == 0 {
             return "All \(total) tracks in sync"
         }
         
         var parts: [String] = []
         if flagged > 0 {
             parts.append("\(flagged) flagged")
+        }
+        if review > 0 {
+            parts.append("\(review) to review")
         }
         if unmatched > 0 {
             parts.append("\(unmatched) missing")

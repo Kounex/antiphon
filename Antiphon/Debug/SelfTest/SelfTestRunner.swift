@@ -432,6 +432,29 @@ final class SelfTestRunner {
         expect(runs.first?.trigger == .monitor, "History shows it as watching")
         let fresh = try await env.repository.newTracks()
         expect(fresh.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "and it's under New tracks")
+
+        // Only the automatic band is added without asking: with the bar at
+        // 100, anything less than a perfect match waits in Review.
+        preferences.autoAddThreshold = 100
+        _ = try await env.editor.add([seeds.faint, seeds.holocene], to: spotifyId, on: .spotify)
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+        report = await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false)
+        log("bar at 100: \(report.summary); messages \(report.messages.map { "\($0.kind.rawValue): \($0.body)" })")
+        let appleAfter = try await env.appleTracks()
+        for row in try env.rows(titled: ["Faint", "Holocene"]) {
+            let onApple = appleAfter.contains { $0.title.localizedCaseInsensitiveContains(row.title) }
+            guard let confidence = row.matchConfidence else {
+                log("\(row.title): no match found (\(row.state.map { "\($0)" } ?? "-"))")
+                continue
+            }
+            if confidence < 100 {
+                expect(row.state == .needsReview && !onApple, "\(row.title) at \(confidence)%: waits in Review, not added")
+            } else {
+                log("\(row.title) matched at 100%, so the review band wasn't exercised by it")
+                expect(row.state == .synced, "\(row.title) at 100%: added")
+            }
+        }
+        expect(report.results.first?.status != .failed, "the run didn't fail (\(report.results.map { "\($0.status)" }))")
         defaults.removePersistentDomain(forName: "antiphon-selftest-monitor")
     }
 
@@ -674,6 +697,14 @@ final class SelfTestRunner {
             row.removalFlaggedAt = nil
             row.removalKeptAt = nil
             try context.save()
+        }
+
+        /// The seam's rows whose titles contain one of `titles`.
+        @MainActor
+        func rows(titled titles: [String]) throws -> [(title: String, state: TrackSyncState?, matchConfidence: Int?)] {
+            try ModelContext(container).fetch(FetchDescriptor<CachedTrack>())
+                .filter { row in row.syncPair?.id == pairId && titles.contains { row.title.localizedCaseInsensitiveContains($0) } }
+                .map { ($0.title, $0.syncState, $0.matchConfidence) }
         }
 
         /// Monitored, as if last synced at `lastSynced`.

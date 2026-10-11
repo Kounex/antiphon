@@ -100,6 +100,26 @@ enum PlanBuilder {
         }
     }
 
+    /// The removal policy for a run nobody previews. Two-way removals are
+    /// never carried out unseen (D2): a two-way Mirror seam keeps them for
+    /// the next preview. One-way Mirror removals still apply.
+    static func unattendedPolicy(_ policy: RemovalPolicy, direction: SyncDirection) -> RemovalPolicy {
+        direction == .bidirectional && policy == .mirror ? .keep : policy
+    }
+
+    /// Whether a removal flag becomes a question for the person. The seam
+    /// counts and the Review queue use this rule too, so they agree with
+    /// the plan.
+    static func asks(about flag: RemovalFlag, direction: SyncDirection, policy: RemovalPolicy) -> Bool {
+        guard policy == .ask else { return false }
+        switch flag {
+        case .extraOnDestination: return false
+        case .removedFromSource: return true
+        case .removedFromSpotify: return allows(direction, from: .spotify)
+        case .removedFromAppleMusic: return allows(direction, from: .appleMusic)
+        }
+    }
+
     private static func planRemoval(
         _ row: PlanRow,
         flag: RemovalFlag,

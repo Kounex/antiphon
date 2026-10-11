@@ -245,7 +245,18 @@ enum SpotifyAuthError: LocalizedError {
     case sessionStartFailed
     case tokenExchangeFailed
     case tokenRefreshFailed
+    /// Spotify couldn't refresh the session right now (busy or down). The
+    /// stored sign-in is still good.
+    case refreshUnavailable
     case unknown
+
+    /// What a failed refresh means. Spotify rejecting the refresh token
+    /// (4xx) means signing in again; a busy or failing service (429, 5xx,
+    /// no response) doesn't.
+    static func refreshFailure(status: Int?) -> SpotifyAuthError {
+        guard let status, (400..<500).contains(status), status != 429 else { return .refreshUnavailable }
+        return .tokenRefreshFailed
+    }
     
     var errorDescription: String? {
         switch self {
@@ -257,6 +268,7 @@ enum SpotifyAuthError: LocalizedError {
         case .sessionStartFailed: return "Failed to start the login session. Please try again."
         case .tokenExchangeFailed: return "Failed to exchange authorization code for tokens."
         case .tokenRefreshFailed: return "Session expired. Please reconnect Spotify."
+        case .refreshUnavailable: return "Spotify isn't responding right now. Antiphon will try again later."
         case .unknown: return "An unknown error occurred during Spotify authentication."
         }
     }

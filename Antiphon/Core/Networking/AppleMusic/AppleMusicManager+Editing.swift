@@ -36,6 +36,26 @@ extension AppleMusicManager {
         _ = try await MusicLibrary.shared.edit(playlist, items: indices.map { entries[$0] })
     }
 
+    /// Every track in `playlist`, following further batches if MusicKit
+    /// returns the relationship in pages. `nil` when it has no tracks
+    /// relationship.
+    func allTracks(of playlist: Playlist) async throws -> [Track]? {
+        guard var batch = try await playlist.with([.tracks]).tracks else { return nil }
+        var all = Array(batch)
+        var pages = 1
+        // An empty batch ends it too, so a relationship that keeps claiming
+        // more can't loop forever.
+        while batch.hasNextBatch, let next = try await batch.nextBatch(), !next.isEmpty {
+            all.append(contentsOf: next)
+            batch = next
+            pages += 1
+        }
+        #if DEBUG
+        if pages > 1 { print("[AppleMusic] Read \(all.count) tracks of \(playlist.name) in \(pages) batches") }
+        #endif
+        return all
+    }
+
     // MARK: - Private
 
     private func allEntries(of playlist: Playlist) async throws -> [Playlist.Entry] {
@@ -49,13 +69,7 @@ extension AppleMusicManager {
     }
 
     private func allTrackCount(of playlist: Playlist) async throws -> Int {
-        guard var batch = try await playlist.with([.tracks]).tracks else { return 0 }
-        var count = batch.count
-        while batch.hasNextBatch, let next = try await batch.nextBatch() {
-            count += next.count
-            batch = next
-        }
-        return count
+        try await allTracks(of: playlist)?.count ?? 0
     }
 
     /// Every ID an entry is known under: entry, library item and catalog.

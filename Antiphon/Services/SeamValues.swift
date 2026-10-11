@@ -20,16 +20,16 @@ struct SeamCounts: Hashable, Sendable {
 }
 
 extension SeamCounts {
-    /// Counts what the seam is responsible for. Differences the person chose
-    /// to keep, tracks that only live on a one-way seam's target, and
-    /// removals a one-way seam ignores are left out entirely.
-    init(tracks: [CachedTrack], direction: SyncDirection) {
+    /// Counts what the seam is responsible for. Removals are review only when
+    /// the seam asks about them (`PlanBuilder.asks`); differences the person
+    /// chose to keep, tracks that only live on a one-way seam's target, and
+    /// removals the seam's policy settles without asking are left out.
+    init(tracks: [CachedTrack], direction: SyncDirection, policy: RemovalPolicy) {
         self = .empty
-        let isTwoWay = direction == .bidirectional
 
         for track in tracks {
             if let flag = track.removalFlag {
-                guard track.removalKeptAt == nil, flag != .extraOnDestination, isTwoWay else { continue }
+                guard track.removalKeptAt == nil, PlanBuilder.asks(about: flag, direction: direction, policy: policy) else { continue }
                 review += 1
                 total += 1
                 continue

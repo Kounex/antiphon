@@ -28,7 +28,7 @@ extension SwiftDataSeamRepository: SettingsStore {
         let pairs = try context.fetch(FetchDescriptor<SyncPair>())
         return AccountUsage(
             seams: pairs.count,
-            tracksInSync: pairs.reduce(0) { $0 + SeamCounts(tracks: $1.cachedTracks, direction: $1.syncDirection).synced },
+            tracksInSync: pairs.reduce(0) { $0 + SeamCounts(tracks: $1.cachedTracks, direction: $1.syncDirection, policy: $1.effectiveRemovalPolicy).synced },
             madeOnSpotify: pairs.filter(\.spotifyCreatedByAntiphon).count,
             madeOnAppleMusic: pairs.filter(\.appleMusicCreatedByAntiphon).count
         )

@@ -49,10 +49,10 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 - **Scenarios:**
   - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly).
   - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon).
-- Last full run: **102 of 102**.
+- Last full run: **105 of 105** (2026-10-11).
 - **Rules from the user:**
   - Only touch playlists whose names start with "Antiphon". "Antiphon Test" (made by the user, used by their real two-way seam) and "Antiphon Test 2" (Antiphon-made) may be used.
-  - The phone must be unlocked; auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
+  - The phone must be unlocked and the dev app on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
 
 ## How the user wants work done
 
@@ -96,7 +96,7 @@ Packages/AntiphonDesign  Tokens (colors from tokens.json, type, spacing) and com
 Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via SharedModelContainer.make(inMemory:)
 ```
 
-**Sync flow.** A manual sync previews first: `SyncPlanner.plan` gives a `PlannedSync`. The person approves it, `SyncService.apply` hands it to `SyncEngine.syncPair(planned:)`, and that writes, records a `SyncChange` per write, then places new tracks in order. Monitoring runs the engine without a preview: close matches wait in Review, and removals in two-way seams become questions. Single actions (put back, accept a match, undo) go through `OperationRunner`.
+**Sync flow.** A manual sync previews first: `SyncPlanner.plan` gives a `PlannedSync`. The person approves it, `SyncService.apply` hands it to `SyncEngine.syncPair(planned:)`, and that writes, records a `SyncChange` per write, then places new tracks in order. Monitoring (`SyncEngine.syncAllMonitored` → `monitorSync`) builds the same plan unattended and applies it approving nothing: strong matches are added, close matches wait in Review, one-way Mirror removals apply, and two-way removals are never carried out unseen (D2, `PlanBuilder.unattendedPolicy`). It looks up at most `backgroundLookupLimit` tracks per run; the rest stay pending. Single actions (put back, accept a match, undo) go through `OperationRunner`.
 
 ## Gotchas learned the hard way
 

@@ -80,7 +80,10 @@ extension AppleMusicManager {
         var found: [String: String] = [:]
         var lastEntries: [LibraryAnchor.Entry] = []
         for attempt in 1...attempts {
-            if let tracks = try? await playlist.with([.tracks]).tracks {
+            #if DEBUG
+            print("[AppleMusic] Anchoring attempt \(attempt) of \(attempts)")
+            #endif
+            if let tracks = try? await allTracks(of: playlist) {
                 lastEntries = tracks.map {
                     LibraryAnchor.Entry(libraryID: $0.id.rawValue, catalogID: Self.catalogID(for: $0), title: $0.title,
                                         artist: $0.artistName, durationMs: $0.duration.map { Int($0 * 1000) })

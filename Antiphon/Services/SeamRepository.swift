@@ -246,7 +246,7 @@ actor SwiftDataSeamRepository: SeamRepository {
             monitorIntervalMinutes: pair.monitorIntervalMinutes ?? preferences.monitorIntervalMinutes,
             lastCheckedAt: pair.lastSyncedAt,
             lastResult: pair.lastSyncResult,
-            counts: SeamCounts(tracks: pair.cachedTracks, direction: pair.syncDirection)
+            counts: SeamCounts(tracks: pair.cachedTracks, direction: pair.syncDirection, policy: pair.effectiveRemovalPolicy)
         )
     }
 }

@@ -24,6 +24,16 @@ struct ProblemsTests {
                 == .init(kind: .rateLimited, platform: .spotify, message: "Spotify is busy", retryAt: now.addingTimeInterval(15 * 60)))
     }
 
+    @Test("Only a rejected refresh token means signed out; a busy or down Spotify doesn't")
+    func refreshTrouble() {
+        #expect(SpotifyAuthError.refreshFailure(status: 400) == .tokenRefreshFailed)
+        #expect(SpotifyAuthError.refreshFailure(status: 401) == .tokenRefreshFailed)
+        #expect(SpotifyAuthError.refreshFailure(status: 429) == .refreshUnavailable)
+        #expect(SpotifyAuthError.refreshFailure(status: 503) == .refreshUnavailable)
+        #expect(SpotifyAuthError.refreshFailure(status: nil) == .refreshUnavailable)
+        #expect(ProblemClassifier.problem(for: SpotifyAuthError.refreshUnavailable, seamName: "X", now: now) == nil)
+    }
+
     @Test("Temporary network trouble isn't a problem to show")
     func transient() {
         #expect(ProblemClassifier.problem(for: URLError(.timedOut), seamName: "X", now: now) == nil)

@@ -24,4 +24,29 @@ enum RemovalSafety {
         guard removals >= minimumRemovals, !rows.isEmpty else { return false }
         return Double(removals) / Double(rows.count) > threshold
     }
+
+    /// Removal state of each row before a sync flags anything. When the
+    /// check stops the sync, `restore` puts it back: the flags were never
+    /// acted on, and left in place they wouldn't count as new next time,
+    /// so a second broken read would pass the check.
+    struct Snapshot {
+        private let rows: [(row: CachedTrack, source: TrackSource, flag: RemovalFlag?, flaggedAt: Date?, keptAt: Date?,
+                            state: TrackSyncState?)]
+
+        init(_ rows: [CachedTrack]) {
+            self.rows = rows.map { ($0, $0.source, $0.removalFlag, $0.removalFlaggedAt, $0.removalKeptAt, $0.syncState) }
+        }
+
+        /// Restores the rows still in `current` (pruned rows are deleted).
+        func restore(_ current: [CachedTrack]) {
+            let live = Set(current.map(ObjectIdentifier.init))
+            for saved in rows where live.contains(ObjectIdentifier(saved.row)) {
+                saved.row.source = saved.source
+                saved.row.removalFlag = saved.flag
+                saved.row.removalFlaggedAt = saved.flaggedAt
+                saved.row.removalKeptAt = saved.keptAt
+                saved.row.syncState = saved.state
+            }
+        }
+    }
 }

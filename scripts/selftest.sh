@@ -20,6 +20,15 @@ for i in {1..120}; do
 done
 (( installed )) || { echo "Couldn't install on the phone (locked or disconnected?); not running the self-test." >&2; exit 1; }
 ROUTE=selftest${1:+/$1}
-xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \
-  -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES > $LOG 2>&1
+# A locked phone refuses the launch: wait for it to be unlocked.
+for i in {1..60}; do
+  xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \
+    -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES > $LOG 2>&1
+  grep -q "could not be, unlocked" $LOG || break
+  (( i == 1 )) && echo "The phone is locked; unlock it to start the self-test." >&2
+  sleep 10
+done
 grep "\[SELFTEST\]" $LOG | sed 's/.*\[SELFTEST\] //'
+# No summary line means the self-test never ran or didn't finish.
+grep -q "\[SELFTEST\] DONE" $LOG || { echo "The self-test didn't finish; see $LOG." >&2; exit 1; }
+grep -q "\[SELFTEST\] DONE.*failed=0" $LOG

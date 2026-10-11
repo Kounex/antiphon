@@ -117,7 +117,12 @@ struct DeltaEngine {
                 }
             }
             
-            var matchedAppleTrackIds = Set<String>()
+            // Entries other rows already own can't be claimed: a new track
+            // with the same title and artist as one already in sync is
+            // still a new track.
+            var matchedAppleTrackIds = Set(cachedTracks.compactMap { cached in
+                cached.source == .spotify && cached.removalFlag != .removedFromSource ? nil : cached.appleMusicTrackId
+            })
             
             // Pass 1: Match by exact ISRC (O(N))
             for cached in cachedTracks {
@@ -125,7 +130,7 @@ struct DeltaEngine {
                 // moments earlier and matching here would clear that flag
                 guard cached.source == .spotify, cached.removalFlag != .removedFromSource else { continue }
                 let lowercasedIsrc = cached.isrc.lowercased()
-                if let appleTrack = targetByISRC[lowercasedIsrc] {
+                if let appleTrack = targetByISRC[lowercasedIsrc], !matchedAppleTrackIds.contains(appleTrack.id) {
                     cached.source = .both
                     cached.appleMusicTrackId = appleTrack.id
                     cached.syncState = .synced
@@ -246,7 +251,10 @@ struct DeltaEngine {
                 }
             }
             
-            var matchedSpotifyURIs = Set<String>()
+            // Entries other rows already own can't be claimed (see above).
+            var matchedSpotifyURIs = Set(cachedTracks.compactMap { cached in
+                cached.source == .appleMusic && cached.removalFlag != .removedFromSource ? nil : cached.spotifyTrackUri
+            })
             
             // Pass 1: Match by exact ISRC (O(N))
             for cached in cachedTracks {
@@ -254,7 +262,8 @@ struct DeltaEngine {
                 // moments earlier and matching here would clear that flag
                 guard cached.source == .appleMusic, cached.removalFlag != .removedFromSource else { continue }
                 let lowercasedIsrc = cached.isrc.lowercased()
-                if let spotifyItem = targetByISRC[lowercasedIsrc], let sTrack = spotifyItem.track {
+                if let spotifyItem = targetByISRC[lowercasedIsrc], let sTrack = spotifyItem.track,
+                   !matchedSpotifyURIs.contains(sTrack.uri) {
                     cached.source = .both
                     cached.spotifyTrackUri = sTrack.uri
                     cached.adoptArtwork(url: sTrack.album?.images?.first?.url)

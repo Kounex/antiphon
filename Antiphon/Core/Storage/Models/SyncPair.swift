@@ -162,6 +162,20 @@ enum SyncDirection: String, Codable, CaseIterable {
 
 // MARK: - SyncResultStatus
 
+extension SyncResultStatus {
+    /// How a finished run went. A track the other catalog doesn't carry is
+    /// "missing", not an error: only tracks that hit an error fail the run.
+    static func after(_ rows: [CachedTrack]) -> SyncResultStatus {
+        if rows.contains(where: { $0.effectiveSyncState == .failed && $0.unmatchedPlatform == nil && $0.removalFlag == nil }) {
+            return .failed
+        }
+        let attention = rows.contains {
+            $0.removalFlag != nil || $0.unmatchedPlatform != nil || $0.effectiveSyncState == .needsReview
+        }
+        return attention ? .partial : .success
+    }
+}
+
 /// The outcome status of a sync operation.
 enum SyncResultStatus: String, Codable {
     case success

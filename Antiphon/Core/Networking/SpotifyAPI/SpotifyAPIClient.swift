@@ -66,6 +66,12 @@ actor SpotifyAPIClient {
     /// never poison the sync pipeline. `market` defaults to nil so tracks are
     /// returned without availability filtering for one specific country.
     func getPlaylistTracks(playlistId: String, market: String? = nil) async throws -> [SpotifyPlaylistItem] {
+        try await getPlaylistItems(playlistId: playlistId, market: market).filter { $0.track?.type != "episode" }
+    }
+
+    /// Every item in the playlist, episodes and unavailable items included,
+    /// in playlist order. Reorder positions count all of them.
+    func getPlaylistItems(playlistId: String, market: String? = nil) async throws -> [SpotifyPlaylistItem] {
         var allItems: [SpotifyPlaylistItem] = []
         var offset = 0
         let limit = 50
@@ -74,7 +80,7 @@ actor SpotifyAPIClient {
             let page: SpotifyPagingObject<SpotifyPlaylistItem> = try await request(
                 endpoint: .playlistTracks(playlistId: playlistId, limit: limit, offset: offset, market: market)
             )
-            allItems.append(contentsOf: page.items.filter { $0.track?.type != "episode" })
+            allItems.append(contentsOf: page.items)
 
             if page.next == nil { break }
             offset += limit

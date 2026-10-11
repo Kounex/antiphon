@@ -40,8 +40,49 @@ struct DryRunStageATests {
         return pair.id
     }
 
+    /// "Track 1" by "Artist 1" from another release: other ISRC, other length.
+    private func otherRelease(on platform: Platform) throws -> (spotify: SpotifyPlaylistItem?, apple: AppleMusicTrackInfo?) {
+        if platform == .spotify {
+            let json = """
+            {"item": {"id": "t9", "name": "Track 1", "uri": "spotify:track:t9", "duration_ms": 260000,
+                      "external_ids": {"isrc": "ISRC9"}, "type": "track", "artists": [{"name": "Artist 1"}]}}
+            """
+            return (try JSONDecoder().decode(SpotifyPlaylistItem.self, from: Data(json.utf8)), nil)
+        }
+        return (nil, AppleMusicTrackInfo(id: "i.9", title: "Track 1", artist: "Artist 1", albumName: nil,
+                                         isrc: "ISRC9", durationMs: 260_000, artworkURL: nil))
+    }
+
     private func storedTrackCount(_ container: ModelContainer) throws -> Int {
         try ModelContext(container).fetchCount(FetchDescriptor<CachedTrack>())
+    }
+
+    @Test("A new Spotify track never claims an Apple Music entry another row already owns")
+    func ownedAppleEntryStaysOwned() throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let pairId = try seedPair(in: container, direction: .spotifyToApple, syncedTracks: [1])
+        let result = try DryRunStageA.run(
+            container: container, pairId: pairId, action: .manualSync, trackMatcher: matcher,
+            spotifyTracks: [try spotifyItem(1, isrc: "ISRC1"), try #require(try otherRelease(on: .spotify).spotify)],
+            appleMusicTracks: [appleTrack(1, isrc: "ISRC1")]
+        )
+        let row = try #require(result.rows.first { $0.source.id == "spotify:track:t9" })
+        #expect(row.state == .pending)
+        #expect(row.counterpartId == nil)
+    }
+
+    @Test("A new Apple Music track never claims a Spotify entry another row already owns")
+    func ownedSpotifyEntryStaysOwned() throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let pairId = try seedPair(in: container, direction: .appleToSpotify, syncedTracks: [1])
+        let result = try DryRunStageA.run(
+            container: container, pairId: pairId, action: .manualSync, trackMatcher: matcher,
+            spotifyTracks: [try spotifyItem(1, isrc: "ISRC1")],
+            appleMusicTracks: [appleTrack(1, isrc: "ISRC1"), try #require(try otherRelease(on: .appleMusic).apple)]
+        )
+        let row = try #require(result.rows.first { $0.source.id == "i.9" })
+        #expect(row.state == .pending)
+        #expect(row.counterpartId == nil)
     }
 
     @Test("First sync: source tracks become pending rows; tracks on both sides are in sync")
@@ -349,5 +390,29 @@ struct RemovalSafetyTests {
     func onlyNewOnes() {
         #expect(!RemovalSafety.shouldStop(rows(new: 1, open: 5, kept: 5, fine: 2), since: start))
         #expect(RemovalSafety.newRemovals(in: rows(new: 1, open: 5, kept: 5), since: start) == 1)
+    }
+
+    @Test("A stopped sync puts back what it flagged, so the next sync is checked again")
+    func stoppedSyncRestoresFlags() {
+        let fine = CachedTrack(isrc: "I1", title: "T", artist: "A", spotifyTrackUri: "s1", appleMusicTrackId: "i.1",
+                               source: .both, syncState: .synced)
+        let open = CachedTrack(isrc: "I2", title: "T", artist: "A", spotifyTrackUri: "s2",
+                               source: .spotify, syncState: .synced)
+        open.removalFlag = .removedFromAppleMusic
+        open.removalFlaggedAt = start.addingTimeInterval(-3600)
+        open.removalKeptAt = start.addingTimeInterval(-3600)
+        let snapshot = RemovalSafety.Snapshot([fine, open])
+        open.removalKeptAt = nil
+
+        fine.source = .spotify
+        fine.removalFlag = .removedFromAppleMusic
+        fine.removalFlaggedAt = start
+        open.removalFlaggedAt = start
+        snapshot.restore([fine, open])
+
+        #expect(fine.source == .both && fine.removalFlag == nil && fine.removalFlaggedAt == nil)
+        #expect(open.source == .spotify && open.removalFlag == .removedFromAppleMusic)
+        #expect(open.removalFlaggedAt == start.addingTimeInterval(-3600))
+        #expect(open.removalKeptAt == start.addingTimeInterval(-3600), "still a kept difference")
     }
 }

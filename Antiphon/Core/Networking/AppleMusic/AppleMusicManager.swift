@@ -94,10 +94,8 @@ final class AppleMusicManager {
     ) async throws -> [AppleMusicTrackInfo] {
         try await ensureAuthorized()
         
-        // Load tracks relationship
-        let detailedPlaylist = try await playlist.with([.tracks])
-        
-        guard let tracks = detailedPlaylist.tracks else {
+        // Load tracks relationship, every batch of it
+        guard let tracks = try await allTracks(of: playlist) else {
             return []
         }
         

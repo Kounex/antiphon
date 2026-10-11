@@ -68,6 +68,26 @@ struct TrackOrderTests {
         #expect(TrackOrder.apply(moves, to: current) == desired)
     }
 
+    @Test("Spotify positions count episodes and unavailable items, which keep their place")
+    func movesAroundOtherItems() throws {
+        let items = ["spotify:episode:e", "A", "unavailable:2", "B", "C"]
+        let desired = try #require(TrackOrder.fillingTrackSlots(items, with: ["A", "C", "B"]))
+        #expect(desired == ["spotify:episode:e", "A", "unavailable:2", "C", "B"])
+        #expect(TrackOrder.apply(TrackOrder.moves(from: items, to: desired), to: items) == desired)
+    }
+
+    @Test("Copies of a track fill their slots too")
+    func fillingWithCopies() {
+        #expect(TrackOrder.fillingTrackSlots(["A", "x", "A", "B"], with: ["B", "A", "A"]) == ["B", "x", "A", "A"])
+    }
+
+    @Test("No order when it names a track the playlist doesn't have; unnamed items stay put")
+    func fillingMismatch() {
+        #expect(TrackOrder.fillingTrackSlots(["A", "B"], with: ["A", "C"]) == nil)
+        #expect(TrackOrder.fillingTrackSlots(["A", "B"], with: ["B", "A", "A"]) == nil)
+        #expect(TrackOrder.fillingTrackSlots(["A", "B"], with: ["A"]) == ["A", "B"])
+    }
+
     // MARK: - Apple Music entries
 
     @Test("Apple Music entries are put in the desired order, none dropped")

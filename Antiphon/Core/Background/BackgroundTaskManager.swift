@@ -113,7 +113,7 @@ enum MonitorRun {
         let repository = SwiftDataSeamRepository(modelContainer: modelContainer)
         let before = (try? await repository.seams()) ?? []
         let engine = SyncEngine(modelContainer: modelContainer, spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
-        report.results = await engine.syncAllMonitored(only: Set(report.due))
+        report.results = await engine.syncAllMonitored(only: Set(report.due), preferences: preferences)
         let after = (try? await repository.seams()) ?? []
 
         report.expired = isExpired()

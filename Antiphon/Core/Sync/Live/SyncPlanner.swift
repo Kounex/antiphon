@@ -55,7 +55,12 @@ actor SyncPlanner {
         self.capabilities = capabilities
     }
 
-    func plan(pairId: UUID, action: SyncAction = .manualSync, progress: Progress? = nil) async throws -> PlannedSync {
+    /// `unattended`: a background run applies the plan without a preview, so
+    /// two-way removals are left for the next preview (D2), and at most
+    /// `limit` tracks are looked up, leaving the rest pending for the next run
+    /// (a background run has seconds, and planning keeps nothing until applied).
+    func plan(pairId: UUID, action: SyncAction = .manualSync, progress: Progress? = nil,
+              unattended: Bool = false, limit: Int? = nil) async throws -> PlannedSync {
         let live = try await fetchLiveTracks(pairId: pairId)
         let stageA = try DryRunStageA.run(
             container: modelContainer, pairId: pairId, action: action,
@@ -63,12 +68,13 @@ actor SyncPlanner {
             spotifyTracks: live.spotify, appleMusicTracks: live.appleMusic
         )
 
-        let toMatch = stageA.rows.filter { row in
+        let candidates = stageA.rows.filter { row in
             guard row.removalFlag == nil else { return false }
             let needsWork = row.state == .pending || (row.state == .failed
                 && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: recheck, now: Date()))
             return needsWork && PlanBuilder.allows(stageA.direction, from: row.source.platform)
         }
+        let toMatch = limit.map { Array(candidates.prefix($0)) } ?? candidates
 
         let spotifyCatalog = SpotifyTrackCatalog(client: spotifyClient)
         let appleCatalog = AppleMusicTrackCatalog(manager: appleMusicManager)
@@ -97,7 +103,7 @@ actor SyncPlanner {
                 case .cancelled: throw error
                 case .stop(let message):
                     print("[SyncPlanner] Stopping preview: \(error)")
-                    throw PlanningStopped(message: message)
+                    throw PlanningStopped(message: message, underlying: error)
                 case .skipTrack:
                     // Left out of the plan, so it stays pending and is checked next time.
                     print("[SyncPlanner] Skipping '\(row.source.title)': \(error)")
@@ -111,7 +117,8 @@ actor SyncPlanner {
             pairId: pairId,
             direction: stageA.direction,
             sourcePlatform: stageA.sourcePlatform,
-            removalPolicy: stageA.removalPolicy,
+            removalPolicy: unattended
+                ? PlanBuilder.unattendedPolicy(stageA.removalPolicy, direction: stageA.direction) : stageA.removalPolicy,
             confidence: confidence,
             rows: stageA.rows,
             outcomes: outcomes,

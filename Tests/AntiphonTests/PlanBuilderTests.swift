@@ -210,6 +210,30 @@ struct PlanBuilderTests {
         let plan = PlanBuilder.build(input(direction: .bidirectional, rows: rows))
         #expect(plan.conflicts.isEmpty)
     }
+
+    @Test("Background runs never carry out two-way removals (D2); one-way Mirror still applies")
+    func backgroundRemovalPolicy() {
+        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .bidirectional) == .keep)
+        #expect(PlanBuilder.unattendedPolicy(.ask, direction: .bidirectional) == .ask)
+        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .spotifyToApple) == .mirror)
+        #expect(PlanBuilder.unattendedPolicy(.mirror, direction: .appleToSpotify) == .mirror)
+    }
+
+    @Test("The question rule agrees with the plan for every flag, direction and policy")
+    func questionRuleMatchesPlan() {
+        let flags: [RemovalFlag] = [.removedFromSource, .removedFromSpotify, .removedFromAppleMusic, .extraOnDestination]
+        for direction in [SyncDirection.spotifyToApple, .appleToSpotify, .bidirectional] {
+            let source: Platform = direction == .appleToSpotify ? .appleMusic : .spotify
+            for policy in [RemovalPolicy.keep, .mirror, .ask] {
+                for flag in flags {
+                    let rows = [row(1, from: source, state: .synced, flag: flag)]
+                    let plan = PlanBuilder.build(input(direction: direction, rows: rows, removalPolicy: policy))
+                    #expect(PlanBuilder.asks(about: flag, direction: direction, policy: policy) == !plan.conflicts.isEmpty,
+                            "\(flag) on \(direction) with \(policy)")
+                }
+            }
+        }
+    }
 }
 
 @Suite("Plan decisions")
