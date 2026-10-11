@@ -1,6 +1,6 @@
 # Antiphon redesign plan (Phase 0)
 
-> **Status (2026-10-11):** M0–M8 are done on `redesign/ios26`. Each milestone's record is at the end of this file. Waiting for the user's "merge" to fast-forward `main`, then M9 (widgets, Live Activity, actionable notifications, share extension). Agent notes and commands: [`AGENTS.md`](../AGENTS.md).
+> **Status (2026-10-11):** M0–M8 and the review fixes are merged into `main`; `redesign/ios26` is gone and work continues on `main`. Each milestone's record is at the end of this file. Next: M9 (widgets, Live Activity, actionable notifications, share extension). Agent notes and commands: [`AGENTS.md`](../AGENTS.md).
 
 
 Status: **approved 2026-10-10 — all recommendations (D1–D7) accepted.** Work happens on `redesign/ios26`. This document is the audit and plan for the iOS 26 / Liquid Glass rebuild against the Antiphon design system (`TXKAkq1pkYhFFF593kxH63`) and the storyboard (`BF77MNwKAG2ZbZNv6mL15Q`).

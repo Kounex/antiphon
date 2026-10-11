@@ -6,7 +6,7 @@ Read this first, then `docs/redesign-plan.md` (decisions D1–D7, the screen map
 
 ## Where things stand (2026-10-11)
 
-- **Branch `redesign/ios26`** has the whole iOS 26 redesign, M0–M8, all done and pushed. It was merged into `main` on 2026-10-11 (fast-forward to `c73832e`); new work still lands on `redesign/ios26` first. **Merge only when the user says "merge"**, because TestFlight builds are cut from main.
+- **Work happens on `main`.** The iOS 26 redesign (M0–M8 plus the review fixes) was merged on 2026-10-11 and `redesign/ios26` is deleted. Commit and push to `main` after each unit of work. TestFlight builds are cut from `main`, but only when the user asks.
 - **Next milestone: M9.** App Group, widgets with "Sync all" (`LiveActivityIntent`), Live Activity, actionable notifications, share extension (plan rows 9.01–9.03). Wait for the user to start it.
 - **Open follow-ups** (not started):
   - The Spotify saved-track total isn't shown in onboarding (waiting on the user: keep or drop).
@@ -56,7 +56,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 
 - **Verify sync and playlist-write changes on the real services before presenting** (self-test or a new scenario). Fakes only encode assumptions; a fake that assumed Apple Music returns catalog IDs once hid a real bug.
 - **Write the test first:** watch it fail, then implement. Keep pure logic (planning, copy, policy) in testable enums or structs; views stay thin.
-- **Every milestone:** build, unit tests, simulator screenshots compared with the board (light, dark, AX5 where relevant), docs updated in `docs/redesign-plan.md`, then commit and push to `redesign/ios26`.
+- **Every milestone:** build, unit tests, simulator screenshots compared with the board (light, dark, AX5 where relevant), docs updated in `docs/redesign-plan.md`, then commit and push to `main`.
 - **Commits** end with `Assisted-by: Claude Code` and a `Co-Authored-By: Claude …` line. Push after every finished unit of work.
 - **User-facing copy is plain and honest.** Each choice states its consequence ("Removing a track on Spotify won't touch Apple Music."). No promises iOS doesn't keep ("about every 15 min when iOS allows").
 - **Hero screens work like Apple Music:** no navigation title over the art, glass buttons, soft scroll edge, cover colours bleeding under the toolbar.
