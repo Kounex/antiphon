@@ -38,7 +38,7 @@ For a deep dive into architecture and algorithm implementation details, refer to
 * [Architecture Guide](docs/ARCHITECTURE.md): Concurrency model (Actors & @MainActor), project folder structure, and SwiftData database schema.
 * [Playlist Sync Engine Guide](docs/SYNC_ENGINE.md): Technical overview of the delta matching pipeline, fuzzy matching rules, override actions, and sync safety thresholds.
 * [Redesign plan](docs/redesign-plan.md): the iOS 26 redesign, decisions, and what each milestone shipped and verified.
-* [Agent notes](CLAUDE.md): build/test/screenshot/self-test commands, architecture map, and gotchas.
+* [Agent notes](AGENTS.md): build/test/screenshot/self-test commands, architecture map, and gotchas.
 
 ---
 

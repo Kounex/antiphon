@@ -6,7 +6,7 @@ This document describes the design patterns, system architecture, database schem
 
 ## 🗺 Directory Structure
 
-The current folder map (after the iOS 26 redesign) and the sync flow are in [`CLAUDE.md`](../CLAUDE.md#architecture-redesign-layer); the screen-by-screen plan is in [`redesign-plan.md`](redesign-plan.md). In short: pure planning lives in `Core/Sync/Planning`, live reads and writes in `Core/Sync/Live`, the engine in `Core/Sync`, screens talk to `Services/` protocols (each with live and preview implementations), and the UI kit is the `Packages/AntiphonDesign` package.
+The current folder map (after the iOS 26 redesign) and the sync flow are in [`AGENTS.md`](../AGENTS.md#architecture-redesign-layer); the screen-by-screen plan is in [`redesign-plan.md`](redesign-plan.md). In short: pure planning lives in `Core/Sync/Planning`, live reads and writes in `Core/Sync/Live`, the engine in `Core/Sync`, screens talk to `Services/` protocols (each with live and preview implementations), and the UI kit is the `Packages/AntiphonDesign` package.
 
 ---
 

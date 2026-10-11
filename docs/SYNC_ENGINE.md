@@ -14,7 +14,7 @@ The engine below still does the work, but syncs are now **planned first**:
 - Apple Music: adds are mapped to library IDs by `LibraryAnchor`. Apple Music is slow to list new tracks, so `DeltaEngine` gives them a read grace. `RemovalSafety` stops a run whose fresh removals pass the safety threshold, counted only from 3 removals up.
 - After writes, `PlacementStep` puts new tracks where they are on the other side, or makes the whole target follow the source ("Same order"), wherever the platform allows it.
 
-See [`CLAUDE.md`](../CLAUDE.md) for the gotchas behind these, and `docs/redesign-plan.md` for what was verified on real accounts.
+See [`AGENTS.md`](../AGENTS.md) for the gotchas behind these, and `docs/redesign-plan.md` for what was verified on real accounts.
 
 ## 🔄 The Two-Stage Sync Pipeline
 
