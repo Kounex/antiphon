@@ -274,9 +274,6 @@ struct SettingsStoreTests {
 struct AppearanceTests {
     @Test("System follows iOS; light and dark override it")
     func schemes() {
-        #expect(AppAppearance.system.colorScheme == nil)
-        #expect(AppAppearance.light.colorScheme == .light)
-        #expect(AppAppearance.dark.colorScheme == .dark)
         #expect(AppAppearance.allCases.map(\.title) == ["System", "Light", "Dark"])
         #expect(AppAppearance.allCases.map(\.interfaceStyle) == [.unspecified, .light, .dark])
     }
@@ -297,4 +294,14 @@ struct AppearanceTests {
         #expect(defaults.string(forKey: AppAppearance.storageKey) == "dark")
         #expect(preferences.appearance == .dark)
     }
+
+    #if DEBUG
+    @Test("A debug route starts on System, so a flip route doesn't leave its theme behind")
+    func debugRouteResetsAppearance() {
+        let defaults = UserDefaults(suiteName: "appearance-\(UUID().uuidString)")!
+        AppPreferences(defaults: defaults).appearance = .dark
+        DebugRoute.resetLaunchState(defaults)
+        #expect(AppPreferences(defaults: defaults).appearance == .system)
+    }
+    #endif
 }

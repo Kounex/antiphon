@@ -11,6 +11,7 @@ mkdir -p $OUT
 if [[ "$1" == "--install" ]]; then
   xcodebuild -project Antiphon.xcodeproj -scheme "Antiphon (Debug)" -destination "platform=iOS Simulator,id=$SIM" \
     -derivedDataPath build/dd build 2>&1 | grep -E "error:|\*\* BUILD"
+  (( ${pipestatus[1]} == 0 )) || exit 1  # don't install the previous build
   xcrun simctl install $SIM build/dd/Build/Products/Debug-iphonesimulator/Antiphon.app
   exit
 fi

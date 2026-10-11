@@ -10,11 +10,15 @@ DEV=${DEVICE_ID:-E027CD50-71A3-550D-B5FA-24BA79C6EA30}
 APP=build/dev/Build/Products/Debug-iphoneos/Antiphon.app
 LOG=build/logs/selftest.log
 mkdir -p build/logs
-[[ "$SKIP_BUILD" == 1 ]] || scripts/build-dev.sh
+if [[ "$SKIP_BUILD" != 1 ]]; then
+  scripts/build-dev.sh || { echo "Build failed; not running the self-test." >&2; exit 1; }
+fi
+installed=0
 for i in {1..120}; do
-  xcrun devicectl device install app --device $DEV $APP > /dev/null 2>&1 && break
+  xcrun devicectl device install app --device $DEV $APP > /dev/null 2>&1 && { installed=1; break; }
   sleep 10
 done
+(( installed )) || { echo "Couldn't install on the phone (locked or disconnected?); not running the self-test." >&2; exit 1; }
 ROUTE=selftest${1:+/$1}
 xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \
   -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES > $LOG 2>&1

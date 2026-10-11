@@ -8,14 +8,6 @@ enum AppAppearance: String, CaseIterable, Sendable {
     /// Read with `@AppStorage` at the app root so a change applies at once.
     static let storageKey = "appearance"
 
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: nil
-        case .light: .light
-        case .dark: .dark
-        }
-    }
-
     /// The Home Screen icon. System keeps the primary icon, which already
     /// follows iOS's light, dark and tinted modes.
     var alternateIconName: String? {
@@ -59,6 +51,17 @@ enum AppearanceApplier {
 /// change with its own short notice; apps can't avoid it.
 @MainActor
 enum AppIconSwitcher {
+    private static var pending: Task<Void, Never>?
+
+    /// Replaces any change still in progress, so the latest choice wins.
+    /// Also called whenever the app becomes active, which repairs a change
+    /// iOS refused (for example when the person left the app right away);
+    /// when the icon already matches, nothing happens and iOS shows no notice.
+    static func request(_ appearance: AppAppearance) {
+        pending?.cancel()
+        pending = Task { await apply(appearance) }
+    }
+
     static func apply(_ appearance: AppAppearance) async {
         let application = UIApplication.shared
         guard application.supportsAlternateIcons else { return }
@@ -68,6 +71,7 @@ enum AppIconSwitcher {
             for _ in 0..<20 where application.applicationState != .active {
                 try? await Task.sleep(for: .milliseconds(150))
             }
+            guard !Task.isCancelled, application.applicationState == .active else { return }
             guard application.alternateIconName != appearance.alternateIconName else { return }
             do {
                 try await application.setAlternateIconName(appearance.alternateIconName)

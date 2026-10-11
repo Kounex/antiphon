@@ -25,6 +25,13 @@ enum DebugRoute {
     /// First launch: `onboarding/connect`, `/defaults`, `/twins`.
     case onboarding(String?)
 
+    /// Every route starts on the System theme, so the simulator's appearance
+    /// decides it. `shell/settings-flip-…` stores a theme, which would
+    /// otherwise stick to every later screenshot.
+    static func resetLaunchState(_ defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: AppAppearance.storageKey)
+    }
+
     static var current: DebugRoute? {
         guard let value = UserDefaults.standard.string(forKey: "AntiphonScreen") else { return nil }
         let parts = value.split(separator: "/", maxSplits: 1).map(String.init)

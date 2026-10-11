@@ -336,6 +336,12 @@ final class SelfTestRunner {
             let current = UIApplication.shared.alternateIconName
             expect(current == appearance.alternateIconName, "\(appearance.title): icon is \(current ?? "the adaptive one")")
         }
+        // Two quick choices: the later one wins.
+        AppIconSwitcher.request(.light)
+        AppIconSwitcher.request(.dark)
+        try await Task.sleep(for: .seconds(4))
+        expect(UIApplication.shared.alternateIconName == "AppIcon-Dark", "Light then Dark at once: icon is Dark")
+        await AppIconSwitcher.apply(.system)
     }
 
     // MARK: - Scenario: unavailable tracks are looked up again

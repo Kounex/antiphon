@@ -30,6 +30,9 @@ struct AntiphonApp: App {
     #endif
 
     init() {
+        #if DEBUG
+        if Self.isDebugRoute { DebugRoute.resetLaunchState() }
+        #endif
         if Self.isHostingTests, let inMemory = try? SharedModelContainer.make(inMemory: true) {
             modelContainer = inMemory
         } else {
@@ -93,7 +96,7 @@ struct AntiphonApp: App {
             .onChange(of: appearance) { _, appearance in
                 AppearanceApplier.apply(appearance)
                 guard !Self.isHostingTests, !Self.isDebugRoute else { return }
-                Task { await AppIconSwitcher.apply(appearance) }
+                AppIconSwitcher.request(appearance)
             }
         }
         .modelContainer(modelContainer)
@@ -106,6 +109,7 @@ struct AntiphonApp: App {
                 // A background token-refresh failure may have cleared the
                 // Keychain — re-sync the observable auth state with reality.
                 spotifyAuth.refreshAuthStatus()
+                AppIconSwitcher.request(appearance)
             case .background:
                 BackgroundTaskManager.scheduleBackgroundRefresh(modelContainer: modelContainer)
             default:

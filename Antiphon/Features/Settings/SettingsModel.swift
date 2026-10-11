@@ -137,7 +137,6 @@ final class SettingsModel {
 
     var header: String { SettingsCopy.header(seams: usage.seams, tracksInSync: usage.tracksInSync) }
     var name: String { accounts.spotifyDisplayName ?? "Antiphon" }
-    var initials: String? { AccountInitials.from(accounts.spotifyDisplayName) }
     var spotifyStatus: String { accounts.isSpotifyConnected ? (accounts.spotifyDisplayName ?? "Connected") : "Not connected" }
     var monitoringValue: String { RulesCopy.intervalLabel(interval) }
     var wouldAsk: String { MatchingCopy.wouldAsk(confidences, threshold: threshold) }
