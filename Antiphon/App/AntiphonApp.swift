@@ -2,6 +2,7 @@ import AntiphonDesign
 import SwiftUI
 import SwiftData
 import BackgroundTasks
+import MusicKit
 
 @main
 struct AntiphonApp: App {
@@ -11,6 +12,9 @@ struct AntiphonApp: App {
     let spotifyAuth: SpotifyAuthManager
     let syncCoordinator: SyncCoordinator
     let shellModel: AppShellModel
+    let onboardingModel: OnboardingModel
+    /// First launch shows onboarding; people who already have seams skip it.
+    @State private var showsOnboarding: Bool
 
     /// Unit tests launch the app as their host; keep it away from the real
     /// store and background scheduler while they run.
@@ -49,6 +53,18 @@ struct AntiphonApp: App {
             settings: repository,
             appleMusicAccount: LiveAppleMusicAccountReader()
         )
+
+        onboardingModel = OnboardingModel(
+            library: LiveLibraryService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager()),
+            seams: repository, appleMusic: LiveAppleMusicAccountReader(),
+            requestAppleMusic: { _ = await MusicAuthorization.request() }
+        )
+        let preferences = AppPreferences.shared
+        if !preferences.hasCompletedOnboarding,
+           (try? ModelContext(modelContainer).fetchCount(FetchDescriptor<SyncPair>())) ?? 0 > 0 {
+            preferences.hasCompletedOnboarding = true
+        }
+        _showsOnboarding = State(initialValue: !preferences.hasCompletedOnboarding && !Self.isHostingTests)
 
         // Register background tasks (handler creates its own auth instances)
         if !Self.isHostingTests {
@@ -89,8 +105,18 @@ struct AntiphonApp: App {
         }
     }
 
+    @ViewBuilder
     private var rootView: some View {
-        AppShell(model: shellModel)
+        Group {
+            if showsOnboarding {
+                OnboardingView(model: onboardingModel) {
+                    withAnimation(.smooth) { showsOnboarding = false }
+                    Task { await shellModel.refresh() }
+                }
+            } else {
+                AppShell(model: shellModel)
+            }
+        }
         .environment(spotifyAuth)
         .environment(syncCoordinator)
         .tint(.thread)

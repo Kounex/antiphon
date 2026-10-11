@@ -211,13 +211,18 @@ struct PreviewLibraryService: LibraryService {
         playlist("Discover Weekly", .spotify, count: 30, detail: "30 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these."),
         playlist("Road Trip Lisbon", .spotify, count: 112, detail: "112 tracks · collaborative", collaborative: true),
         playlist("Late Night Drive", .spotify, count: 52, detail: "52 tracks · yours"),
-        playlist("Focus Flow", .spotify, count: 48, detail: "48 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these.")
+        playlist("Focus Flow", .spotify, count: 48, detail: "48 tracks · by Spotify", blocked: "Made by Spotify. Spotify doesn't let apps read these."),
+        playlist("Garden Sundays", .spotify, count: 100, detail: "100 tracks · yours"),
+        playlist("Run Club", .spotify, count: 50, detail: "50 tracks · yours"),
+        playlist("Vinyl Rips", .spotify, count: 87, detail: "87 tracks · yours")
     ]
     static let appleMusic = [
         playlist("Gym Rotation", .appleMusic, count: 37, detail: "Apple Music"),
         playlist("Workout", .appleMusic, count: 20, detail: "Apple Music"),
         playlist("Vinyl Rips", .appleMusic, count: 87, detail: "Apple Music"),
-        playlist("Garden Sundays", .appleMusic, count: 117, detail: "Apple Music")
+        playlist("Garden Sundays", .appleMusic, count: 80, detail: "Apple Music"),
+        playlist("Late Night Drive", .appleMusic, count: 47, detail: "Apple Music"),
+        playlist("Running", .appleMusic, count: 37, detail: "Apple Music")
     ]
 
     func playlists(on platform: Platform) async throws -> [LibraryPlaylist] {
@@ -236,6 +241,12 @@ struct PreviewLibraryService: LibraryService {
         case "Workout Mix 2026": return (0..<64).map { t($0, .spotify) }
         case "Gym Rotation": return (33..<64).map { t($0, .appleMusic) } + (100..<106).map { t($0, .appleMusic) }
         case "Workout": return (52..<64).map { t($0, .appleMusic) }
+        // Onboarding's twins: 90%, 80%, 74% and 38% the same.
+        case "Late Night Drive": return playlist.platform == .spotify ? (0..<52).map { t($0, .spotify) } : (5..<52).map { t($0, .appleMusic) }
+        case "Garden Sundays": return playlist.platform == .spotify ? (0..<100).map { t($0, .spotify) } : (20..<100).map { t($0, .appleMusic) }
+        case "Run Club": return (0..<50).map { t($0, .spotify) }
+        case "Running": return (13..<50).map { t($0, .appleMusic) }
+        case "Vinyl Rips": return playlist.platform == .spotify ? (0..<87).map { t($0, .spotify) } : (54..<87).map { t($0, .appleMusic) }
         default: return []
         }
     }

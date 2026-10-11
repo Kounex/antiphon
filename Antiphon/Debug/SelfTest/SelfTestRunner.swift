@@ -521,6 +521,19 @@ final class SelfTestRunner {
             log("no collaborative Spotify playlist to check names on")
         }
 
+        // Onboarding's twin scan, read only: nothing is linked.
+        let onboarding = OnboardingModel(library: library, seams: repository, appleMusic: LiveAppleMusicAccountReader(),
+                                         requestAppleMusic: {})
+        let scanStart = Date()
+        await onboarding.scan()
+        log("twins: \(onboarding.suggestions.count) in \(String(format: "%.1f", Date().timeIntervalSince(scanStart))) s, \(onboarding.checked.count) checked; \(onboarding.restLine ?? "-")")
+        for suggestion in onboarding.suggestions.prefix(8) {
+            log("  \(suggestion.title): \(suggestion.detail)\(onboarding.checked.contains(suggestion.id) ? " ✓" : "")")
+        }
+        let selfTestTwin = onboarding.suggestions.first { $0.title == Self.undoName }
+        expect(selfTestTwin != nil && onboarding.checked.contains(selfTestTwin!.id),
+               "the self-test playlists (same name, same tracks) are found as twins and checked")
+
         let index = try await repository.indexedTracks()
         log("search index: \(index.count) tracks in \(Set(index.map(\.seam.id)).count) seams")
         expect(seams.isEmpty || !index.isEmpty, "the search index holds the seams' tracks")

@@ -47,7 +47,7 @@ struct SyncPlaylistsIntent: AppIntent {
         let results = await syncEngine.syncAllMonitored()
         
         let failedResults = results.filter { $0.status == .failed }
-        if !failedResults.isEmpty {
+        if !failedResults.isEmpty, AppPreferences.shared.notifyBreaks {
             NotificationManager.postSyncFailureNotification(results: results)
         }
         

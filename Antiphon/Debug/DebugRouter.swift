@@ -21,6 +21,8 @@ enum DebugRoute {
     case shell(String?)
     /// End-to-end checks on the real accounts: `selftest`, `selftest/twoway`, `selftest/ownam`.
     case selfTest(String?)
+    /// First launch: `onboarding/connect`, `/defaults`, `/twins`.
+    case onboarding(String?)
 
     static var current: DebugRoute? {
         guard let value = UserDefaults.standard.string(forKey: "AntiphonScreen") else { return nil }
@@ -32,6 +34,8 @@ enum DebugRoute {
             return .shell(parts.count > 1 ? parts[1] : nil)
         case "selftest":
             return .selfTest(parts.count > 1 ? parts[1] : nil)
+        case "onboarding":
+            return .onboarding(parts.count > 1 ? parts[1] : nil)
         case "newseam":
             return .shell("newseam/" + (parts.count > 1 ? parts[1] : "pick"))
         default:
@@ -50,6 +54,8 @@ struct DebugRouteView: View {
             ComponentCatalogView(initialPage: page)
         case .selfTest(let scenario):
             SelfTestView(runner: SelfTestRunner(scenario: scenario))
+        case .onboarding(let step):
+            OnboardingView(model: Self.onboardingModel(step)) {}
         case .shell(let option):
             AppShell(model: Self.shellModel(option))
                 .tint(.thread)
@@ -62,6 +68,19 @@ struct DebugRouteView: View {
                     }
                 }
         }
+    }
+
+    @MainActor
+    private static func onboardingModel(_ step: String?) -> OnboardingModel {
+        let model = OnboardingModel(library: PreviewLibraryService(), seams: PreviewSeamRepository(seams: []),
+                                    appleMusic: PreviewAppleMusicAccountReader(), requestAppleMusic: {})
+        switch step {
+        case "connect": model.step = .connect
+        case "defaults": model.step = .defaults
+        case "twins": model.step = .twins
+        default: break
+        }
+        return model
     }
 
     @MainActor
