@@ -1,7 +1,15 @@
-What's new in this build:
+What's new in 1.3.0:
 
-• Improved: sync progress now shows the step where songs are added to the target playlist ("Adding 5/33 to Apple Music") — previously the counter sat at e.g. 33/34 while songs were still being added
-• Fixed: failed tracks were counted twice in the sync progress counter
-• Fixed: after manually linking a track, the Manual Match sheet could turn blank instead of confirming — it now shows "Track Linked!" and closes on its own
+• New design for iOS 26: Syncs, Library, Activity and Search on a Liquid Glass tab bar, and seams shown as two stitched covers.
+• Every sync shows a preview first. Close matches wait in Review for your call, and removals follow each seam's rule (only add, mirror, or ask).
+• Syncs keep running when you leave the app or lock the phone, with progress from iOS. Several seams can sync at once; tap the bar above the tabs to see them.
+• Opening Antiphon checks every seam. Watched seams sync, and the others say what's waiting. Pull down on Syncs to check again right away.
+• Activity lists every run, and most can be undone.
+• Widgets: Seams, In sync (with Sync all), and New this week, plus a Live Activity while a sync runs.
+• Answer questions from the notification: use a close match, skip it, or decide about a removal.
+• Settings: monitoring interval, Wi-Fi only, quiet hours, removals in the background, appearance and app icon.
 
-Focus for testers: sync a playlist with many new tracks into Apple Music and watch the progress go through the adding step; manually link an unmatched track from both the Tracks and Attention tabs and confirm the sheet confirms and closes.
+Focus for testers:
+• Open the app after adding a track on Spotify: a watched seam should pick it up, and an unwatched seam's card should say "1 change waiting". Pull down to check again.
+• Start a long sync, tap Hide, then switch apps or lock the phone. It should finish.
+• Add the widgets and check that they match the app after syncing, linking or unlinking.
