@@ -141,7 +141,10 @@ struct SyncsHomeView: View {
                 Task { await model.setPaused(!seam.isPaused, seamId: seam.id) }
             }
             Button("Rules", systemImage: "slider.horizontal.3") { path.append(.rules(seam.id)) }
-            Button("Unlink", systemImage: "scissors", role: .destructive) { unlinkCandidate = seam }
+            Button(role: .destructive) { unlinkCandidate = seam } label: {
+                // Menus draw icons in the app's tint; this one keeps the destructive red of its title.
+                Label { Text("Unlink") } icon: { Image(uiImage: Self.destructiveSymbol("scissors")) }
+            }
         } preview: {
             SeamPreviewCard(seam: seam)
         }
@@ -155,6 +158,13 @@ struct SyncsHomeView: View {
         } message: {
             Text("Both playlists stay exactly as they are. Antiphon stops syncing them.")
         }
+    }
+}
+
+extension SyncsHomeView {
+    /// A symbol in system red that menus don't recolour.
+    static func destructiveSymbol(_ name: String) -> UIImage {
+        (UIImage(systemName: name) ?? UIImage()).withTintColor(.systemRed, renderingMode: .alwaysOriginal)
     }
 }
 
