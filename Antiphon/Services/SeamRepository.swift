@@ -22,6 +22,8 @@ struct SeamSummary: Identifiable, Hashable, Sendable {
     let lastCheckedAt: Date?
     let lastResult: SyncResultStatus?
     let counts: SeamCounts
+    /// The direction changed: the next sync rebuilds, after a preview.
+    var needsRebuild = false
 
     /// The leading side: the source of a one-way seam, Spotify for two-way.
     var source: Platform { direction == .appleToSpotify ? .appleMusic : .spotify }
@@ -246,7 +248,8 @@ actor SwiftDataSeamRepository: SeamRepository {
             monitorIntervalMinutes: pair.monitorIntervalMinutes ?? preferences.monitorIntervalMinutes,
             lastCheckedAt: pair.lastSyncedAt,
             lastResult: pair.lastSyncResult,
-            counts: SeamCounts(tracks: pair.cachedTracks, direction: pair.syncDirection, policy: pair.effectiveRemovalPolicy)
+            counts: SeamCounts(tracks: pair.cachedTracks, direction: pair.syncDirection, policy: pair.effectiveRemovalPolicy),
+            needsRebuild: pair.needsRebuild
         )
     }
 }

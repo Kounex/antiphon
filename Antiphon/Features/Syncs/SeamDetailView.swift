@@ -74,15 +74,8 @@ struct SeamDetailView: View {
             }
             // One thread per screen: the gold belongs to the primary action.
         }
-        .task {
-            await model.load()
-            await model.markViewed()
-        }
-        .task {
-            for await _ in NotificationCenter.default.notifications(named: ModelContext.didSave) {
-                await model.load()
-            }
-        }
+        .task { await model.markViewed() }
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     private func header(_ seam: SeamSummary) -> some View {

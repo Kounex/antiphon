@@ -52,6 +52,16 @@ final class SyncFlowModel {
     }
 
     /// Hands the approved plan to the coordinator, which drives the accessory.
+    /// Reopened from the progress bar while this seam syncs: show the live
+    /// sheet for the running sync (no new preview), then its result.
+    private(set) var isFollowing = false
+
+    func followRunningSync() {
+        isFollowing = true
+        startedAt = startedAt ?? Date()
+        phase = .syncing
+    }
+
     func start(using coordinator: SyncCoordinator) {
         guard let planned else { return }
         replannedNotice = nil
@@ -110,7 +120,7 @@ final class SyncFlowModel {
     var conflictCount: Int { planned?.plan.conflicts.count ?? 0 }
 
     var afterApply: AfterApply {
-        if writeCount > 0 { return .showResult }
+        if isFollowing || writeCount > 0 { return .showResult }
         return conflictCount > 0 ? .openConflicts : .dismiss
     }
 

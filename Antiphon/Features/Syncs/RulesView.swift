@@ -61,7 +61,7 @@ struct RulesView: View {
         } message: {
             Text("Both playlists stay exactly as they are. Antiphon stops syncing them.")
         }
-        .task { await model.load() }
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     private func direction(_ rules: SeamRules) -> some View {

@@ -125,7 +125,7 @@ struct ActivityTests {
         #expect(groups[1].tracks.map(\.title) == ["Nightcall", "A Real Hero"])
         #expect(ActivityCopy.origin(groups[0].tracks[0], now: now) == "Added on Apple Music · 2 h")
         #expect(ActivityCopy.since(groups.flatMap(\.tracks).map(\.date).min(), now: now, calendar: Self.calendar)
-                == "Tracks that arrived through monitoring since today.")
+                == "Tracks Antiphon added on its own since today.")
     }
 
     // MARK: - One run in detail
@@ -175,6 +175,7 @@ struct ActivityRepositoryTests {
             return log
         }
         let watched = log(.monitor, minutesAgo: 30, adds: ["Nightcall", "A Real Hero"])
+        _ = log(.widget, minutesAgo: 45, adds: ["Outrun"])
         _ = log(.manual, minutesAgo: 60, adds: ["Tick of the Clock"])
         try context.save()
         return (container, watched.id)
@@ -185,7 +186,7 @@ struct ActivityRepositoryTests {
         let (container, watchedId) = try seed()
         let repository = SwiftDataSeamRepository(modelContainer: container)
         let runs = try await repository.runs()
-        #expect(runs.count == 2)
+        #expect(runs.count == 3)
         #expect(runs.first?.id == watchedId)
         #expect(runs.first?.seamName == "Late Night Drive")
         #expect(runs.first?.trigger == .monitor)
@@ -193,12 +194,12 @@ struct ActivityRepositoryTests {
         #expect(try await repository.run(watchedId)?.changes.count == 2)
     }
 
-    @Test("New tracks are monitoring's adds until marked seen")
+    @Test("New tracks are what Antiphon added on its own (background runs, Sync all, Shortcuts) until marked seen")
     func newTracks() async throws {
         let (container, _) = try seed()
         let repository = SwiftDataSeamRepository(modelContainer: container)
         let fresh = try await repository.newTracks()
-        #expect(Set(fresh.map(\.title)) == ["Nightcall", "A Real Hero"])
+        #expect(Set(fresh.map(\.title)) == ["Nightcall", "A Real Hero", "Outrun"])
         #expect(fresh.allSatisfy { $0.landedOn == .appleMusic })
         try await repository.markAllSeen()
         #expect(try await repository.newTracks().isEmpty)

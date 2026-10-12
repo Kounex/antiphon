@@ -9,7 +9,12 @@ struct LivePlaylistEditor: PlaylistEditor {
     func add(_ tracks: [CatalogTrack], to playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
         switch platform {
         case .spotify:
-            try await spotifyClient.addTracksToPlaylist(playlistId: playlistId, trackUris: tracks.map(\.id))
+            do {
+                try await spotifyClient.addTracksToPlaylist(playlistId: playlistId, trackUris: tracks.map(\.id))
+            } catch SpotifyAPIError.partialAdd(let addedURIs, let underlying) {
+                let landed = Set(addedURIs)
+                throw PlaylistEditError.partial(landed: tracks.filter { landed.contains($0.id) }, underlying: underlying)
+            }
             return tracks
 
         case .appleMusic:

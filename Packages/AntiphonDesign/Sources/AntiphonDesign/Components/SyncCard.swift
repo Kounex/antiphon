@@ -32,13 +32,17 @@ public struct SyncCard: View {
     public struct Status: Hashable, Sendable {
         public var isMonitoring: Bool
         public var isSyncing: Bool
+        /// Its playlists are being read (the app just opened).
+        public var isChecking: Bool
         public var isPaused: Bool
         /// "Failed" or "Sign in" when something broke.
         public var failure: String?
 
-        public init(isMonitoring: Bool, isSyncing: Bool = false, isPaused: Bool = false, failure: String? = nil) {
+        public init(isMonitoring: Bool, isSyncing: Bool = false, isChecking: Bool = false, isPaused: Bool = false,
+                    failure: String? = nil) {
             self.isMonitoring = isMonitoring
             self.isSyncing = isSyncing
+            self.isChecking = isChecking
             self.isPaused = isPaused
             self.failure = failure
         }
@@ -112,7 +116,8 @@ public struct SyncCard: View {
         }
     }
 
-    /// At most two pills, by priority: Failed > Review > Syncing > Monitoring > In sync.
+    /// At most two pills, by priority: Failed > Review > Syncing > Paused,
+    /// Checking or Monitoring > In sync.
     public static func pills(health: SeamHealth, status: Status) -> [StatusPill.State] {
         var candidates: [StatusPill.State] = []
         if let failure = status.failure { candidates.append(.failed(failure)) }
@@ -120,6 +125,8 @@ public struct SyncCard: View {
         if status.isSyncing { candidates.append(.syncing) }
         if status.isPaused {
             candidates.append(.paused)
+        } else if status.isChecking {
+            candidates.append(.checking)
         } else if status.isMonitoring {
             candidates.append(.monitoring)
         }

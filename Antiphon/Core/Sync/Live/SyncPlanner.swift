@@ -181,6 +181,20 @@ actor SyncPlanner {
         )
     }
 
+    /// How many changes a sync would pick up, from the two playlists and
+    /// the store only: no catalog lookups, nothing written (`OpenCheck.waiting`).
+    func waitingChanges(pairId: UUID, since: Date) async throws -> Int {
+        let live = try await fetchLiveTracks(pairId: pairId)
+        let stageA = try DryRunStageA.run(
+            container: modelContainer, pairId: pairId, action: .manualSync,
+            trackMatcher: TrackMatcher(),
+            spotifyTracks: live.spotify, appleMusicTracks: live.appleMusic
+        )
+        return OpenCheck.waiting(rows: stageA.rows, direction: stageA.direction, sourcePlatform: stageA.sourcePlatform,
+                                 policy: stageA.removalPolicy,
+                                 appleMusicCanRemove: (capabilities ?? live.capabilities).appleMusicCanRemove, since: since)
+    }
+
     // MARK: - Private
 
     /// Same fetches as the engine's Stage A. Playlists still waiting to be

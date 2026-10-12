@@ -9,6 +9,9 @@ struct RunningSync: Equatable, Sendable {
     let total: Int
     /// Seeds the placeholder cover.
     let seed: String
+    /// The one seam syncing, whose live sheet a tap reopens; `nil` for
+    /// several, where a tap lists them.
+    var seamId: UUID? = nil
 }
 
 enum RunningSyncSummary {
@@ -19,22 +22,35 @@ enum RunningSyncSummary {
         let byId = Dictionary(seams.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         if progress.count == 1, let (id, p) = progress.first {
-            let seam = byId[id]
-            let name = seam?.name ?? "playlist"
-            let done = p.completedTracks + p.failedTracks
-            let detail: String
-            switch p.phase {
-            case .matching:
-                detail = [ "\(done) of \(p.totalTracks)", seam?.directionText ].compactMap { $0 }.joined(separator: " · ")
-            case .adding(let platformName):
-                detail = "Adding \(done) of \(p.totalTracks) to \(platformName)"
-            }
-            return RunningSync(title: "Syncing \(name)", detail: detail, done: done, total: p.totalTracks, seed: name)
+            let one = row(id, p, seam: byId[id])
+            return RunningSync(title: "Syncing \(one.title)", detail: one.detail, done: one.done, total: one.total,
+                               seed: one.seed, seamId: id)
         }
 
         let done = progress.values.reduce(0) { $0 + $1.completedTracks + $1.failedTracks }
         let total = progress.values.reduce(0) { $0 + $1.totalTracks }
         return RunningSync(title: "Syncing \(progress.count) playlists", detail: "\(done) of \(total)", done: done, total: total, seed: "several")
+    }
+
+    /// Several at once: one row per seam for the list the accessory opens,
+    /// titled by the seam's name.
+    static func rows(progress: [UUID: SyncProgress], seams: [SeamSummary]) -> [RunningSync] {
+        let byId = Dictionary(seams.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return progress.map { row($0.key, $0.value, seam: byId[$0.key]) }
+            .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
+    private static func row(_ id: UUID, _ p: SyncProgress, seam: SeamSummary?) -> RunningSync {
+        let name = seam?.name ?? "playlist"
+        let done = p.completedTracks + p.failedTracks
+        let detail: String
+        switch p.phase {
+        case .matching:
+            detail = [ "\(done) of \(p.totalTracks)", seam?.directionText ].compactMap { $0 }.joined(separator: " · ")
+        case .adding(let platformName):
+            detail = "Adding \(done) of \(p.totalTracks) to \(platformName)"
+        }
+        return RunningSync(title: name, detail: detail, done: done, total: p.totalTracks, seed: name, seamId: id)
     }
 }
 
@@ -87,6 +103,10 @@ final class AppShellModel {
     @ObservationIgnored private(set) lazy var searchModel = SearchModel(index: index, library: libraryModel, preferences: .shared)
     /// The seam whose preview → sync flow is open.
     var syncFlowSeamId: UUID?
+    /// The list of syncs running at once, opened from the accessory.
+    var showsRunningSyncs = false
+    /// A seam picked in that list, whose live sheet opens once the list has closed.
+    var pendingSyncFlowSeam: UUID?
     /// The open review queue: one seam, or every seam.
     var reviewTarget: ReviewTarget?
     /// The open two-way removal question.
@@ -159,8 +179,7 @@ final class AppShellModel {
     }
 
     func makeNewSeam() -> NewSeamModel {
-        let linked = Set(seams.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
-        let model = NewSeamModel(library: library, seams: seamRepository, preferences: .shared, linkedPlaylistIds: linked)
+        let model = NewSeamModel(library: library, seams: seamRepository, preferences: .shared)
         if let source = newSeamSource { model.preselect(source) }
         return model
     }
@@ -183,6 +202,23 @@ final class AppShellModel {
         showsNewSeam = true
     }
 
+    /// A tapped widget: its seam, or New tracks, in place of any open sheet.
+    func open(_ link: WidgetLink) {
+        showsSettings = false
+        showsNewSeam = false
+        reviewTarget = nil
+        openConflict = nil
+        syncFlowSeamId = nil
+        switch link {
+        case .seam(let id):
+            openSeamDetail(id)
+        case .newTracks:
+            selectedTab = .activity
+            activityPath = []
+            activityModel.tab = .newTracks
+        }
+    }
+
     /// Opens a seam on the Syncs tab, from Library or Search.
     func openSeamDetail(_ seamId: UUID) {
         selectedTab = .syncs
@@ -196,7 +232,7 @@ final class AppShellModel {
         self.seams = seams
         reviewCount = seams.reduce(0) { $0 + $1.counts.review }
         let problemsModel = makeProblems()
-        await problemsModel.load()
+        await problemsModel.load(seams: seams)
         problemCount = problemsModel.count
     }
 

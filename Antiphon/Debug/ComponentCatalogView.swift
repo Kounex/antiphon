@@ -18,6 +18,8 @@ struct ComponentCatalogView: View {
         case platformBadge = "PlatformBadge"
         case syncAccessory = "SyncAccessory"
         case tabBar = "TabBar"
+        case widgets = "Widgets"
+        case liveActivity = "LiveActivity"
         var id: String { rawValue }
     }
 
@@ -79,12 +81,81 @@ private struct CatalogPage: View {
         case .glassButton: GlassButtonSamples()
         case .platformBadge: PlatformSamples()
         case .syncAccessory: AccessorySamples()
+        case .widgets: WidgetSamples()
+        case .liveActivity: LiveActivitySamples()
         case .trackRow, .tabBar: EmptyView()
         }
     }
 }
 
 // MARK: - Samples
+
+/// The Live Activity's Lock Screen view, mid-sync and finished.
+private struct LiveActivitySamples: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s4) {
+            Caption("Adding")
+            SyncActivityLockScreenView(state: .init(seamName: "Workout Mix 2026", phase: "Adding to Apple Music", done: 20, total: 35,
+                                                    direction: "Spotify → Apple Music", timeLeft: "about 1 min left"))
+                .background(Color.canvasRaised.opacity(0.85), in: .rect(cornerRadius: 22))
+            Caption("Paused (iOS suspended the app)")
+            SyncActivityLockScreenView(state: .init(seamName: "edamame", phase: "Adding to Apple Music", done: 28, total: 35,
+                                                    direction: "Spotify → Apple Music"), isStale: true)
+                .background(Color.canvasRaised.opacity(0.85), in: .rect(cornerRadius: 22))
+            Caption("Checking")
+            SyncActivityLockScreenView(state: .init(seamName: "Run Club", phase: "Checking tracks", done: 30, total: 52))
+                .background(Color.canvasRaised.opacity(0.85), in: .rect(cornerRadius: 22))
+            Caption("Finished")
+            SyncActivityLockScreenView(state: .init(seamName: "Workout Mix 2026", phase: "Synced · 35 added", done: 1, total: 1, finished: true))
+                .background(Color.canvasRaised.opacity(0.85), in: .rect(cornerRadius: 22))
+            SyncActivityLockScreenView(state: SyncActivityContent.finishedAll([
+                SyncResult(pairId: UUID(), status: .success, tracksAdded: 3), SyncResult(pairId: UUID(), status: .failed)]))
+                .background(Color.canvasRaised.opacity(0.85), in: .rect(cornerRadius: 22))
+        }
+        .padding(Space.s4)
+        .background(LinearGradient(colors: [.artDusk, .artTide], startPoint: .top, endPoint: .bottom), in: .rect(cornerRadius: 28))
+    }
+}
+
+/// The widgets at iPhone sizes on a wallpaper-like ground, for screenshots
+/// (real Home Screen widgets can't be captured from the simulator by script).
+private struct WidgetSamples: View {
+    private let snapshot = WidgetSnapshot.sample
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.s4) {
+            Caption("Seams · medium")
+            frame(width: 338, height: 158) { SeamsWidgetView(snapshot: snapshot, covers: [:], now: Date()) }
+            Caption("Seams · before the first sync")
+            frame(width: 338, height: 158) { SeamsWidgetView(snapshot: nil, covers: [:], now: Date()) }
+            HStack(alignment: .top, spacing: Space.s4) {
+                VStack(alignment: .leading) {
+                    Caption("In sync · small")
+                    frame(width: 158, height: 158) { InSyncWidgetView(snapshot: snapshot) }
+                }
+                VStack(alignment: .leading) {
+                    Caption("New this week")
+                    frame(width: 158, height: 158) { NewThisWeekWidgetView(snapshot: snapshot, family: .systemSmall) }
+                }
+            }
+            Caption("New this week · Lock Screen")
+            NewThisWeekWidgetView(snapshot: snapshot, family: .accessoryRectangular)
+                .foregroundStyle(.white)
+                .padding(Space.s2)
+                .frame(width: 170, height: 76)
+                .background(.black.opacity(0.35), in: .rect(cornerRadius: 12))
+        }
+        .padding(Space.s4)
+        .background(LinearGradient(colors: [.artDusk, .artTide], startPoint: .top, endPoint: .bottom), in: .rect(cornerRadius: 28))
+    }
+
+    private func frame(width: CGFloat, height: CGFloat, @ViewBuilder content: () -> some View) -> some View {
+        content()
+            .padding(Space.s4)
+            .frame(width: width, height: height)
+            .background(Color.canvasRaised, in: .rect(cornerRadius: 22))
+    }
+}
 
 private struct Caption: View {
     let text: String

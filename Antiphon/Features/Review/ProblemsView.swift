@@ -75,7 +75,7 @@ struct ProblemsView: View {
         .background(Color.canvas)
         .navigationTitle("Problems")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.load() }
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     private func symbol(_ kind: ProblemKind) -> String {

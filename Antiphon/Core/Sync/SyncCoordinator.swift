@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import SwiftData
 import Observation
 
@@ -41,6 +42,8 @@ final class SyncCoordinator {
     // MARK: - Dependencies
     
     private let modelContainer: ModelContainer
+    /// Each running sync's Live Activity, so leaving the app can start them.
+    private var liveActivities: [UUID: SyncLiveActivity] = [:]
     
     init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -80,12 +83,23 @@ final class SyncCoordinator {
         let previousTask = runningTasks[pairId]?.task
         let runId = UUID()
         let container = modelContainer
+        // The person just started it, with the app on screen: ask iOS to let
+        // it keep running after they leave (iOS shows its progress).
+        let continued = ContinuedSync.start(seamName: Self.seamName(pairId, in: container)) { [weak self] in
+            #if DEBUG
+            SyncDiagnostics.log("cancelling the sync because the task ended")
+            #endif
+            self?.stopInBackground(pairId: pairId, runId: runId)
+        }
         let task = Task {
             _ = await previousTask?.value
+            // A check started by opening the app may be writing to this seam.
+            await SeamChecks.shared.waitUntilChecked(pairId)
             
             let result: SyncResult
             if Task.isCancelled {
                 result = SyncResult(pairId: pairId, status: .failed, message: "Sync cancelled by user")
+                continued?.finish(success: false)
             } else {
                 let appleMusicManager = AppleMusicManager()
                 let spotifyClient = SpotifyAPIClient()
@@ -96,6 +110,23 @@ final class SyncCoordinator {
                     appleMusicManager: appleMusicManager
                 )
                 
+                // A sync longer than 20 seconds also shows as a Live Activity,
+                // and iOS is asked for time to finish if the person leaves.
+                let seam = try? await SwiftDataSeamRepository(modelContainer: container).seams().first { $0.id == pairId }
+                let live = SyncLiveActivity()
+                // With continued processing iOS shows the progress itself; the
+                // Live Activity stays out of the way and feeds it.
+                live.isSuppressed = continued != nil
+                live.onState = { continued?.show($0) }
+                self.liveActivities[pairId] = live
+                // The usual few seconds, handed back in time (holding them longer
+                // gets the app ended); continued processing, once iOS grants it,
+                // keeps it running beyond them.
+                let background = BackgroundTime("Sync")
+                defer {
+                    background.end()
+                    self.liveActivities[pairId] = nil
+                }
                 result = await engine.syncPair(pairId, action: action, trigger: trigger, planned: planned,
                                                approving: approving) { [weak self] progress in
                     await MainActor.run {
@@ -103,7 +134,13 @@ final class SyncCoordinator {
                               self?.cancelledRunIds.contains(runId) == false else { return }
                         self?.syncProgress[pairId] = progress
                     }
+                    await live.show(seam: seam, progress: progress)
                 }
+                #if DEBUG
+                SyncDiagnostics.log("sync ended: \(result.status) +\(result.tracksAdded) \(result.message ?? "")")
+                #endif
+                await live.finish(SyncActivityContent.finished(seamName: seam?.name ?? "Sync", result: result))
+                continued?.finish(success: result.status != .failed)
             }
             
             finishRun(pairId: pairId, runId: runId, result: result)
@@ -128,6 +165,19 @@ final class SyncCoordinator {
         WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
     }
     
+    /// The seam's name as it shows everywhere (its leading playlist).
+    private static func seamName(_ pairId: UUID, in container: ModelContainer) -> String {
+        let pair = try? ModelContext(container).fetch(FetchDescriptor<SyncPair>(predicate: #Predicate { $0.id == pairId })).first
+        guard let pair else { return "your playlists" }
+        return pair.syncDirection == .appleToSpotify ? pair.appleMusicPlaylistName : pair.spotifyPlaylistName
+    }
+
+    /// The person is leaving the app: iOS won't start a Live Activity from
+    /// the background, so running syncs start theirs now.
+    func startLiveActivitiesBeforeLeaving() async {
+        for live in liveActivities.values { await live.startBeforeLeaving() }
+    }
+
     /// Cancels all in-progress syncs and waits for them to unwind. Call before
     /// destructive operations such as "Reset All Data" so no running task is
     /// still mid-write when the store is wiped.
@@ -143,6 +193,13 @@ final class SyncCoordinator {
     /// Cancels an in-progress sync for a specific pair. Returns immediately;
     /// the engine stops at its next checkpoint. Use `waitForSyncToFinish`
     /// before deleting anything the sync may still write to.
+    /// iOS ended the background task: the sync stops, and its own result
+    /// (what landed, what's left) is what the person sees, not a cancellation.
+    func stopInBackground(pairId: UUID, runId: UUID) {
+        guard let running = runningTasks[pairId], running.runId == runId else { return }
+        running.task.cancel()
+    }
+
     func cancelSync(pairId: UUID) {
         if let running = runningTasks[pairId] {
             running.task.cancel()

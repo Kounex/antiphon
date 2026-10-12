@@ -25,7 +25,7 @@ struct SyncFlowView: View {
             }
         }
         .sheet(isPresented: $showsSyncing) {
-            SyncingView(model: model, onHide: onDone)
+            SyncingView(model: model, onHide: hide)
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                 .interactiveDismissDisabled()
@@ -46,7 +46,22 @@ struct SyncFlowView: View {
             #if DEBUG
             if DebugRoute.flowPhase != nil { await model.debugApplyRoute(coordinator: coordinator); return }
             #endif
+            if coordinator.isSyncing(model.seamId), model.planned == nil {
+                model.followRunningSync()
+                showsSyncing = true
+                return
+            }
             if model.planned == nil { await model.load() }
+        }
+    }
+
+    /// Closes the live sheet first, then the flow: dismissing both at once
+    /// delayed the accessory above the tab bar.
+    private func hide() {
+        showsSyncing = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            onDone()
         }
     }
 

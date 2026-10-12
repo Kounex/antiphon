@@ -91,6 +91,11 @@ struct SeamCountsTests {
         #expect(SyncResultStatus.after([row(.synced), row(.skipped)]) == .success)
     }
 
+    @Test("Tracks left for the next run (out of time) make a run partial, not a success")
+    func pendingIsPartial() {
+        #expect(SyncResultStatus.after([row(.synced), row(.pending)]) == .partial)
+    }
+
     @Test("Close matches waiting in Review make a run partial, not a success")
     func reviewIsPartial() {
         #expect(SyncResultStatus.after([row(.synced), row(.needsReview, confidence: 80)]) == .partial)

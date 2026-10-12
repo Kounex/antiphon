@@ -194,7 +194,7 @@ final class AppleMusicManager {
     func addTracks(
         _ songs: [Song],
         to playlist: Playlist,
-        onSongAdded: (@Sendable (_ addedCount: Int) async -> Void)? = nil
+        onSongAdded: (@Sendable (_ songId: String?, _ addedCount: Int) async -> Void)? = nil
     ) async throws {
         try await ensureAuthorized()
         
@@ -204,7 +204,7 @@ final class AppleMusicManager {
                 try Task.checkCancellation()
                 _ = try await MusicLibrary.shared.add(song, to: playlist)
                 addedSongIds.insert(song.id.rawValue)
-                await onSongAdded?(addedSongIds.count)
+                await onSongAdded?(song.id.rawValue, addedSongIds.count)
             } catch {
                 throw AppleMusicError.partialAdd(addedSongIds: addedSongIds, underlying: error)
             }

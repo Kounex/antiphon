@@ -123,6 +123,12 @@ final class SettingsModel {
         weeklyDigest = preferences.weeklyDigest
     }
 
+    /// What the store holds, without the export or account reads.
+    func reloadCounts() async {
+        usage = (try? await store.usage()) ?? usage
+        confidences = (try? await store.recentConfidences(days: 30)) ?? confidences
+    }
+
     func load() async {
         usage = (try? await store.usage()) ?? .empty
         appleMusic = await appleMusicReader.read()

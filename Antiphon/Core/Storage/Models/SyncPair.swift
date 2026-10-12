@@ -170,7 +170,8 @@ extension SyncResultStatus {
             return .failed
         }
         let attention = rows.contains {
-            $0.removalFlag != nil || $0.unmatchedPlatform != nil || $0.effectiveSyncState == .needsReview
+            $0.removalFlag != nil || $0.unmatchedPlatform != nil
+                || $0.effectiveSyncState == .needsReview || $0.effectiveSyncState == .pending
         }
         return attention ? .partial : .success
     }

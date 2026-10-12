@@ -51,6 +51,7 @@ enum DryRunStageA {
 
         if !isInitialSync {
             DeltaEngine.reanchorAppleMusicIds(cachedTracks: cached, appleMusicTracks: appleMusicTracks, trackMatcher: trackMatcher)
+            DeltaEngine.requeueNeverArrived(cached, liveAppleIDs: Set(appleMusicTracks.map(\.id)))
         }
 
         cached = CacheAligner.alignCache(
@@ -108,7 +109,8 @@ extension CachedTrack {
                 durationMs: durationMs, isrc: isrc.hasPrefix("local-") ? nil : isrc, artworkURL: artworkURL
             ),
             counterpartId: counterpart,
-            state: effectiveSyncState,
+            // "Syncing" outside a running sync: one stopped mid-write. Plan it again.
+            state: effectiveSyncState == .syncing ? .pending : effectiveSyncState,
             removalFlag: removalFlag,
             removalKept: removalKeptAt != nil,
             retryCount: retryCount,

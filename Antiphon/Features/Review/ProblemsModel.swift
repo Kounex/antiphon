@@ -37,8 +37,10 @@ final class ProblemsModel {
 
     var count: Int { (signedOut == nil ? 0 : 1) + others.count }
 
-    func load() async {
-        let all = (try? await seams.seams()) ?? []
+    /// `seams`: already read by the caller (the shell's refresh), to save a second read.
+    func load(seams known: [SeamSummary]? = nil) async {
+        let all: [SeamSummary]
+        if let known { all = known } else { all = (try? await seams.seams()) ?? [] }
         let records = (try? await problems.problems()) ?? []
 
         if !accounts.isSpotifyConnected {

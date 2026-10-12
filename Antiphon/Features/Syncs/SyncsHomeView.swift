@@ -66,21 +66,8 @@ struct SyncsHomeView: View {
             }
         }
         .refreshable { await model.load() }
-        .task {
-            for await _ in NotificationCenter.default.notifications(named: ModelContext.didSave) {
-                await model.load()
-            }
-        }
-        .confirmationDialog(
-            "Unlink \(unlinkCandidate?.name ?? "")?",
-            isPresented: Binding(get: { unlinkCandidate != nil }, set: { if !$0 { unlinkCandidate = nil } }),
-            titleVisibility: .visible,
-            presenting: unlinkCandidate
-        ) { seam in
-            Button("Unlink playlists", role: .destructive) { Task { await model.unlink(seam.id) } }
-        } message: { _ in
-            Text("Both playlists stay exactly as they are. Antiphon stops syncing them.")
-        }
+        // Every change to the store (syncs, answers, unlinking, background runs).
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     // MARK: - Sections
@@ -132,7 +119,7 @@ struct SyncsHomeView: View {
                 direction: SeamPresentation.direction(seam.direction),
                 health: SeamPresentation.health(seam.counts),
                 status: .init(isMonitoring: seam.isMonitored, isSyncing: syncCoordinator.isSyncing(seam.id),
-                              isPaused: seam.isPaused, failure: model.failure(for: seam))
+                              isChecking: model.isChecking(seam), isPaused: seam.isPaused, failure: model.failure(for: seam))
             )
         }
         .buttonStyle(.plain)
@@ -142,7 +129,7 @@ struct SyncsHomeView: View {
                 .tint(.thread)
         }
         .swipeActions(edge: .trailing) {
-            Button("Unlink", systemImage: "link.badge.minus", role: .destructive) { unlinkCandidate = seam }
+            Button("Unlink", systemImage: "scissors", role: .destructive) { unlinkCandidate = seam }
             Button(seam.isPaused ? "Resume" : "Pause", systemImage: seam.isPaused ? "play.fill" : "pause.fill") {
                 Task { await model.setPaused(!seam.isPaused, seamId: seam.id) }
             }
@@ -154,9 +141,19 @@ struct SyncsHomeView: View {
                 Task { await model.setPaused(!seam.isPaused, seamId: seam.id) }
             }
             Button("Rules", systemImage: "slider.horizontal.3") { path.append(.rules(seam.id)) }
-            Button("Unlink", systemImage: "link.badge.minus", role: .destructive) { unlinkCandidate = seam }
+            Button("Unlink", systemImage: "scissors", role: .destructive) { unlinkCandidate = seam }
         } preview: {
             SeamPreviewCard(seam: seam)
+        }
+        // On the card, so on iOS 26 the dialog points at the seam it unlinks.
+        .confirmationDialog(
+            "Unlink \(seam.name)?",
+            isPresented: Binding(get: { unlinkCandidate?.id == seam.id }, set: { if !$0 { unlinkCandidate = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Unlink playlists", role: .destructive) { Task { await model.unlink(seam.id) } }
+        } message: {
+            Text("Both playlists stay exactly as they are. Antiphon stops syncing them.")
         }
     }
 }

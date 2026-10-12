@@ -34,6 +34,7 @@ struct AppShellTests {
         #expect(summary.detail == "31 of 52 · Spotify → Apple Music")
         #expect(summary.done == 31)
         #expect(summary.total == 52)
+        #expect(summary.seamId == runClub.id, "tapping it reopens this seam's live sheet")
     }
 
     @Test("The write phase says where tracks are going")
@@ -61,6 +62,23 @@ struct AppShellTests {
         ))
         #expect(summary.title == "Syncing 3 playlists")
         #expect(summary.detail == "33 of 62")
+        #expect(summary.seamId == nil, "several: tapping lists them")
+    }
+
+    @Test("Several syncs: the list a tap opens, one row per seam with its own progress")
+    func severalRows() {
+        let a = seam("Run Club", .spotifyToApple)
+        let b = seam("Late Night Drive", .spotifyToApple)
+        let rows = RunningSyncSummary.rows(
+            progress: [
+                a.id: SyncProgress(totalTracks: 19, completedTracks: 4, failedTracks: 1),
+                b.id: SyncProgress(totalTracks: 25, completedTracks: 2, failedTracks: 0, phase: .adding(platformName: "Apple Music"))
+            ],
+            seams: [a, b]
+        )
+        #expect(rows.map(\.title) == ["Late Night Drive", "Run Club"])
+        #expect(rows.map(\.detail) == ["Adding 2 of 25 to Apple Music", "5 of 19 · Spotify → Apple Music"])
+        #expect(rows.map(\.seamId) == [b.id, a.id])
     }
 
     @Test("Nothing running, no accessory")
@@ -87,5 +105,27 @@ struct AppShellTests {
                                   appleMusicAccount: PreviewAppleMusicAccountReader())
         await model.refresh()
         #expect(model.reviewCount == 5)
+    }
+
+    @Test("A widget link opens its seam, or New tracks, over whatever was open")
+    @MainActor
+    func widgetLinks() {
+        let repository = PreviewSeamRepository(seams: [])
+        let model = AppShellModel(seams: repository, accounts: PreviewAccounts(), sync: PreviewSyncService(), library: PreviewLibraryService(),
+                                  reviews: repository, problems: repository, catalogSearch: PreviewCatalogSearchService(),
+                                  index: repository, availability: PreviewAvailabilityService(),
+                                  activity: repository, settings: repository,
+                                  appleMusicAccount: PreviewAppleMusicAccountReader())
+        let id = UUID()
+        model.selectedTab = .library
+        model.showsSettings = true
+        model.open(.seam(id))
+        #expect(model.selectedTab == .syncs)
+        #expect(model.syncsPath == [.seam(id)])
+        #expect(!model.showsSettings)
+
+        model.open(.newTracks)
+        #expect(model.selectedTab == .activity)
+        #expect(model.activityModel.tab == .newTracks)
     }
 }

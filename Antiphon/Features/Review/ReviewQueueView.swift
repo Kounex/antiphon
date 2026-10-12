@@ -57,6 +57,7 @@ struct ReviewQueueView: View {
             }
         }
         .task { if !model.isLoaded { await model.load() } }
+        .task(id: StoreChanges.shared.revision) { await model.refresh() }
         .onDisappear { player.stop() }
     }
 

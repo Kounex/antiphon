@@ -107,8 +107,7 @@ struct NewSeamTests {
             source: playlist("Workout Mix 2026", .spotify), target: .new(name: "Workout Mix 2026"),
             direction: .bidirectional, removalPolicy: .ask, isMonitored: true, monitorIntervalMinutes: 60
         ))
-        let pair = try #require(try ModelContext(container).fetch(FetchDescriptor<SyncPair>()).first)
-        #expect(pair.id == id)
+        let pair = try #require(try ModelContext(container).fetch(FetchDescriptor<SyncPair>()).first { $0.id == id })
         #expect(pair.spotifyPlaylistId == "Spotify-Workout Mix 2026")
         #expect(pair.appleMusicPlaylistId.hasPrefix("pending-creation-"))
         #expect(pair.appleMusicPlaylistName == "Workout Mix 2026")
@@ -196,8 +195,13 @@ struct NewSeamModelTests {
         let container = try SharedModelContainer.make(inMemory: true)
         let repository = SwiftDataSeamRepository(modelContainer: container)
         let defaults = UserDefaults(suiteName: "nsm-\(UUID().uuidString)")!
-        return (NewSeamModel(library: library, seams: repository, preferences: AppPreferences(defaults: defaults),
-                             linkedPlaylistIds: ["Spotify-Late Night Drive"]), container)
+        // Late Night Drive is already in a seam.
+        let context = ModelContext(container)
+        context.insert(SyncPair(spotifyPlaylistId: "Spotify-Late Night Drive", spotifyPlaylistName: "Late Night Drive",
+                                appleMusicPlaylistId: "Apple Music-Late Night", appleMusicPlaylistName: "Late Night",
+                                syncDirection: .spotifyToApple))
+        try context.save()
+        return (NewSeamModel(library: library, seams: repository, preferences: AppPreferences(defaults: defaults)), container)
     }
 
     @Test("Playlists already in a seam, or blocked by Spotify, can't be picked")
@@ -208,6 +212,19 @@ struct NewSeamModelTests {
         #expect(model.unavailableReason(for: try #require(byName["Late Night Drive"])) == "Already in a seam")
         #expect(model.unavailableReason(for: try #require(byName["Discover Weekly"])) == "Made by Spotify.")
         #expect(model.unavailableReason(for: try #require(byName["Workout Mix 2026"])) == nil)
+    }
+
+    @Test("A seam unlinked while New seam is open frees its playlists (no stale \"Already in a seam\")")
+    func unlinkedFreesPlaylists() async throws {
+        let (model, container) = try makeModel()
+        await model.loadPlaylists()
+        let late = try #require(model.visiblePlaylists.first { $0.name == "Late Night Drive" })
+        #expect(model.unavailableReason(for: late) == "Already in a seam")
+        let context = ModelContext(container)
+        for pair in try context.fetch(FetchDescriptor<SyncPair>()) { context.delete(pair) }
+        try context.save()
+        await model.refreshLinked()
+        #expect(model.unavailableReason(for: late) == nil)
     }
 
     @Test("Search narrows the list")
@@ -270,8 +287,7 @@ struct NewSeamModelTests {
         model.keepWatching = true
         model.interval = 60
         let id = try await model.createSeam()
-        let pair = try #require(try ModelContext(container).fetch(FetchDescriptor<SyncPair>()).first)
-        #expect(pair.id == id)
+        let pair = try #require(try ModelContext(container).fetch(FetchDescriptor<SyncPair>()).first { $0.id == id })
         #expect(pair.appleMusicPlaylistName == "Gym Rotation")
         #expect(pair.syncDirection == .bidirectional)
         #expect(pair.removalPolicy == .ask)

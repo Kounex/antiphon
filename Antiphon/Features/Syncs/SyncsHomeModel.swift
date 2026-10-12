@@ -20,11 +20,14 @@ final class SyncsHomeModel {
 
     private let repository: SeamRepository
     private let accounts: AccountsService
+    /// What opening the app is checking, and what it found.
+    private let checks: SeamChecks
     private let now: () -> Date
 
-    init(seams: SeamRepository, accounts: AccountsService, now: @escaping () -> Date = Date.init) {
+    init(seams: SeamRepository, accounts: AccountsService, checks: SeamChecks = .shared, now: @escaping () -> Date = Date.init) {
         self.repository = seams
         self.accounts = accounts
+        self.checks = checks
         self.now = now
     }
 
@@ -41,7 +44,7 @@ final class SyncsHomeModel {
     /// "across 9 seams · checked 2 min ago"
     var heroDetail: String {
         var parts = ["across \(PlanCopy.count(seams.count, "seam"))"]
-        if let latest = seams.compactMap(\.lastCheckedAt).max() {
+        if let latest = seams.compactMap(checkedAt).max() {
             parts.append("checked \(RelativeTime.text(since: latest, now: now()))")
         }
         return parts.joined(separator: " · ")
@@ -86,15 +89,32 @@ final class SyncsHomeModel {
     // MARK: - Cards
 
     func subtitle(for seam: SeamSummary) -> String {
-        let freshness: String
+        var parts = [seam.directionText]
         if seam.isPaused {
-            freshness = "paused"
-        } else if let checked = seam.lastCheckedAt {
-            freshness = "checked \(RelativeTime.text(since: checked, now: now()))"
+            parts.append("paused")
+        } else if isChecking(seam) {
+            parts.append("checking now")
+        } else if let checked = checkedAt(seam) {
+            if let waiting = look(for: seam)?.waiting, waiting > 0 {
+                parts.append("\(PlanCopy.count(waiting, "change")) waiting")
+            }
+            parts.append("checked \(RelativeTime.text(since: checked, now: now()))")
         } else {
-            freshness = "not synced yet"
+            parts.append("not synced yet")
         }
-        return "\(seam.directionText) · \(freshness)"
+        return parts.joined(separator: " · ")
+    }
+
+    func isChecking(_ seam: SeamSummary) -> Bool { checks.checking.contains(seam.id) }
+
+    /// What reading an unwatched seam found, unless a sync came after it.
+    private func look(for seam: SeamSummary) -> SeamChecks.Look? {
+        guard let look = checks.looks[seam.id], look.at > (seam.lastCheckedAt ?? .distantPast) else { return nil }
+        return look
+    }
+
+    private func checkedAt(_ seam: SeamSummary) -> Date? {
+        [seam.lastCheckedAt, look(for: seam)?.at].compactMap { $0 }.max()
     }
 
     /// The failed pill's label, if something broke.

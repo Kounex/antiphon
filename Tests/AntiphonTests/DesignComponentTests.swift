@@ -40,6 +40,14 @@ struct DesignComponentTests {
         #expect(SyncCard.pills(health: health, status: .init(isMonitoring: true, isPaused: true)) == [.paused])
     }
 
+    @Test("Checking takes the watching pill's place while the app reads the playlists")
+    func checking() {
+        let health = SeamHealth(synced: 6, review: 0, missing: 0, total: 6)
+        #expect(SyncCard.pills(health: health, status: .init(isMonitoring: true, isChecking: true)) == [.checking, .inSync])
+        #expect(SyncCard.pills(health: health, status: .init(isMonitoring: false, isChecking: true)) == [.checking, .inSync])
+        #expect(SyncCard.pills(health: health, status: .init(isMonitoring: true, isChecking: true, isPaused: true)) == [.paused, .inSync])
+    }
+
     @Test("Health bar fractions and VoiceOver value")
     func healthBar() {
         let health = SeamHealth(synced: 48, review: 3, missing: 1, total: 52)

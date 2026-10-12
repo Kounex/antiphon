@@ -42,22 +42,27 @@ final class NewSeamModel {
     private let library: LibraryService
     private let seams: SeamRepository
     private let preferences: AppPreferences
-    private var linkedPlaylistIds: Set<String>
+    /// Playlists already in a seam, read from the store (never a snapshot
+    /// from elsewhere, which goes stale when a seam is unlinked).
+    private var linkedPlaylistIds: Set<String> = []
     private var trackCache: [String: [CatalogTrack]] = [:]
 
-    init(library: LibraryService, seams: SeamRepository, preferences: AppPreferences, linkedPlaylistIds: Set<String>) {
+    init(library: LibraryService, seams: SeamRepository, preferences: AppPreferences) {
         self.library = library
         self.seams = seams
         self.preferences = preferences
-        self.linkedPlaylistIds = linkedPlaylistIds
+    }
+
+    /// Re-reads which playlists are in a seam (on open and whenever the store changes).
+    func refreshLinked() async {
+        guard let seams = try? await seams.seams() else { return }
+        linkedPlaylistIds = Set(seams.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
     }
 
     // MARK: - Pick
 
     func loadPlaylists() async {
-        if let seams = try? await seams.seams() {
-            linkedPlaylistIds.formUnion(seams.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
-        }
+        await refreshLinked()
         guard playlists[side] == nil else { return }
         isLoading = true
         defer { isLoading = false }

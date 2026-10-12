@@ -42,6 +42,16 @@ struct SyncFlowModelTests {
         return m
     }
 
+    @Test("Reopened from the progress bar, the sheet follows the running sync instead of planning a new one")
+    func followsRunning() async {
+        let planned = plan(adds: 3, conflicts: 0)
+        let m = SyncFlowModel(seamId: planned.plan.pairId, isFirstSync: false, sync: FixedPlanService(planned: planned),
+                              seams: PreviewSeamRepository(seams: []))
+        m.followRunningSync()
+        guard case .syncing = m.phase else { Issue.record("expected the live sheet, got \(m.phase)"); return }
+        #expect(m.afterApply == .showResult, "it ends on the result screen")
+    }
+
     @Test("Writes: sync them, then show the result")
     func writes() async {
         let m = await model(plan(adds: 3, conflicts: 1))

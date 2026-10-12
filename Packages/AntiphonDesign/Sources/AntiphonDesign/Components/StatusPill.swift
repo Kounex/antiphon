@@ -6,6 +6,8 @@ public struct StatusPill: View {
     public enum State: Hashable, Sendable {
         case inSync
         case syncing
+        /// Reading the playlists when the app opens: the watching eye, pulsing.
+        case checking
         case monitoring
         /// "Watching 7" on the Syncs hero.
         case watching(Int)
@@ -52,6 +54,7 @@ public struct StatusPill: View {
         switch state {
         case .inSync: "In sync"
         case .syncing: "Syncing"
+        case .checking: "Checking"
         case .monitoring: "Watching"
         case .watching(let n): "Watching \(n)"
         case .review(let n): "Review \(n)"
@@ -73,7 +76,7 @@ public struct StatusPill: View {
         switch state {
         case .inSync: "checkmark.circle.fill"
         case .syncing: "arrow.triangle.2.circlepath"
-        case .monitoring, .watching: "eye"
+        case .monitoring, .watching, .checking: "eye"
         case .review: "questionmark.circle.fill"
         case .failed: "exclamationmark.triangle.fill"
         case .missing: "circle.slash"
@@ -88,6 +91,8 @@ public struct StatusPill: View {
             .symbolRenderingMode(.hierarchical)
         if state == .syncing && !reduceMotion {
             image.symbolEffect(.rotate, options: .repeat(.continuous))
+        } else if state == .checking && !reduceMotion {
+            image.symbolEffect(.pulse, options: .repeat(.continuous))
         } else {
             image
         }
@@ -96,7 +101,7 @@ public struct StatusPill: View {
     private var foreground: Color {
         switch state {
         case .inSync: .statusSynced
-        case .syncing, .monitoring, .watching: .thread
+        case .syncing, .checking, .monitoring, .watching: .thread
         case .review: .statusReview
         case .failed: .statusFailed
         case .missing, .paused: .statusMissing
@@ -106,7 +111,7 @@ public struct StatusPill: View {
     private var background: Color {
         switch state {
         case .inSync: .statusSyncedSoft
-        case .syncing, .monitoring, .watching: .threadSoft
+        case .syncing, .checking, .monitoring, .watching: .threadSoft
         case .review: .statusReviewSoft
         case .failed: .statusFailedSoft
         case .missing, .paused: .clear

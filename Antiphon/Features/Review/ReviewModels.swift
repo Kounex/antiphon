@@ -49,6 +49,23 @@ final class ReviewQueueModel {
         isLoaded = true
     }
 
+    /// The store changed while the queue is open: questions answered elsewhere
+    /// (a notification, another screen) drop out, new ones join at the end,
+    /// and the person keeps their place.
+    func refresh() async {
+        guard isLoaded else { return await load() }
+        let matches = (try? await reviews.reviewItems(seamId: seamId)) ?? []
+        let conflicts = (try? await reviews.conflicts(seamId: seamId)) ?? []
+        let current = matches.map(Entry.match) + conflicts.map(Entry.conflict)
+        let currentIds = Set(current.map(\.id))
+        // The card on screen stays: it may be the one being answered right
+        // now (its answer saves before placing the track finishes).
+        let done = entries.prefix(index + 1)
+        let upcoming = entries.dropFirst(index + 1).filter { currentIds.contains($0.id) }
+        let known = Set(entries.map(\.id))
+        entries = Array(done) + upcoming + current.filter { !known.contains($0.id) }
+    }
+
     var currentEntry: Entry? { entries.indices.contains(index) ? entries[index] : nil }
     var current: ReviewItem? {
         if case .match(let item) = currentEntry { item } else { nil }

@@ -244,10 +244,10 @@ enum ActivityCopy {
     }
 
     static func since(_ oldest: Date?, now: Date, calendar: Calendar = .current) -> String {
-        guard let oldest else { return "Tracks that arrive through monitoring show up here." }
+        guard let oldest else { return "Tracks Antiphon adds on its own show up here." }
         let day = calendar.startOfDay(for: oldest)
         let title = ActivityHistory.title(for: day, now: now, calendar: calendar)
-        return "Tracks that arrived through monitoring since \(title == "Today" || title == "Yesterday" ? title.lowercased() : title)."
+        return "Tracks Antiphon added on its own since \(title == "Today" || title == "Yesterday" ? title.lowercased() : title)."
     }
 
     static func started(_ run: RunRecord) -> String {

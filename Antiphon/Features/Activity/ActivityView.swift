@@ -60,13 +60,8 @@ struct ActivityView: View {
         .scrollContentBackground(.hidden)
         .background(Color.canvas)
         .navigationTitle("Activity")
-        .task { await model.load() }
         .refreshable { await model.load() }
-        .task {
-            for await _ in NotificationCenter.default.notifications(named: ModelContext.didSave) {
-                await model.load()
-            }
-        }
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     // MARK: - History
@@ -313,6 +308,9 @@ struct RunDetailView: View {
             }
         }
         .task { await model.load() }
+        // History changes (an undo, a new run): the record follows; the undo
+        // preview, which reads the playlists, doesn't refetch on every change.
+        .task(id: StoreChanges.shared.revision) { await model.reloadRecord() }
     }
 
     private func symbol(_ kind: ChangeKind) -> String {

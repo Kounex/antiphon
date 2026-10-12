@@ -44,7 +44,44 @@ struct WidgetSnapshot: Codable, Equatable, Sendable {
     let lastCheckedAt: Date?
     let newThisWeek: NewTracks
 
+    /// Everything the widgets show, whenever it was built.
+    func hasSameContent(as other: WidgetSnapshot) -> Bool {
+        seams == other.seams && tracksInSync == other.tracksInSync && seamCount == other.seamCount
+            && lastCheckedAt == other.lastCheckedAt && newThisWeek == other.newThisWeek
+    }
+
     static let fileName = "widget-snapshot.json"
+    static let coversFolder = "covers"
+
+    /// Where the app keeps a small copy of `url`'s artwork for the widgets,
+    /// named by a stable hash of the URL.
+    static func coverFile(for url: URL, in folder: URL) -> URL {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in url.absoluteString.utf8 { hash = (hash ^ UInt64(byte)) &* 0x100000001b3 }
+        return folder.appending(path: coversFolder).appending(path: String(hash, radix: 16) + ".jpg")
+    }
+
+    /// The covers already saved for these seams, by seam.
+    func covers(in folder: URL) -> [UUID: Data] {
+        var covers: [UUID: Data] = [:]
+        for seam in seams {
+            if let url = seam.artworkURL, let data = try? Data(contentsOf: Self.coverFile(for: url, in: folder)) {
+                covers[seam.id] = data
+            }
+        }
+        return covers
+    }
+
+    /// Shown in the widget gallery and the debug catalog.
+    static let sample = WidgetSnapshot(
+        generatedAt: Date(),
+        seams: [
+            Seam(id: UUID(), name: "Late Night Drive", artworkURL: nil, status: .review(3), checkedAt: Date().addingTimeInterval(-120)),
+            Seam(id: UUID(), name: "Garden Sundays", artworkURL: nil, status: .inSync, checkedAt: Date().addingTimeInterval(-300))
+        ],
+        tracksInSync: 1_284, seamCount: 9, lastCheckedAt: Date().addingTimeInterval(-120),
+        newThisWeek: NewTracks(tracks: 14, playlists: 3)
+    )
 
     func write(to folder: URL) throws {
         let data = try JSONEncoder().encode(self)

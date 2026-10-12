@@ -29,7 +29,7 @@ extension SwiftDataSeamRepository: ActivityRepository {
 
     func newTracks() async throws -> [NewTrack] {
         let context = ModelContext(modelContainerForReview)
-        return try unseenMonitorAdds(in: context).compactMap { change in
+        return try unseenUnattendedAdds(in: context).compactMap { change in
             guard let run = change.run, let pair = run.syncPair else { return nil }
             return NewTrack(id: change.id, seamId: pair.id, seamName: Self.activityName(of: pair), direction: pair.syncDirection,
                             title: change.title, artist: change.artist, artworkURL: change.artworkURL.flatMap(URL.init(string:)),
@@ -40,16 +40,18 @@ extension SwiftDataSeamRepository: ActivityRepository {
     func markAllSeen() async throws {
         let context = ModelContext(modelContainerForReview)
         let now = Date()
-        for change in try unseenMonitorAdds(in: context) { change.seenAt = now }
+        for change in try unseenUnattendedAdds(in: context) { change.seenAt = now }
         try context.save()
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainerForReview)
     }
 
     // MARK: - Private
 
-    private func unseenMonitorAdds(in context: ModelContext) throws -> [SyncChange] {
+    /// Adds Antiphon made on its own (`SyncTrigger.isUnattended`), not yet marked seen.
+    private func unseenUnattendedAdds(in context: ModelContext) throws -> [SyncChange] {
         // Enum comparisons don't translate to SwiftData predicates: filter in memory.
         try context.fetch(FetchDescriptor<SyncChange>(predicate: #Predicate { $0.seenAt == nil }))
-            .filter { $0.kind == .add && $0.run?.trigger == .monitor && $0.run?.undoneAt == nil }
+            .filter { $0.kind == .add && ($0.run?.trigger.map(\.isUnattended) ?? false) && $0.run?.undoneAt == nil }
     }
 
     private static func activityName(of pair: SyncPair) -> String {

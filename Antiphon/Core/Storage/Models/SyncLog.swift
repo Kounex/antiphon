@@ -96,6 +96,15 @@ enum SyncTrigger: String, Codable, Sendable {
     case review
     case conflict
     case undo
+
+    /// Runs nobody previewed: background checks, Sync all, Shortcuts. Their
+    /// adds are what Activity › New tracks lists.
+    var isUnattended: Bool {
+        switch self {
+        case .monitor, .widget, .shortcut: true
+        case .firstSync, .manual, .review, .conflict, .undo: false
+        }
+    }
 }
 
 // MARK: - SyncAction

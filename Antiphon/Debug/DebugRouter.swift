@@ -68,11 +68,23 @@ struct DebugRouteView: View {
             AppShell(model: Self.shellModel(option))
                 .tint(.thread)
                 .onAppear {
-                    if option == "syncing" {
+                    if option == "syncing" || option == "syncing-several" {
                         syncCoordinator.simulateRunning(
                             pairId: PreviewFixtures.runClub.id,
                             progress: SyncProgress(totalTracks: 52, completedTracks: 31, failedTracks: 0)
                         )
+                    }
+                    if option == "syncing-several" {
+                        syncCoordinator.simulateRunning(
+                            pairId: PreviewFixtures.lateNightDrive.id,
+                            progress: SyncProgress(totalTracks: 25, completedTracks: 9, failedTracks: 0,
+                                                   phase: .adding(platformName: "Apple Music"))
+                        )
+                    }
+                    if option == "checking" {
+                        // Opening the app: one seam still being read, one read with changes waiting.
+                        SeamChecks.shared.begin([PreviewFixtures.lateNightDrive.id, PreviewFixtures.gardenSundays.id])
+                        SeamChecks.shared.finish(PreviewFixtures.gardenSundays.id, look: .init(waiting: 3, at: Date()))
                     }
                 }
         }
@@ -153,6 +165,7 @@ struct DebugRouteView: View {
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))
+        case "syncing-several": model.showsRunningSyncs = true
         case "preview", "syncing", "synced":
             model.syncFlowSeamId = PreviewFixtures.lateNightDrive.id
             DebugRoute.flowPhase = option

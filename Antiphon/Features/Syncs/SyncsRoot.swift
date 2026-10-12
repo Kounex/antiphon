@@ -54,7 +54,7 @@ struct SyncsRoot: View {
                 }
             }
         }
-        .task { await home.load() }
+        // SyncsHomeView reloads `home` on every store change.
     }
 
     /// Close matches open their evidence; removals open their question.

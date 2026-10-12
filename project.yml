@@ -55,10 +55,11 @@ targets:
         # primary AppIcon.icon follows the system.
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Light AppIcon-Dark"
       configs:
+        # ANTIPHON_APP: code in Shared/ that only the app runs (SyncAllIntent).
         Debug:
-          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG ANTIPHON_APP
         Release:
-          SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: ANTIPHON_APP
     entitlements:
       path: Antiphon/Antiphon.entitlements
       properties:
@@ -70,18 +71,57 @@ targets:
       path: Antiphon/Info.plist
       properties:
         AntiphonAppGroup: group.$(ANTIPHON_BUNDLE_ID)
+        NSSupportsLiveActivities: true
         CFBundleURLTypes:
           - CFBundleURLName: "Spotify Callback"
             CFBundleURLSchemes:
               - antiphon
         BGTaskSchedulerPermittedIdentifiers:
           - com.antiphon.playlistRefresh
+          # A sync the person started, continued in the background (one per run).
+          - $(PRODUCT_BUNDLE_IDENTIFIER).sync.*
+        # Background refresh (monitoring) needs it; it was dropped in 1.2.1,
+        # which stopped iOS from scheduling background checks.
+        UIBackgroundModes:
+          - fetch
     attributes:
       SystemCapabilities:
         com.apple.BackgroundModes:
           enabled: true
         com.apple.developer.musickit:
           enabled: true
+    dependencies:
+      - package: AntiphonDesign
+      - target: AntiphonWidgets
+
+  AntiphonWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Widgets
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ANTIPHON_BUNDLE_ID).widgets
+        DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+        CODE_SIGN_STYLE: Automatic
+        INFOPLIST_KEY_CFBundleDisplayName: Antiphon
+        SWIFT_STRICT_CONCURRENCY: complete
+        SKIP_INSTALL: YES
+    entitlements:
+      path: Widgets/AntiphonWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.$(ANTIPHON_BUNDLE_ID)
+    info:
+      path: Widgets/Info.plist
+      properties:
+        AntiphonAppGroup: group.$(ANTIPHON_BUNDLE_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
     dependencies:
       - package: AntiphonDesign
 

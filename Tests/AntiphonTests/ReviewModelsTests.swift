@@ -41,6 +41,14 @@ final class RecordingSyncService: SyncService, Sendable {
 }
 
 /// Fixed review items and conflicts.
+/// Questions that change while the queue is open (answered from a notification, new ones from a sync).
+final class ChangingReviews: ReviewRepository, @unchecked Sendable {
+    var items: [ReviewItem]
+    init(items: [ReviewItem]) { self.items = items }
+    func reviewItems(seamId: UUID?) async throws -> [ReviewItem] { items }
+    func conflicts(seamId: UUID?) async throws -> [ConflictItem] { [] }
+}
+
 struct FixedReviews: ReviewRepository {
     var items: [ReviewItem] = []
     var conflictItems: [ConflictItem] = []
@@ -84,6 +92,36 @@ struct ReviewModelsTests {
         #expect(sync.calls.last == .skip(b.key))
         #expect(model.isFinished)
         #expect(model.summary == "1 added, 1 skipped.")
+    }
+
+    @Test("While the queue is open, questions answered elsewhere drop out and new ones join at the end; your place stays")
+    func refreshKeepsPlace() async {
+        let a = item("A", candidateTitle: "A (Remaster)"), b = item("B", candidateTitle: "B (Remaster)")
+        let c = item("C", candidateTitle: "C (Remaster)"), d = item("D", candidateTitle: "D (Remaster)")
+        let reviews = ChangingReviews(items: [a, b, c])
+        let model = ReviewQueueModel(seamId: nil, reviews: reviews, sync: RecordingSyncService())
+        await model.load()
+        await model.accept()                       // A answered here
+        reviews.items = [b, d]                     // C answered from a notification, D new from a sync
+        await model.refresh()
+        #expect(model.current?.source.title == "B")
+        #expect(model.positionText == "2 of 3")    // A done, B now, D next
+        await model.skip()
+        #expect(model.current?.source.title == "D")
+    }
+
+    @Test("The question being answered stays on screen while the store already shows it answered (no skipped card)")
+    func answeringKeepsCard() async {
+        let a = item("A", candidateTitle: "A (Remaster)"), b = item("B", candidateTitle: "B (Remaster)")
+        let c = item("C", candidateTitle: "C (Remaster)")
+        let reviews = ChangingReviews(items: [a, b, c])
+        let model = ReviewQueueModel(seamId: nil, reviews: reviews, sync: RecordingSyncService())
+        await model.load()
+        reviews.items = [b, c]                     // A's answer saved; placement still running
+        await model.refresh()                      // the store tick arrives before the answer returns
+        #expect(model.current?.source.title == "A")
+        await model.accept()
+        #expect(model.current?.source.title == "B", "B is shown next, not skipped")
     }
 
     @Test("Picking another version adds that one instead")

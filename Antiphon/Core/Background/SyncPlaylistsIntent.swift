@@ -44,7 +44,7 @@ struct SyncPlaylistsIntent: AppIntent {
             appleMusicManager: appleMusicManager
         )
         
-        let results = await syncEngine.syncAllMonitored()
+        let results = await syncEngine.syncAllMonitored(trigger: .shortcut)
         await WidgetSnapshotWriter.refresh(modelContainer: container)
         
         let failedResults = results.filter { $0.status == .failed }

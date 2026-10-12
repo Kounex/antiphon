@@ -1,4 +1,6 @@
 #if DEBUG
+import ActivityKit
+import BackgroundTasks
 import Foundation
 import MusicKit
 import SwiftData
@@ -60,6 +62,7 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "undo" { try await undoTwoWay() }
             if scenario == nil || scenario == "recheck" { try await recheckUnavailable() }
             if scenario == nil || scenario == "monitor" { try await monitorRun() }
+            if scenario == nil || scenario == "opencheck" { try await openCheck() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -68,9 +71,14 @@ final class SelfTestRunner {
             if scenario == "icon" { try await iconFollowsTheme() }
             // Needs the person to tap a notification button: only by name.
             if scenario == "ask" { try await askOnLockScreen() }
+            // Shows a Live Activity for the person to look at: only by name.
+            if scenario == "live" { try await liveActivity() }
         } catch {
             fail("Stopped: \(error)")
         }
+        // Scenarios write their throwaway stores into the App Group: put the
+        // dev app's own snapshot back for its widgets.
+        await WidgetSnapshotWriter.refresh(modelContainer: SharedModelContainer.container)
         log("DONE passed=\(passed) failed=\(failed)")
     }
 
@@ -403,6 +411,69 @@ final class SelfTestRunner {
 
     // MARK: - Scenario: a background run, called directly
 
+    private func openCheck() async throws {
+        log("== Opening the app checks every seam: unwatched ones are read, watched ones synced")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up"])
+
+        let defaults = UserDefaults(suiteName: "antiphon-selftest-opencheck")!
+        defaults.removePersistentDomain(forName: "antiphon-selftest-opencheck")
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.wifiOnly = false
+        preferences.pauseInLowPower = false
+        preferences.quietHours = nil
+
+        // Unwatched: read only. Right after a sync nothing is waiting (the
+        // song just added on Apple Music must not count as a change).
+        try env.setUnmonitored()
+        let planner = SyncPlanner(modelContainer: env.container, spotifyClient: SpotifyAPIClient(),
+                                  appleMusicManager: AppleMusicManager(), confidence: preferences.confidencePolicy)
+        var waiting = try await planner.waitingChanges(pairId: env.pairId, since: Date())
+        expect(waiting == 0, "just synced: nothing waiting (\(waiting))")
+
+        _ = try await env.editor.add([seeds.midnightCity], to: spotifyId, on: .spotify)
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-10 * 60))
+        try env.setUnmonitored()
+        let checks = SeamChecks()
+        let coordinator = SyncCoordinator(modelContainer: env.container)
+        await checks.runOnOpen(modelContainer: env.container, coordinator: coordinator, spotifySignedIn: true,
+                               preferences: preferences)?.value
+        let look = checks.looks[env.pairId]
+        log("look: \(look.map { "\($0.waiting) waiting" } ?? "none")")
+        expect(look?.waiting == 1, "unwatched: opening the app finds the new Spotify track waiting")
+        var apple = try await env.appleTracks()
+        expect(!apple.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "and doesn't add it")
+        expect(checks.checking.isEmpty, "the card stops saying checking")
+
+        // Watched, checked 10 minutes ago with an hourly interval: synced now anyway.
+        try env.setMonitored(lastSynced: Date().addingTimeInterval(-10 * 60))
+        let watchedChecks = SeamChecks()
+        await watchedChecks.runOnOpen(modelContainer: env.container, coordinator: coordinator, spotifySignedIn: true,
+                                      preferences: preferences)?.value
+        apple = try await waitForApple(env, titles: ["Midnight City"])
+        expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "watched: opening the app adds it")
+        let runs = try await env.repository.runs()
+        expect(runs.first?.trigger == .monitor, "History shows it as a watching run")
+        try env.setUnmonitored()
+        waiting = try await planner.waitingChanges(pairId: env.pairId, since: Date())
+        expect(waiting == 0, "afterwards nothing is waiting (\(waiting))")
+
+        // Opened again a moment later: nothing is checked twice.
+        try env.setMonitored(lastSynced: Date())
+        let again = SeamChecks()
+        await again.runOnOpen(modelContainer: env.container, coordinator: coordinator, spotifySignedIn: true,
+                              preferences: preferences)?.value
+        let runsAfter = try await env.repository.runs().count
+        expect(again.looks.isEmpty && runsAfter == runs.count, "reopened within 5 min: nothing runs")
+        defaults.removePersistentDomain(forName: "antiphon-selftest-opencheck")
+    }
+
     private func monitorRun() async throws {
         log("== A background monitoring run (called directly; iOS decides when it really runs)")
         let seeds = try await spotifySeeds()
@@ -498,6 +569,29 @@ final class SelfTestRunner {
             expect(false, "Faint waiting in Review is asked as a question")
         }
 
+        // iOS accepts the background refresh that runs monitoring (it needs the
+        // "fetch" background mode, which 1.2.1 had dropped). When it runs is iOS's call.
+        BackgroundTaskManager.scheduleBackgroundRefresh(modelContainer: env.container)
+        let pending = await BGTaskScheduler.shared.pendingTaskRequests().map(\.identifier)
+        expect(pending.contains(AppConstants.BackgroundTasks.playlistRefreshIdentifier),
+               "iOS has the background check scheduled (\(pending))")
+
+        // Sync all from the widget: every seam, now. Even one set to "Only
+        // when I ask" and synced a moment ago (no cooldown).
+        try env.setMonitored(lastSynced: Date())
+        try env.setUnmonitored()
+        // A track new to both sides, so there's something to add.
+        let pumpIt = try await spotifyTrack("track:Pump It artist:Black Eyed Peas", album: "Monkey Business")
+        _ = try await env.editor.add([pumpIt], to: spotifyId, on: .spotify)
+        preferences.autoAddThreshold = ConfidencePolicy.defaultAutoAddThreshold
+        let syncAll = await SyncAllRunner.run(modelContainer: env.container, preferences: preferences)
+        log("Sync all: \(syncAll.map { "\($0.status) +\($0.tracksAdded)" })")
+        expect(syncAll.count == 1 && syncAll.first?.tracksAdded == 1,
+               "Sync all syncs the seam that isn't monitored and was just synced, adding Pump It")
+        let afterSyncAll = try await waitForApple(env, titles: ["Pump It"])
+        expect(afterSyncAll.contains { $0.title.localizedCaseInsensitiveContains("Pump It") }, "and Pump It reaches Apple Music")
+        expect(try await env.repository.runs().first?.trigger == .widget, "History shows it as started from the widget")
+
         // Two-way Mirror: a removal on Spotify is carried out on Apple Music
         // in the background, unless "Removals in the background" is off.
         log("== Background removals in a two-way Mirror seam")
@@ -577,6 +671,29 @@ final class SelfTestRunner {
         }
         expect(left.isEmpty, "and the question is answered (\(left.count) left in Review)")
         defaults.removePersistentDomain(forName: "antiphon-selftest-ask")
+    }
+
+    // MARK: - Scenario: the Live Activity (by name)
+
+    private func liveActivity() async throws {
+        log("== Live Activity: Lock Screen and Dynamic Island, with simulated progress")
+        expect(ActivityAuthorizationInfo().areActivitiesEnabled, "Live Activities are allowed for Antiphon")
+        // Started as if the sync had already run 20 seconds.
+        let live = SyncLiveActivity(startedAt: Date().addingTimeInterval(-SyncActivityPolicy.startAfter))
+        let total = 35
+        log("Go to the Home Screen to see the Dynamic Island (long-press it to expand); lock the phone or pull down for the Lock Screen view. Come back in about 2 minutes.")
+        for done in stride(from: 0, through: total, by: 1) {
+            let phase: SyncPhase = done < 15 ? .matching : .adding(platformName: "Apple Music")
+            await live.show(SyncActivityContent.state(seamName: "Workout Mix 2026",
+                                                      progress: SyncProgress(totalTracks: total, completedTracks: done, failedTracks: 0, phase: phase)))
+            if done == 0 {
+                expect(live.isActive && Activity<SyncActivityAttributes>.activities.count == 1, "iOS shows the Live Activity")
+            }
+            try await Task.sleep(for: .seconds(3.5))
+        }
+        await live.finish(SyncActivityContent.finished(seamName: "Workout Mix 2026",
+                                                       result: SyncResult(pairId: UUID(), status: .success, tracksAdded: 35)))
+        expect(!live.isActive, "it ends with the result (\"Synced · 35 added\"), shown for a few minutes")
     }
 
     // MARK: - Scenario: undo a two-way sync
@@ -830,6 +947,16 @@ final class SelfTestRunner {
             try ModelContext(container).fetch(FetchDescriptor<CachedTrack>())
                 .filter { row in row.syncPair?.id == pairId && titles.contains { row.title.localizedCaseInsensitiveContains($0) } }
                 .map { ($0.title, $0.syncState, $0.matchConfidence) }
+        }
+
+        @MainActor
+        func setUnmonitored() throws {
+            let context = ModelContext(container)
+            guard let pair = try context.fetch(FetchDescriptor<SyncPair>()).first(where: { $0.id == pairId }) else {
+                throw SelfTestError("no seam")
+            }
+            pair.isMonitored = false
+            try context.save()
         }
 
         @MainActor

@@ -30,6 +30,31 @@ struct DeltaEngine {
         return cached.source == otherSide && cached.removalFlag == nil && cached.removalKeptAt == nil
     }
     
+    /// Rows whose Apple Music copy Antiphon added but never saw arrive: still a
+    /// catalog ID (never anchored to the playlist) and missing past the read
+    /// grace. The write didn't land (the app was stopped mid-sync), so they
+    /// aren't removals: they go back to pending and the next plan adds them;
+    /// planning checks the playlist first, so nothing is added twice.
+    @discardableResult
+    static func requeueNeverArrived(_ rows: [CachedTrack], liveAppleIDs: Set<String>, now: Date = Date()) -> [CachedTrack] {
+        let stranded = rows.filter { row in
+            guard let id = row.appleMusicTrackId, !id.hasPrefix("i."), !liveAppleIDs.contains(id),
+                  row.removalKeptAt == nil, row.removalFlag == nil || row.removalFlag == .removedFromAppleMusic else { return false }
+            // Only rows whose write time is known (Antiphon added them).
+            guard let written = row.lastSyncAttempt else { return false }
+            return now.timeIntervalSince(written) >= appleMusicReadGrace
+        }
+        for row in stranded {
+            row.appleMusicTrackId = nil
+            row.syncState = .pending
+            row.unmatchedPlatform = nil
+            row.removalFlag = nil
+            row.removalFlaggedAt = nil
+            if row.source == .both { row.source = .spotify }
+        }
+        return stranded
+    }
+
     /// Points cached rows whose `appleMusicTrackId` is not among the live
     /// playlist IDs back at the live library track they correspond to.
     ///

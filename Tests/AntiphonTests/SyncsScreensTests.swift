@@ -38,10 +38,10 @@ struct SyncsScreensTests {
 
     // MARK: - Home
 
-    private func home(_ seams: [SeamSummary], spotifyConnected: Bool = true) async -> SyncsHomeModel {
+    private func home(_ seams: [SeamSummary], spotifyConnected: Bool = true, checks: SeamChecks = SeamChecks()) async -> SyncsHomeModel {
         let accounts = PreviewAccounts()
         accounts.isSpotifyConnected = spotifyConnected
-        let model = SyncsHomeModel(seams: PreviewSeamRepository(seams: seams), accounts: accounts, now: { self.now })
+        let model = SyncsHomeModel(seams: PreviewSeamRepository(seams: seams), accounts: accounts, checks: checks, now: { self.now })
         await model.load()
         return model
     }
@@ -91,6 +91,39 @@ struct SyncsScreensTests {
         #expect(model.subtitle(for: seam("A")) == "Spotify → Apple Music · checked 4 min ago")
         #expect(model.subtitle(for: seam("A", .bidirectional, checkedMinutesAgo: nil)) == "Both ways · not synced yet")
         #expect(model.subtitle(for: seam("A", paused: true)) == "Spotify → Apple Music · paused")
+    }
+
+    @Test("Opening the app: a card being checked says so, and a seam that was only looked at says what's waiting")
+    func openChecks() async {
+        let checks = SeamChecks()
+        let watched = seam("A")
+        let unwatched = seam("B", monitored: false, checkedMinutesAgo: 600)
+        let model = await home([watched, unwatched], checks: checks)
+
+        checks.begin([watched.id, unwatched.id])
+        #expect(model.isChecking(watched))
+        #expect(model.subtitle(for: watched) == "Spotify → Apple Music · checking now")
+
+        checks.finish(unwatched.id, look: .init(waiting: 3, at: now))
+        #expect(!model.isChecking(unwatched))
+        #expect(model.subtitle(for: unwatched) == "Spotify → Apple Music · 3 changes waiting · checked just now")
+        checks.finish(watched.id, look: nil)
+        #expect(model.subtitle(for: watched) == "Spotify → Apple Music · checked 4 min ago")
+        #expect(model.heroDetail == "across 2 seams · checked just now")
+
+        checks.finish(unwatched.id, look: .init(waiting: 1, at: now))
+        #expect(model.subtitle(for: unwatched) == "Spotify → Apple Music · 1 change waiting · checked just now")
+        checks.finish(unwatched.id, look: .init(waiting: 0, at: now))
+        #expect(model.subtitle(for: unwatched) == "Spotify → Apple Music · checked just now")
+    }
+
+    @Test("A sync after the look replaces what it found")
+    func lookThenSync() async {
+        let checks = SeamChecks()
+        let synced = seam("B", monitored: false, checkedMinutesAgo: 1)
+        let model = await home([synced], checks: checks)
+        checks.finish(synced.id, look: .init(waiting: 3, at: now.addingTimeInterval(-600)))
+        #expect(model.subtitle(for: synced) == "Spotify → Apple Music · checked 1 min ago")
     }
 
     @Test("A failed seam or a signed-out Spotify shows on the card")

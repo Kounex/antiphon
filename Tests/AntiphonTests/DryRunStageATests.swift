@@ -57,6 +57,67 @@ struct DryRunStageATests {
         try ModelContext(container).fetchCount(FetchDescriptor<CachedTrack>())
     }
 
+    /// One row of a one-way seam, as a stopped sync could leave it.
+    private func seedRow(_ configure: (CachedTrack) -> Void) throws -> (ModelContainer, UUID) {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let pairId = try seedPair(in: container, direction: .spotifyToApple, syncedTracks: [])
+        let context = ModelContext(container)
+        let pair = try #require(try context.fetch(FetchDescriptor<SyncPair>()).first)
+        let row = CachedTrack(isrc: "ISRC1", title: "Track 1", artist: "Artist 1", durationMs: 200_000,
+                              spotifyTrackUri: "spotify:track:t1", source: .spotify, syncState: .pending)
+        configure(row)
+        row.syncPair = pair
+        context.insert(row)
+        try context.save()
+        return (container, pairId)
+    }
+
+    @Test("A track left 'syncing' by a sync that was stopped mid-write is planned again")
+    func syncingIsPlannedAgain() throws {
+        let (container, pairId) = try seedRow { $0.syncState = .syncing }
+        let result = try DryRunStageA.run(container: container, pairId: pairId, action: .manualSync, trackMatcher: matcher,
+                                          spotifyTracks: [try spotifyItem(1, isrc: "ISRC1")], appleMusicTracks: [])
+        #expect(result.rows.first { $0.source.id == "spotify:track:t1" }?.state == .pending)
+    }
+
+    @Test("At launch, tracks a stopped sync left 'syncing' go back to pending (no sync can be running yet)")
+    func launchRecovery() throws {
+        let (container, _) = try seedRow { $0.syncState = .syncing }
+        #expect(SyncRecovery.resetInterrupted(in: container) == 1)
+        let row = try #require(try ModelContext(container).fetch(FetchDescriptor<CachedTrack>()).first)
+        #expect(row.syncState == .pending)
+        #expect(SyncRecovery.resetInterrupted(in: container) == 0)
+    }
+
+    @Test("A track Antiphon added but never saw arrive on Apple Music is added again, not taken as removed")
+    func neverArrivedIsRequeued() throws {
+        let (container, pairId) = try seedRow { row in
+            row.source = .both
+            row.syncState = .synced
+            row.appleMusicTrackId = "1440000001"            // a catalog ID: never anchored to the playlist
+            row.lastSyncAttempt = Date().addingTimeInterval(-20 * 60)
+        }
+        let result = try DryRunStageA.run(container: container, pairId: pairId, action: .manualSync, trackMatcher: matcher,
+                                          spotifyTracks: [try spotifyItem(1, isrc: "ISRC1")], appleMusicTracks: [])
+        let row = try #require(result.rows.first { $0.source.id == "spotify:track:t1" })
+        #expect(row.state == .pending)
+        #expect(row.counterpartId == nil)
+        #expect(row.removalFlag == nil)
+    }
+
+    @Test("Within the read grace a fresh add isn't requeued yet (Apple Music lists it a few seconds later)")
+    func freshAddWaits() throws {
+        let (container, pairId) = try seedRow { row in
+            row.source = .both
+            row.syncState = .synced
+            row.appleMusicTrackId = "1440000001"
+            row.lastSyncAttempt = Date().addingTimeInterval(-60)
+        }
+        let result = try DryRunStageA.run(container: container, pairId: pairId, action: .manualSync, trackMatcher: matcher,
+                                          spotifyTracks: [try spotifyItem(1, isrc: "ISRC1")], appleMusicTracks: [])
+        #expect(result.rows.first { $0.source.id == "spotify:track:t1" }?.state == .synced)
+    }
+
     @Test("A new Spotify track never claims an Apple Music entry another row already owns")
     func ownedAppleEntryStaysOwned() throws {
         let container = try SharedModelContainer.make(inMemory: true)

@@ -23,7 +23,7 @@ final class RulesModel {
     func load() async {
         rules = try? await repository.rules(for: seamId)
         originalDirection = originalDirection ?? rules?.direction
-        seamName = (try? await repository.detail(for: seamId))?.summary.name ?? ""
+        if seamName.isEmpty { seamName = (try? await repository.detail(for: seamId))?.summary.name ?? "" }
     }
 
     func update(_ change: (inout SeamRules) -> Void) {

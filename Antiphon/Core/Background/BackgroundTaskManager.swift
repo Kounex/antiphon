@@ -139,7 +139,7 @@ enum MonitorRun {
             await ask(report.questions)
         }
         // Notifications first: the widgets can wait, a question can't.
-        if !isExpired() { await WidgetSnapshotWriter.refresh(modelContainer: modelContainer) }
+        if !isExpired() { await WidgetSnapshotWriter.refresh(modelContainer: modelContainer, covers: false) }
         return report
     }
 

@@ -73,7 +73,13 @@ struct AntiphonApp: App {
 
         // Register background tasks (handler creates its own auth instances)
         if !Self.isHostingTests {
+            // Nothing can be syncing yet: Live Activities still showing, and tracks
+            // still marked syncing, were left by a run iOS ended.
+            Task { await SyncLiveActivity.endLeftovers() }
+            let container = modelContainer
+            Task.detached(priority: .userInitiated) { SyncRecovery.resetInterrupted(in: container) }
             BackgroundTaskManager.registerTasks(modelContainer: modelContainer)
+            if !Self.isDebugRoute { WidgetSnapshotWriter.followStoreChanges(modelContainer: modelContainer) }
         }
     }
 
@@ -101,6 +107,13 @@ struct AntiphonApp: App {
             }
         }
         .modelContainer(modelContainer)
+        // Opening the app (cold or from the background) checks every seam,
+        // not only the ones whose interval has passed.
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            guard phase == .active, !Self.isHostingTests, !Self.isDebugRoute else { return }
+            SeamChecks.shared.runOnOpen(modelContainer: modelContainer, coordinator: syncCoordinator,
+                                        spotifySignedIn: spotifyAuth.isAuthenticated)
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             guard !Self.isHostingTests, !Self.isDebugRoute else { return }
             switch newPhase {
@@ -111,6 +124,8 @@ struct AntiphonApp: App {
                 // Keychain — re-sync the observable auth state with reality.
                 spotifyAuth.refreshAuthStatus()
                 AppIconSwitcher.request(appearance)
+            case .inactive:
+                Task { await syncCoordinator.startLiveActivitiesBeforeLeaving() }
             case .background:
                 BackgroundTaskManager.scheduleBackgroundRefresh(modelContainer: modelContainer)
                 WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
@@ -131,6 +146,9 @@ struct AntiphonApp: App {
             } else {
                 AppShell(model: shellModel)
             }
+        }
+        .onOpenURL { url in
+            if let link = WidgetLink(url: url) { shellModel.open(link) }
         }
         .environment(spotifyAuth)
         .environment(syncCoordinator)

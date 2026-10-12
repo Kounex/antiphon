@@ -73,7 +73,7 @@ struct SearchView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.canvas)
-        .task { await model.load() }
+        .task(id: StoreChanges.shared.revision) { await model.load() }
     }
 
     private var noResults: String {

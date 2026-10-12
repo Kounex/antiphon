@@ -97,6 +97,8 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .task { await model.load() }
         .refreshable { await model.load() }
+        // Seams change (created, unlinked): their state follows without refetching playlists.
+        .task(id: StoreChanges.shared.revision) { await model.refreshSeams() }
     }
 
     private var columns: Int { dynamicTypeSize.isAccessibilitySize ? 1 : 2 }

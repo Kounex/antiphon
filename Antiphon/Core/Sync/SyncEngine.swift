@@ -44,8 +44,11 @@ actor SyncEngine {
     /// Called by foreground sync, AppIntent, and BGAppRefreshTask.
     @discardableResult
     /// `only`: the seams a background run found due; `nil` syncs every monitored seam.
+    /// `everySeam`: Sync all from the widget also syncs seams set to "Only
+    /// when I ask" (tapping it is asking) and skips the cooldown.
     func syncAllMonitored(only: Set<UUID>? = nil, trigger: SyncTrigger = .monitor,
-                          preferences: AppPreferences = .shared) async -> [SyncResult] {
+                          preferences: AppPreferences = .shared, everySeam: Bool = false,
+                          progress: (@Sendable (UUID, SyncProgress) async -> Void)? = nil) async -> [SyncResult] {
         let context = ModelContext(modelContainer)
         
         let descriptor = FetchDescriptor<SyncPair>(
@@ -53,7 +56,7 @@ actor SyncEngine {
             // by monitoring.
             // A rebuild (after a direction change) is previewed by the person too.
             predicate: #Predicate {
-                $0.isMonitored == true && $0.pausedAt == nil && $0.lastSyncedAt != nil && $0.needsRebuild == false
+                ($0.isMonitored == true || everySeam) && $0.pausedAt == nil && $0.lastSyncedAt != nil && $0.needsRebuild == false
             }
         )
         
@@ -76,12 +79,18 @@ actor SyncEngine {
             if let only, !only.contains(pair.id) { continue }
             
             // Skip pairs synced recently (per-pair cooldown)
-            if let lastSync = pair.lastSyncedAt,
+            if !everySeam, let lastSync = pair.lastSyncedAt,
                Date().timeIntervalSince(lastSync) < AppConstants.Sync.minimumSyncIntervalSeconds {
                 continue
             }
             
-            let result = await monitorSync(pair, context: context, trigger: trigger, preferences: preferences)
+            let pairId = pair.id
+            var callback: SyncProgressCallback?
+            if let progress {
+                callback = { value in await progress(pairId, value) }
+            }
+            let result = await monitorSync(pair, context: context, trigger: trigger, preferences: preferences,
+                                           progressCallback: callback)
             results.append(result)
         }
         
@@ -95,7 +104,7 @@ actor SyncEngine {
     /// Review, removals follow the seam's policy (Mirror removes unless
     /// "Removals in the background" is off, Ask asks).
     private func monitorSync(_ pair: SyncPair, context: ModelContext, trigger: SyncTrigger,
-                             preferences: AppPreferences) async -> SyncResult {
+                             preferences: AppPreferences, progressCallback: SyncProgressCallback? = nil) async -> SyncResult {
         // A sync already running for this seam (started by the person) wins;
         // don't plan against playlists it is changing.
         let pairId = pair.id
@@ -123,7 +132,7 @@ actor SyncEngine {
         // If a playlist changes between planning and applying, nothing is
         // written (`isStale`) and the next run plans again.
         return await syncSinglePair(pair, context: context, action: .monitorSync,
-                                    run: RunContext(trigger: trigger, planned: planned))
+                                    run: RunContext(trigger: trigger, planned: planned), progressCallback: progressCallback)
     }
 
     /// Records a run that stopped on `error`: the seam's state, a problem
@@ -212,6 +221,9 @@ actor SyncEngine {
         )
         cachedTrackDescriptor.sortBy = [SortDescriptor(\.addedAt, order: .forward)]
         var cachedTracks = (try? context.fetch(cachedTrackDescriptor)) ?? []
+        // No other run holds this seam (the lock above), so "syncing" rows come
+        // from a run stopped mid-write: their writes may not have landed.
+        for track in cachedTracks where track.syncState == .syncing { track.syncState = .pending }
         
         do {
             // Deduplicate cached tracks using PlaylistCachePruner
@@ -314,6 +326,7 @@ actor SyncEngine {
                     appleMusicTracks: appleMusicTracks,
                     trackMatcher: trackMatcher
                 )
+                DeltaEngine.requeueNeverArrived(cachedTracks, liveAppleIDs: Set(appleMusicTracks.map(\.id)))
             }
             
             cachedTracks = CacheAligner.alignCache(
@@ -598,7 +611,13 @@ actor SyncEngine {
                         trackMatcher.isMatch(song: song, appleTrack: appleTrack)
                     }
 
-                    if existingAppleTrack == nil {
+                    if let existingAppleTrack {
+                        print("[SyncEngine] Track '\(track.title)' already exists in Apple Music target playlist. Skipping add.")
+                        track.appleMusicTrackId = existingAppleTrack.id
+                        track.syncState = .synced
+                        track.source = .both
+                        track.unmatchedPlatform = nil
+                    } else {
                         appleMusicSongsToAdd.append(song)
                         queuedAppleMusicWrites.append(QueuedAppleMusicWrite(
                             track: track,
@@ -606,17 +625,10 @@ actor SyncEngine {
                             originalSource: originalSource
                         ))
                         added += 1
-                    } else {
-                        print("[SyncEngine] Track '\(track.title)' already exists in Apple Music target playlist. Skipping add.")
+                        // Not synced until the write lands: a sync stopped
+                        // mid-write must not leave it looking done.
+                        track.syncState = .syncing
                     }
-
-                    // Prefer the playlist's library ID, which is what later
-                    // syncs compare against. A freshly added song only has
-                    // its catalog ID here; it's anchored after the write.
-                    track.appleMusicTrackId = existingAppleTrack?.id ?? song.id.rawValue
-                    track.syncState = .synced
-                    track.source = .both
-                    track.unmatchedPlatform = nil
                     recordEvidence(plannedMatch, on: track)
                 } else {
                     // The plan found it, but fetching the song failed
@@ -638,14 +650,15 @@ actor SyncEngine {
                         originalSource: originalSource
                     ))
                     added += 1
+                    // Not synced until the write lands (see Apple Music above).
+                    track.syncState = .syncing
                 } else {
                     print("[SyncEngine] Track '\(track.title)' already exists in Spotify target playlist. Skipping add.")
+                    track.spotifyTrackUri = spotifyTrack.uri
+                    track.syncState = .synced
+                    track.source = .both
+                    track.unmatchedPlatform = nil
                 }
-
-                track.spotifyTrackUri = spotifyTrack.uri
-                track.syncState = .synced
-                track.source = .both
-                track.unmatchedPlatform = nil
                 recordEvidence(plannedMatch, on: track)
             }
 
@@ -688,23 +701,34 @@ actor SyncEngine {
                     trackUris: spotifyUrisToAdd
                 )
                 for write in queuedSpotifyWrites {
+                    markWritten(write.track, spotifyURI: write.uri)
                     run.recordAdd(of: write.track, on: .spotify, id: write.uri)
                 }
             } catch {
-                // Roll affected tracks back to .pending and fail the sync instead
-                // of silently reporting success for writes that never landed. The
-                // AM block below never runs after this throw, so its queued writes
-                // must be rolled back here too.
+                // Roll the tracks that never landed back to .pending (batches that
+                // did land are kept and recorded). The AM block below never runs
+                // after this throw, so its queued writes are rolled back here too.
+                var unwritten = Set(spotifyUrisToAdd)
+                var underlying = error
+                if case SpotifyAPIError.partialAdd(let addedURIs, let partialError) = error {
+                    let landed = Set(addedURIs)
+                    unwritten.subtract(landed)
+                    underlying = partialError
+                    for write in queuedSpotifyWrites where landed.contains(write.uri) {
+                        markWritten(write.track, spotifyURI: write.uri)
+                        run.recordAdd(of: write.track, on: .spotify, id: write.uri)
+                    }
+                }
                 let rolledBack = rollbackUnwrittenWrites(
                     spotifyWrites: queuedSpotifyWrites,
-                    unwrittenSpotifyURIs: Set(spotifyUrisToAdd),
+                    unwrittenSpotifyURIs: unwritten,
                     appleMusicWrites: queuedAppleMusicWrites,
                     unwrittenAppleSongIds: Set(queuedAppleMusicWrites.map(\.songId)),
                     context: context
                 )
                 added -= rolledBack
-                failed += rolledBack
-                throw error
+                if !(underlying is CancellationError) { failed += rolledBack }
+                throw underlying
             }
         }
         
@@ -736,7 +760,12 @@ actor SyncEngine {
                 }
                 do {
                     let songCount = appleMusicSongsToAdd.count
-                    let reportAdded: @Sendable (Int) async -> Void = { addedCount in
+                    // Each song is synced as it lands, not when the batch ends:
+                    // the screens count up live, and a stop keeps the record true.
+                    landing = Dictionary(queuedAppleMusicWrites.map { ($0.songId, $0.track) }, uniquingKeysWith: { a, _ in a })
+                    defer { landing = [:] }
+                    let reportAdded: @Sendable (String?, Int) async -> Void = { [self] songId, addedCount in
+                        if let songId { await self.landed(songId) }
                         await progressCallback?(SyncProgress(
                             totalTracks: songCount,
                             completedTracks: addedCount,
@@ -744,7 +773,7 @@ actor SyncEngine {
                             phase: .adding(platformName: "Apple Music")
                         ))
                     }
-                    await reportAdded(0)
+                    await reportAdded(nil, 0)
                     try await appleMusicManager.addTracks(
                         appleMusicSongsToAdd,
                         to: amPlaylist,
@@ -755,7 +784,7 @@ actor SyncEngine {
                     let anchors = await appleMusicManager.libraryIDs(for: appleMusicSongsToAdd, in: amPlaylist)
                     for write in queuedAppleMusicWrites {
                         let id = anchors[write.songId] ?? write.songId
-                        write.track.appleMusicTrackId = id
+                        markWritten(write.track, appleMusicID: id)
                         run.recordAdd(of: write.track, on: .appleMusic, id: id)
                     }
                 } catch {
@@ -767,6 +796,7 @@ actor SyncEngine {
                         unwrittenSongIds.subtract(addedSongIds)
                         underlying = partialError
                         for write in queuedAppleMusicWrites where addedSongIds.contains(write.songId) {
+                            markWritten(write.track, appleMusicID: write.songId)
                             run.recordAdd(of: write.track, on: .appleMusic, id: write.songId)
                         }
                     }
@@ -789,9 +819,30 @@ actor SyncEngine {
         return MatchResult(added: added, failed: failed)
     }
     
-    /// Rolls back queued tracks that were marked .synced but whose writes never landed
-    /// on the target playlist, restoring their pre-match state so a later sync retries
-    /// them instead of trusting a cache row the platform doesn't have.
+    /// Apple Music rows of the batch being written, by catalog song ID.
+    private var landing: [String: CachedTrack] = [:]
+
+    /// One Apple Music song landed (anchoring to its library ID comes after the batch).
+    private func landed(_ songId: String) {
+        guard let track = landing[songId] else { return }
+        markWritten(track, appleMusicID: songId)
+        // The read grace (Apple Music lists a new song a little later) counts from here.
+        track.lastSyncAttempt = Date()
+        try? track.modelContext?.save()
+    }
+
+    /// A queued write landed: the row is synced now, not before.
+    private func markWritten(_ track: CachedTrack, spotifyURI: String? = nil, appleMusicID: String? = nil) {
+        if let spotifyURI { track.spotifyTrackUri = spotifyURI }
+        if let appleMusicID { track.appleMusicTrackId = appleMusicID }
+        track.syncState = .synced
+        track.source = .both
+        track.unmatchedPlatform = nil
+    }
+
+    /// Rolls back queued tracks whose writes never landed on the target
+    /// playlist, restoring their pre-match state so a later sync retries them
+    /// instead of trusting a cache row the platform doesn't have.
     @discardableResult
     private func rollbackUnwrittenWrites(
         spotifyWrites: [QueuedSpotifyWrite],
@@ -988,9 +1039,11 @@ actor SyncEngine {
         cachedTracks: [CachedTrack],
         run: RunContext
     ) -> SyncResult {
+        // What landed before the stop: the writes this run recorded.
+        let tracksAdded = max(tracksAdded, run.changes.filter { $0.kind == .add }.count)
         pair.lastInterruptedAt = Date()
         pair.lastSyncResult = .partial
-        pair.lastSyncMessage = "Sync interrupted — will resume"
+        pair.lastSyncMessage = "Stopped before the end · what was added is kept"
         
         // Reset any .syncing tracks back to .pending
         for track in cachedTracks where track.syncState == .syncing {
@@ -1008,7 +1061,7 @@ actor SyncEngine {
         return SyncResult(
             pairId: pair.id,
             status: .partial,
-            message: "Sync interrupted — will resume on next sync",
+            message: "Stopped before the end. What was added is kept; Sync now adds the rest.",
             tracksAdded: tracksAdded,
             tracksFailed: tracksFailed
         )

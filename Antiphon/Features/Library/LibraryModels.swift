@@ -10,6 +10,9 @@ final class LibraryModel {
     var filter: LibraryFilter = .noTwin
     var sort: LibrarySort = .library
     private(set) var items: [LibraryItem] = []
+    /// The playlists from the last fetch, so seam changes don't refetch them.
+    @ObservationIgnored private var fetched: (spotify: [LibraryPlaylist], appleMusic: [LibraryPlaylist])?
+    private(set) var hasLoaded = false
     private(set) var isLoading = false
     /// Sides that couldn't be read, with what to do about it.
     private(set) var failures: [Platform: String] = [:]
@@ -28,8 +31,17 @@ final class LibraryModel {
         async let spotify = playlists(on: .spotify)
         async let apple = playlists(on: .appleMusic)
         let (s, a) = await (spotify, apple)
+        fetched = (s, a)
+        hasLoaded = true
         let seamed = (try? await seams.seams()) ?? []
         items = LibraryGrid.items(spotify: s, appleMusic: a, seams: seamed)
+    }
+
+    /// Seams changed: recompute each playlist's seam state from the playlists
+    /// already fetched.
+    func refreshSeams() async {
+        guard let fetched, let seamed = try? await seams.seams() else { return }
+        items = LibraryGrid.items(spotify: fetched.spotify, appleMusic: fetched.appleMusic, seams: seamed)
     }
 
     var visible: [LibraryItem] { LibraryGrid.visible(items, scope: scope, filter: filter, sort: sort) }
@@ -195,7 +207,8 @@ final class SearchModel {
 
     func load() async {
         index = (try? await trackIndex.indexedTracks()) ?? []
-        if library.items.isEmpty { await library.load() }
+        // Playlists come over the network once; seam state follows the store.
+        if library.hasLoaded { await library.refreshSeams() } else { await library.load() }
         playlists = library.items
     }
 

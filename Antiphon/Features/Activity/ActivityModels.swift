@@ -66,6 +66,10 @@ final class RunDetailModel {
         self.sync = sync
     }
 
+    func reloadRecord() async {
+        record = (try? await activity.run(runId)) ?? record
+    }
+
     func load() async {
         record = try? await activity.run(runId)
         guard let record, record.canUndo else { undoPlan = nil; return }

@@ -4,10 +4,10 @@ Antiphon keeps playlists in sync between Spotify and Apple Music (iOS 26, SwiftU
 
 Read this first, then `docs/redesign-plan.md` (decisions D1–D7, the screen map, and a "done" section per milestone with what was verified and what differs from the storyboard).
 
-## Where things stand (2026-10-11)
+## Where things stand (2026-10-13)
 
 - **Work happens on `main`.** The iOS 26 redesign (M0–M8 plus the review fixes) was merged on 2026-10-11 and `redesign/ios26` is deleted. Commit and push to `main` after each unit of work. TestFlight builds are cut from `main`, but only when the user asks.
-- **Next milestone: M9.** App Group, widgets with "Sync all" (`LiveActivityIntent`), Live Activity, actionable notifications, share extension (plan rows 9.01–9.03). Wait for the user to start it.
+- **M9 in progress.** Steps 1–3 are done: App Group and snapshot, answering questions from the notification, widgets with "Sync all", Live Activity, and syncs that keep running in the background. Step 4, the share extension (9.03), is next. Opening the app checks every seam (`SeamChecks`).
 - **Design sources:** the design system artifact `TXKAkq1pkYhFFF593kxH63` and the storyboard `BF77MNwKAG2ZbZNv6mL15Q` (boards 1–9). Read them with the Artifact tool if needed.
 
 ## Commands
@@ -33,7 +33,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
   - `shell`, `shell/library`, `shell/library-playlist`, `shell/library-stitch`
   - `shell/search-<query>`, `shell/activity`, `shell/activity-new`, `shell/activity-run`
   - `shell/detail`, `shell/rules`, `shell/review`, `shell/review-removal`, `shell/match`, `shell/conflict`, `shell/problems`
-  - `shell/preview|syncing|synced`, `shell/newseam/<step>`
+  - `shell/preview|syncing|synced`, `shell/syncing-several` (the list the accessory opens), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>`
   - `shell/settings`, `shell/settings/<spotify|appleMusic|defaults|matching|monitoring|notifications|help>`
   - `shell/settings-flip-<from>-<to>`: switches the theme with the Settings sheet open.
 - **Onboarding:** `onboarding`, `onboarding/connect|defaults|twins`
@@ -43,7 +43,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 ### Self-test on real accounts (`Antiphon/Debug/SelfTest/SelfTestRunner.swift`)
 
 - **Scenarios:**
-  - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly).
+  - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly), `opencheck` (what opening the app checks).
   - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app).
 - Last full run: **105 of 105** (2026-10-11).
 - **Rules from the user:**
@@ -103,6 +103,19 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
   - Since February 2026 the API uses `/items` (it accepts both `item` and `track` keys).
   - Development-mode apps get at most 10 search results and can't read Spotify-made playlists.
   - Local files have `album.id == null`.
+- **Background execution** (what works, verified on device 2026-10-12: two syncs of 19 and 25 tracks at once finished while the person used other apps and with the phone locked):
+  - A sync the person starts asks for a `BGContinuedProcessingTask` (iOS 26) at once, while the app is still on screen (`ContinuedSync.start`). Each run uses its own identifier `<bundle id>.sync.<uuid>`, covered by the wildcard `$(PRODUCT_BUNDLE_IDENTIFIER).sync.*` in `BGTaskSchedulerPermittedIdentifiers`. `strategy = .fail`: run now or not at all.
+  - Register the handler with `using: .main` and treat the closure as main-actor code (`MainActor.assumeIsolated`). If it's delivered on another queue, Swift's isolation check crashes the app.
+  - The expiration handler runs on iOS's queue. Call `setTaskCompleted(success: false)` right there, exactly once (`CompletionFlag`), and only then cancel the sync. If the app doesn't complete promptly, iOS ends it.
+  - Feed the task's `Progress` all the time, on one 0–1000 scale for the whole sync (checking is the first 30%, adding the next 69%), never backwards, and set 1000 only at the end. A phase that reaches 100% and starts again from 0 can look to iOS like a finished task, and stalled progress looks like a hung one.
+  - While continued processing runs, iOS shows its own progress, so the Live Activity is suppressed (it still feeds that progress).
+  - `beginBackgroundTask` (`BackgroundTime`) is still taken for the ordinary few seconds, and handed back when the work ends or when its expiration fires. Holding it past its time gets the app ended.
+  - Live Activities can't be started from the background. They start when the scene goes `.inactive` (`startLiveActivitiesBeforeLeaving`), and ones left over are ended at launch.
+  - Expect a sync to be stopped mid-write anyway:
+    - At launch `SyncRecovery` puts "syncing" tracks back to pending, and Stage A plans them as pending.
+    - `DeltaEngine.requeueNeverArrived` requeues Apple Music adds that never showed up.
+    - Spotify's batched add throws `partialAdd` with the batches that landed.
+  - If it regresses: DEBUG builds log the grant, progress, lock state and expiry to `Documents/sync-diagnostics.log` (`SyncDiagnostics`).
 - **SwiftData:**
   - Batch `delete(model:)` fails on the run → change relationship. Delete object by object (`resetAll`).
   - Enum comparisons don't work in `#Predicate`; filter in memory.

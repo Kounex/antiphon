@@ -107,18 +107,26 @@ actor SpotifyAPIClient {
         return try await request(endpoint: .createPlaylist, body: body)
     }
     
-    /// Adds tracks to a playlist (handles batches of 100).
+    /// Adds tracks to a playlist, 100 per request (Spotify's limit). If a
+    /// later request fails or the task is cancelled, throws
+    /// `SpotifyAPIError.partialAdd` with the URIs that already landed.
     func addTracksToPlaylist(playlistId: String, trackUris: [String]) async throws {
-        // Spotify allows max 100 URIs per request
+        var landed: [String] = []
         for batch in trackUris.chunked(into: 100) {
-            let body = SpotifyAddTracksRequest(uris: batch, position: nil)
-            let _: SpotifySnapshotResponse = try await request(
-                endpoint: .addTracks(playlistId: playlistId),
-                body: body
-            )
-            
-            if batch.count == 100 {
-                try await Task.sleep(for: .milliseconds(200))
+            do {
+                if !landed.isEmpty { try Task.checkCancellation() }
+                let body = SpotifyAddTracksRequest(uris: batch, position: nil)
+                let _: SpotifySnapshotResponse = try await request(
+                    endpoint: .addTracks(playlistId: playlistId),
+                    body: body
+                )
+                landed += batch
+                if batch.count == 100 {
+                    try await Task.sleep(for: .milliseconds(200))
+                }
+            } catch {
+                guard !landed.isEmpty else { throw error }
+                throw SpotifyAPIError.partialAdd(addedURIs: landed, underlying: error)
             }
         }
     }
@@ -282,6 +290,8 @@ actor SpotifyAPIClient {
 // MARK: - Errors
 
 enum SpotifyAPIError: LocalizedError {
+    /// Some batches landed before a later one failed (or the task was cancelled).
+    case partialAdd(addedURIs: [String], underlying: any Error)
     case invalidURL
     case invalidResponse
     case rateLimited
@@ -289,6 +299,8 @@ enum SpotifyAPIError: LocalizedError {
     
     var errorDescription: String? {
         switch self {
+        case .partialAdd(_, let underlying):
+            return (underlying as? LocalizedError)?.errorDescription ?? underlying.localizedDescription
         case .invalidURL: return "Invalid Spotify API URL"
         case .invalidResponse: return "Invalid response from Spotify"
         case .rateLimited: return "Spotify API rate limit exceeded. Please try again later."

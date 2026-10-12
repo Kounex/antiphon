@@ -114,6 +114,7 @@ struct SettingsView: View {
                 }
             }
             .task { await model.load() }
+            .task(id: StoreChanges.shared.revision) { await model.reloadCounts() }
             #if DEBUG
             .onAppear {
                 if let page = DebugRoute.settingsPage.flatMap(SettingsPage.init(rawValue:)), path.isEmpty { path = [page] }
@@ -441,7 +442,7 @@ struct MonitoringSettingsView: View {
             } header: {
                 Text("Check playlists")
             } footer: {
-                Text("For seams that don't set their own. iOS decides the exact moment; Antiphon asks to check about every \(RulesCopy.intervalPhrase(model.interval)).")
+                Text("For seams that don't set their own. iOS decides the exact moment; Antiphon asks to check about every \(RulesCopy.intervalPhrase(model.interval)). Opening Antiphon checks every seam too.")
             }
 
             Section {
