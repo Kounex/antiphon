@@ -65,7 +65,7 @@ struct SyncsHomeView: View {
                 AccountButton(initials: accountInitials, action: onAccount)
             }
         }
-        .refreshable { await model.load() }
+        .refreshable { await model.refresh() }
         // Every change to the store (syncs, answers, unlinking, background runs).
         .task(id: StoreChanges.shared.revision) { await model.load() }
     }

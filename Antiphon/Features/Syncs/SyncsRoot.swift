@@ -20,7 +20,8 @@ struct SyncsRoot: View {
     init(shell: AppShellModel, onSyncNow: @escaping (UUID) -> Void) {
         self.shell = shell
         self.onSyncNow = onSyncNow
-        _home = State(initialValue: SyncsHomeModel(seams: shell.seamRepository, accounts: shell.accounts))
+        _home = State(initialValue: SyncsHomeModel(seams: shell.seamRepository, accounts: shell.accounts,
+                                                    checkNow: { await shell.checkSeams() }))
     }
 
     var body: some View {

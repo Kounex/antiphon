@@ -34,6 +34,16 @@ struct OpenCheckTests {
         #expect(plan.look == [lookedLongAgo.id])
     }
 
+    @Test("Pull to refresh checks again within the five minutes")
+    func forced() {
+        let justSynced = seam(syncedMinutesAgo: 1)
+        let justLooked = seam(watched: false, syncedMinutesAgo: 600, lookedMinutesAgo: 1)
+        let paused = seam(paused: true, syncedMinutesAgo: 600)
+        let plan = OpenCheck.plan([justSynced, justLooked, paused, seam(syncedMinutesAgo: nil)], now: now, force: true)
+        #expect(plan.sync == [justSynced.id])
+        #expect(plan.look == [justLooked.id], "paused seams and first syncs still wait for the person")
+    }
+
     @Test("Paused seams, first syncs and rebuilds wait for the person")
     func leftAlone() {
         let plan = OpenCheck.plan([

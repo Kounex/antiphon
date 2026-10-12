@@ -27,12 +27,14 @@ enum OpenCheck {
         var look: [UUID] = []
     }
 
-    static func plan(_ seams: [Seam], now: Date) -> Plan {
+    /// `force`: the person pulled to refresh, so seams checked in the last
+    /// few minutes are checked again.
+    static func plan(_ seams: [Seam], now: Date, force: Bool = false) -> Plan {
         var plan = Plan()
         for seam in seams where !seam.isPaused && !seam.needsRebuild {
             guard let synced = seam.lastSyncedAt else { continue }
             let checked = max(synced, seam.checkedAt ?? .distantPast)
-            guard now.timeIntervalSince(checked) >= cooldown else { continue }
+            guard force || now.timeIntervalSince(checked) >= cooldown else { continue }
             if seam.isMonitored { plan.sync.append(seam.id) } else { plan.look.append(seam.id) }
         }
         return plan
@@ -73,7 +75,9 @@ final class SeamChecks {
     private(set) var checking: Set<UUID> = []
     private(set) var looks: [UUID: Look] = [:]
     @ObservationIgnored private var checkedAt: [UUID: Date] = [:]
-    @ObservationIgnored private var running: Task<Void, Never>?
+    /// Checks under way: the one opening the app started, and any the
+    /// person started by pulling to refresh.
+    @ObservationIgnored private var running: [UUID: Task<Void, Never>] = [:]
 
     func begin(_ ids: some Sequence<UUID>) { checking.formUnion(ids) }
 
@@ -86,28 +90,38 @@ final class SeamChecks {
     /// Waits for a check of `seamId` still running, so a sync the person
     /// starts doesn't collide with it.
     func waitUntilChecked(_ seamId: UUID) async {
-        while checking.contains(seamId), let running { await running.value }
+        while checking.contains(seamId), let task = running.values.first { await task.value }
     }
 
     /// The app came to the front: reads unwatched seams, then syncs the
     /// watched ones, under the same gates as background runs (Wi-Fi, Low
     /// Power, quiet hours). Seams the person is syncing are left alone, and
     /// nothing runs while Spotify is signed out (every seam would fail).
+    ///
+    /// `force`: the person pulled to refresh. Like Sync now, that ignores the
+    /// gates and the five minutes; seams already being checked aren't
+    /// checked twice.
     @discardableResult
     func runOnOpen(modelContainer: ModelContainer, coordinator: SyncCoordinator, spotifySignedIn: Bool,
-                   preferences: AppPreferences = .shared) -> Task<Void, Never>? {
-        guard running == nil, spotifySignedIn else { return nil }
+                   force: Bool = false, preferences: AppPreferences = .shared) -> Task<Void, Never>? {
+        guard spotifySignedIn, force || running.isEmpty else { return nil }
+        let pass = UUID()
         let task = Task {
-            defer { running = nil }
-            let onWiFi = await NetworkCheck.isOnWiFi()
-            if let blocker = MonitorGates.blocker(preferences.monitorGates, onWiFi: onWiFi,
-                                                  lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled, now: Date()) {
-                print("[OpenCheck] Skipped: \(blocker)")
-                return
+            defer { running[pass] = nil }
+            if !force {
+                let onWiFi = await NetworkCheck.isOnWiFi()
+                if let blocker = MonitorGates.blocker(preferences.monitorGates, onWiFi: onWiFi,
+                                                      lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled, now: Date()) {
+                    print("[OpenCheck] Skipped: \(blocker)")
+                    return
+                }
             }
             let seams = Self.seams(in: modelContainer, checkedAt: checkedAt)
-            let plan = OpenCheck.plan(seams, now: Date())
-            let ids = (plan.look + plan.sync).filter { !coordinator.isSyncing($0) }
+            let found = OpenCheck.plan(seams, now: Date(), force: force)
+            // Each seam is checked by one pass at a time.
+            let free = { (id: UUID) in !self.checking.contains(id) && !coordinator.isSyncing(id) }
+            let plan = OpenCheck.Plan(sync: found.sync.filter(free), look: found.look.filter(free))
+            let ids = plan.look + plan.sync
             guard !ids.isEmpty else { return }
             begin(ids)
 
@@ -124,12 +138,13 @@ final class SeamChecks {
             let engine = SyncEngine(modelContainer: modelContainer, spotifyClient: SpotifyAPIClient(),
                                     appleMusicManager: AppleMusicManager())
             for id in syncing {
-                _ = await engine.syncAllMonitored(only: [id], preferences: preferences)
+                // Forced, the engine's own five-minute cooldown is skipped too.
+                _ = await engine.syncAllMonitored(only: [id], preferences: preferences, everySeam: force)
                 finish(id, look: nil)
             }
             await WidgetSnapshotWriter.refresh(modelContainer: modelContainer)
         }
-        running = task
+        running[pass] = task
         return task
     }
 

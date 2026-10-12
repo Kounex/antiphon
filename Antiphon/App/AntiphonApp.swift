@@ -59,6 +59,13 @@ struct AntiphonApp: App {
             appleMusicAccount: LiveAppleMusicAccountReader()
         )
 
+        if !Self.isHostingTests && !Self.isDebugRoute {
+            shellModel.checkSeams = { [modelContainer, syncCoordinator, spotifyAuth] in
+                await SeamChecks.shared.runOnOpen(modelContainer: modelContainer, coordinator: syncCoordinator,
+                                                  spotifySignedIn: spotifyAuth.isAuthenticated, force: true)?.value
+            }
+        }
+
         onboardingModel = OnboardingModel(
             library: LiveLibraryService(spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager()),
             seams: repository, appleMusic: LiveAppleMusicAccountReader(),

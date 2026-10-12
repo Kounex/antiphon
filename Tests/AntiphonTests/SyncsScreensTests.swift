@@ -38,10 +38,12 @@ struct SyncsScreensTests {
 
     // MARK: - Home
 
-    private func home(_ seams: [SeamSummary], spotifyConnected: Bool = true, checks: SeamChecks = SeamChecks()) async -> SyncsHomeModel {
+    private func home(_ seams: [SeamSummary], spotifyConnected: Bool = true, checks: SeamChecks = SeamChecks(),
+                      checkNow: @escaping @MainActor () async -> Void = {}) async -> SyncsHomeModel {
         let accounts = PreviewAccounts()
         accounts.isSpotifyConnected = spotifyConnected
-        let model = SyncsHomeModel(seams: PreviewSeamRepository(seams: seams), accounts: accounts, checks: checks, now: { self.now })
+        let model = SyncsHomeModel(seams: PreviewSeamRepository(seams: seams), accounts: accounts, checks: checks,
+                                   checkNow: checkNow, now: { self.now })
         await model.load()
         return model
     }
@@ -115,6 +117,15 @@ struct SyncsScreensTests {
         #expect(model.subtitle(for: unwatched) == "Spotify → Apple Music · 1 change waiting · checked just now")
         checks.finish(unwatched.id, look: .init(waiting: 0, at: now))
         #expect(model.subtitle(for: unwatched) == "Spotify → Apple Music · checked just now")
+    }
+
+    @Test("Pull to refresh checks the seams and waits for it")
+    func pullToRefresh() async {
+        var checked = 0
+        let model = await home([seam("A")], checkNow: { checked += 1 })
+        await model.refresh()
+        #expect(checked == 1)
+        #expect(model.seams.map(\.name) == ["A"])
     }
 
     @Test("A sync after the look replaces what it found")

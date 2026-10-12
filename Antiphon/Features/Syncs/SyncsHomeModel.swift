@@ -22,18 +22,29 @@ final class SyncsHomeModel {
     private let accounts: AccountsService
     /// What opening the app is checking, and what it found.
     private let checks: SeamChecks
+    /// Checks every seam now, even ones checked in the last few minutes.
+    private let checkNow: @MainActor () async -> Void
     private let now: () -> Date
 
-    init(seams: SeamRepository, accounts: AccountsService, checks: SeamChecks = .shared, now: @escaping () -> Date = Date.init) {
+    init(seams: SeamRepository, accounts: AccountsService, checks: SeamChecks = .shared,
+         checkNow: @escaping @MainActor () async -> Void = {}, now: @escaping () -> Date = Date.init) {
         self.repository = seams
         self.accounts = accounts
         self.checks = checks
+        self.checkNow = checkNow
         self.now = now
     }
 
     func load() async {
         seams = (try? await repository.seams()) ?? seams
         isLoaded = true
+    }
+
+    /// Pull to refresh: the store, then a check of every seam. The spinner
+    /// stays until the checks are done; the cards say "checking now" meanwhile.
+    func refresh() async {
+        await load()
+        await checkNow()
     }
 
     // MARK: - Hero

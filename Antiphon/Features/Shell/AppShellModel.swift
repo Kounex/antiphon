@@ -101,6 +101,9 @@ final class AppShellModel {
     /// Shared by Library and Search, so playlists load once.
     @ObservationIgnored private(set) lazy var libraryModel = LibraryModel(library: library, seams: seamRepository)
     @ObservationIgnored private(set) lazy var searchModel = SearchModel(index: index, library: libraryModel, preferences: .shared)
+    /// Pull to refresh on Syncs: checks every seam now (`SeamChecks`). Set
+    /// by the app; previews and tests check nothing.
+    @ObservationIgnored var checkSeams: @MainActor () async -> Void = {}
     /// The seam whose preview → sync flow is open.
     var syncFlowSeamId: UUID?
     /// The list of syncs running at once, opened from the accessory.
