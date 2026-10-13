@@ -101,7 +101,13 @@ struct LibraryView: View {
         .task(id: StoreChanges.shared.revision) { await model.refreshSeams() }
     }
 
-    private var columns: Int { dynamicTypeSize.isAccessibilitySize ? 1 : 2 }
+    /// 2 on a phone; more as the screen widens, so an iPad doesn't just show
+    /// the same two huge covers with the rest of the screen empty.
+    private var columns: Int {
+        if dynamicTypeSize.isAccessibilitySize { return 1 }
+        let target: CGFloat = 170
+        return min(6, max(2, Int((width + Space.s4) / (target + Space.s4))))
+    }
 
     private var coverSize: CGFloat {
         let spacing = Space.s4 * CGFloat(columns - 1)

@@ -29,6 +29,10 @@ struct ReviewQueueView: View {
                         }
                         if case .match(let item) = entry { controls(item) }
                     }
+                    // A card this wide on an iPad would strand its two
+                    // covers at opposite edges; keep it a comfortable width
+                    // and let it center in the extra space.
+                    .frame(maxWidth: 560)
                     .padding(.horizontal, Space.s4)
                     .padding(.bottom, Space.s4)
                 } else {
@@ -106,6 +110,10 @@ struct ReviewQueueView: View {
                 RemovalCard(item: item) { outcome in Task { await model.resolve(item, as: outcome) } }
             }
         }
+        // A card this tall on an iPad would mostly be empty space below its
+        // content; cap it and let its own ScrollView take over if dynamic
+        // type ever needs more room than that.
+        .frame(maxHeight: 620)
         .id(entry.id)
     }
 
