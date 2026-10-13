@@ -39,6 +39,13 @@ final class SyncFlowModel {
         await plan()
     }
 
+    /// Just the seam's name and covers, without planning — for a flow
+    /// that's following an already-running sync rather than previewing one.
+    func loadSeamIfNeeded() async {
+        guard seam == nil else { return }
+        seam = try? await seams.detail(for: seamId)?.summary
+    }
+
     func plan() async {
         phase = .planning(checked: 0, total: 0)
         do {
@@ -60,6 +67,27 @@ final class SyncFlowModel {
         isFollowing = true
         startedAt = startedAt ?? Date()
         phase = .syncing
+    }
+
+    /// Whether this flow is worth keeping once the sheet hides it: a running
+    /// sync, or a result not yet acknowledged. An abandoned preview isn't.
+    var keepsStateWhileHidden: Bool {
+        switch phase {
+        case .syncing, .done: true
+        case .planning, .preview, .failed: false
+        }
+    }
+
+    /// Reopened after being hidden: if the coordinator finished (or gave up)
+    /// while no one was watching, catch up to its real result instead of
+    /// sitting on a stale "syncing" phase.
+    func reconcile(with coordinator: SyncCoordinator) async {
+        guard case .syncing = phase, !coordinator.isSyncing(seamId) else { return }
+        if let result = coordinator.lastResults[seamId] {
+            await finished(with: result)
+        } else {
+            await plan()
+        }
     }
 
     func start(using coordinator: SyncCoordinator) {

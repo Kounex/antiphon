@@ -43,6 +43,15 @@ struct SyncFlowView: View {
             }
         }
         .task {
+            // A flow discovered from the accessory (a sync this view never
+            // previewed) never gets its seam loaded otherwise.
+            await model.loadSeamIfNeeded()
+            // Reopened after "Hide": the model may already be mid-sync (or
+            // just caught up to a result that landed while hidden) — show
+            // its live sheet right away instead of waiting for a phase
+            // transition that already happened off-screen.
+            await model.reconcile(with: coordinator)
+            showsSyncing = isSyncing && model.afterApply == .showResult
             #if DEBUG
             if DebugRoute.flowPhase != nil { await model.debugApplyRoute(coordinator: coordinator); return }
             #endif

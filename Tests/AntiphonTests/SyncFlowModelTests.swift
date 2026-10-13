@@ -85,4 +85,67 @@ struct SyncFlowModelTests {
         let m = await model(plan(conflicts: 2))
         #expect(m.conflictTitles == ["Holocene", "Holocene"])
     }
+
+    @Test("Only a running sync or an unacknowledged result survive being hidden")
+    func keepsStateWhileHidden() async {
+        let m = await model(plan(adds: 1))
+        #expect(!m.keepsStateWhileHidden, "still just a preview: nothing to keep")
+        m.debugStart()
+        #expect(m.keepsStateWhileHidden, "running: reopening should show the same progress")
+        m.debugFinish(SyncResult(pairId: m.seamId, status: .success, tracksAdded: 1))
+        #expect(m.keepsStateWhileHidden, "done: reopening should show the same result")
+    }
+
+    @Test("Reopened while still running: reconciling leaves it alone")
+    func reconcileStillRunning() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let coordinator = SyncCoordinator(modelContainer: container)
+        let m = await model(plan(adds: 2))
+        m.debugStart()
+        coordinator.simulateRunning(pairId: m.seamId, progress: SyncProgress(totalTracks: 2, completedTracks: 1, failedTracks: 0))
+
+        await m.reconcile(with: coordinator)
+
+        guard case .syncing = m.phase else { Issue.record("expected it to still be syncing, got \(m.phase)"); return }
+    }
+
+    @Test("Finished while hidden: reopening catches up to the real result instead of staying stuck")
+    func reconcileCatchesUpToResult() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let coordinator = SyncCoordinator(modelContainer: container)
+        let m = await model(plan(adds: 2))
+        m.debugStart()
+        // Nothing simulates it running; `cancelSync` is a convenient way to
+        // give the coordinator a finished result for this pair without one.
+        coordinator.cancelSync(pairId: m.seamId)
+
+        await m.reconcile(with: coordinator)
+
+        guard case .done(let result) = m.phase else { Issue.record("expected the real result, got \(m.phase)"); return }
+        #expect(result.status == .failed)
+    }
+
+    @Test("A flow that's only following a running sync still gets the seam's name and covers")
+    func loadSeamIfNeededFillsInAFollowedFlow() async {
+        let seam = PreviewFixtures.lateNightDrive
+        let m = SyncFlowModel(seamId: seam.id, isFirstSync: false, sync: PreviewSyncService(),
+                              seams: PreviewSeamRepository(seams: [seam]))
+        m.followRunningSync()
+        #expect(m.seam == nil, "not loaded yet: this is the gap the fix closes")
+
+        await m.loadSeamIfNeeded()
+
+        #expect(m.seam?.id == seam.id)
+    }
+
+    @Test("Not syncing: reconciling a flow that hasn't started does nothing")
+    func reconcileIgnoresUnstartedFlow() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let coordinator = SyncCoordinator(modelContainer: container)
+        let m = await model(plan(adds: 1))
+
+        await m.reconcile(with: coordinator)
+
+        guard case .preview = m.phase else { Issue.record("expected it to stay in preview, got \(m.phase)"); return }
+    }
 }

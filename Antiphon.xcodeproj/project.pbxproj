@@ -134,6 +134,7 @@
 		B9EFB56A5DA5FDF55F04E57A /* AppShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2AFB699D8D282B101FC261 /* AppShellTests.swift */; };
 		BA74C2BAB518A2D47AC3542E /* SpotifyAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */; };
 		BA821C95D26FC93FA1C96B49 /* ReviewModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C1A8BD522EC707271FB3A7 /* ReviewModelsTests.swift */; };
+		BC07AD471AB0C6C6256AB1FF /* SyncFlowCarouselSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EF85FFC9193ADC881496AA /* SyncFlowCarouselSheet.swift */; };
 		BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */; };
 		C0007CBF151857D339B96504 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD1045462565A26B21DDBAA /* RelativeTime.swift */; };
 		C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */; };
@@ -241,6 +242,7 @@
 		12ED740B0E7BC3EE9083D42A /* ConfidencePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfidencePolicy.swift; sourceTree = "<group>"; };
 		1691BDDC0F7D0DE0E12E6CC8 /* SyncsRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncsRoot.swift; sourceTree = "<group>"; };
 		16B26D4B24FC3E7548ADCFC3 /* AntiphonWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AntiphonWidgets.entitlements; sourceTree = "<group>"; };
+		16EF85FFC9193ADC881496AA /* SyncFlowCarouselSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFlowCarouselSheet.swift; sourceTree = "<group>"; };
 		174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackOrderTests.swift; sourceTree = "<group>"; };
 		1ABA2676DA25B378D6ED942A /* SyncActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncActivityTests.swift; sourceTree = "<group>"; };
 		1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyEndpoints.swift; sourceTree = "<group>"; };
@@ -688,6 +690,7 @@
 			isa = PBXGroup;
 			children = (
 				D3073E1EB8D8C79289BB88F9 /* SyncedView.swift */,
+				16EF85FFC9193ADC881496AA /* SyncFlowCarouselSheet.swift */,
 				71107F83439544F67E1D11D4 /* SyncFlowModel.swift */,
 				E0681A0F4E8906E518B68ADC /* SyncFlowView.swift */,
 				FE2F6662ADA4D05517C95C8D /* SyncingView.swift */,
@@ -1008,7 +1011,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -1218,6 +1221,7 @@
 				6D8DD5353B6DAC8756659AD6 /* SyncCoordinator.swift in Sources */,
 				B617BFCCFDF038C64074DF0F /* SyncDiagnostics.swift in Sources */,
 				A0FC04A023D9B9C29B8D1CA7 /* SyncEngine.swift in Sources */,
+				BC07AD471AB0C6C6256AB1FF /* SyncFlowCarouselSheet.swift in Sources */,
 				110681DFE56C9F0D4EF641A9 /* SyncFlowModel.swift in Sources */,
 				197F8875AA21F49C1A4098B6 /* SyncFlowView.swift in Sources */,
 				48444419D3F8C9E0C966ADDB /* SyncLiveActivity.swift in Sources */,

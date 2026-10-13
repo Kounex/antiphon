@@ -104,12 +104,14 @@ final class AppShellModel {
     /// Pull to refresh on Syncs: checks every seam now (`SeamChecks`). Set
     /// by the app; previews and tests check nothing.
     @ObservationIgnored var checkSeams: @MainActor () async -> Void = {}
-    /// The seam whose preview → sync flow is open.
-    var syncFlowSeamId: UUID?
-    /// The list of syncs running at once, opened from the accessory.
-    var showsRunningSyncs = false
-    /// A seam picked in that list, whose live sheet opens once the list has closed.
-    var pendingSyncFlowSeam: UUID?
+    /// Every seam whose flow is loaded: running, just finished, or mid-preview.
+    /// Kept across the sheet closing and reopening, so "Hide" never loses the
+    /// tracklist or progress — reopening shows exactly what was there before.
+    private(set) var syncFlowModels: [UUID: SyncFlowModel] = [:]
+    /// The one sheet for every open sync flow, single or several at once.
+    var showsSyncSheet = false
+    /// Which seam's page the sheet shows first, when more than one is open.
+    var focusedSyncSeamId: UUID?
     /// The open review queue: one seam, or every seam.
     var reviewTarget: ReviewTarget?
     /// The open two-way removal question.
@@ -176,9 +178,68 @@ final class AppShellModel {
         try? await reviews.reviewItems(seamId: seamId).first { $0.id == rowId }
     }
 
+    /// A fresh flow for this seam, cached so any later reopen (the accessory,
+    /// or this same call site) hands back this exact instance instead of
+    /// starting over. Callers that show it inline (New seam) use this
+    /// directly; "Sync now" elsewhere goes through `openSyncFlow`.
+    @discardableResult
     func makeSyncFlow(seamId: UUID) -> SyncFlowModel {
         let isFirst = seams.first { $0.id == seamId }.map { $0.lastCheckedAt == nil } ?? true
-        return SyncFlowModel(seamId: seamId, isFirstSync: isFirst, sync: sync, seams: seamRepository)
+        let model = SyncFlowModel(seamId: seamId, isFirstSync: isFirst, sync: sync, seams: seamRepository)
+        syncFlowModels[seamId] = model
+        return model
+    }
+
+    /// "Sync now": shows the shell's sheet with a fresh preview, from
+    /// wherever the person is — never changes the selected tab or path.
+    /// Reuses an already-running or just-finished flow for this seam rather
+    /// than restarting it from under them.
+    func openSyncFlow(seamId: UUID) {
+        if syncFlowModels[seamId]?.keepsStateWhileHidden != true {
+            makeSyncFlow(seamId: seamId)
+        }
+        focusedSyncSeamId = seamId
+        showsSyncSheet = true
+    }
+
+    /// The accessory was tapped: reopen every seam it's tracking, each
+    /// keeping whatever content it already had. A seam the shell doesn't
+    /// know about yet (a background-started sync) gets a model that
+    /// follows it rather than previewing it again.
+    func reopenRunningSyncs(ids: [UUID], focus: UUID?) {
+        for id in ids where syncFlowModels[id] == nil {
+            makeSyncFlow(seamId: id).followRunningSync()
+        }
+        focusedSyncSeamId = focus ?? orderedSyncFlowSeamIds.first
+        showsSyncSheet = true
+    }
+
+    /// Every open flow, in the order the carousel shows them (by seam name,
+    /// like the accessory's own list).
+    var orderedSyncFlowSeamIds: [UUID] {
+        let allSeams = seams
+        let name: (UUID) -> String = { id in allSeams.first { $0.id == id }?.name ?? "" }
+        return syncFlowModels.keys.sorted { name($0).localizedStandardCompare(name($1)) == .orderedAscending }
+    }
+
+    /// Closes the sheet. A flow that hasn't started yet (an abandoned
+    /// preview) is dropped; a running or just-finished one stays cached so
+    /// reopening it — from anywhere — shows the same content.
+    func hideSyncSheet() {
+        for (id, flow) in syncFlowModels where !flow.keepsStateWhileHidden {
+            syncFlowModels[id] = nil
+        }
+        showsSyncSheet = false
+        focusedSyncSeamId = nil
+    }
+
+    /// This seam's flow is done being looked at (its result acknowledged,
+    /// or handed off to the removal questions): drop it, and close the
+    /// sheet only if nothing else is open.
+    func closeSyncFlow(seamId: UUID) {
+        syncFlowModels[seamId] = nil
+        if focusedSyncSeamId == seamId { focusedSyncSeamId = orderedSyncFlowSeamIds.first }
+        if syncFlowModels.isEmpty { showsSyncSheet = false }
     }
 
     func makeNewSeam() -> NewSeamModel {
@@ -211,7 +272,7 @@ final class AppShellModel {
         showsNewSeam = false
         reviewTarget = nil
         openConflict = nil
-        syncFlowSeamId = nil
+        hideSyncSheet()
         switch link {
         case .seam(let id):
             openSeamDetail(id)

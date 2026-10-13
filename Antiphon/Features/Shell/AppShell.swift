@@ -19,7 +19,7 @@ struct AppShell: View {
         TabView(selection: $model.selectedTab) {
             Tab(AntiphonTab.syncs.title, systemImage: AntiphonTab.syncs.symbol, value: AppShellModel.Tab.syncs) {
                 // Every sync starts from a preview.
-                SyncsRoot(shell: model, onSyncNow: { model.syncFlowSeamId = $0 })
+                SyncsRoot(shell: model, onSyncNow: { model.openSyncFlow(seamId: $0) })
             }
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
 
@@ -37,24 +37,22 @@ struct AppShell: View {
         }
         .antiphonTabBar()
         .modifier(SyncAccessoryModifier(running: running) { running in
-            // Back to the live sheet (Pause, Hide); several at once: a list of them.
-            if let seamId = running.seamId {
-                model.syncFlowSeamId = seamId
-            } else {
-                model.showsRunningSyncs = true
-            }
+            // Reopens wherever we are — a sheet over the current screen,
+            // never a tab or navigation change. One running sync reopens
+            // focused on it; several open the browsable carousel.
+            model.reopenRunningSyncs(ids: Array(syncCoordinator.syncingPairIds), focus: running.seamId)
         })
-        .sheet(isPresented: $model.showsRunningSyncs, onDismiss: {
-            if let seamId = model.pendingSyncFlowSeam {
-                model.pendingSyncFlowSeam = nil
-                model.syncFlowSeamId = seamId
+        .sheet(isPresented: $model.showsSyncSheet, onDismiss: {
+            Task {
+                await model.refresh()
+                if let seamId = model.pendingConflictSeam {
+                    model.pendingConflictSeam = nil
+                    await model.openFirstConflict(seamId: seamId)
+                }
             }
         }) {
-            RunningSyncsSheet(rows: RunningSyncSummary.rows(progress: syncCoordinator.syncProgress, seams: model.seams)) { seamId in
-                model.pendingSyncFlowSeam = seamId
-                model.showsRunningSyncs = false
-            } onClose: {
-                model.showsRunningSyncs = false
+            SyncFlowCarouselSheet(shell: model, onReview: openSeam) { id in
+                model.pendingConflictSeam = id
             }
         }
         .sheet(isPresented: $model.showsNewSeam, onDismiss: {
@@ -65,30 +63,6 @@ struct AppShell: View {
             }
         }) {
             NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow, onReview: openSeam)
-        }
-        .sheet(item: $model.syncFlowSeamId, onDismiss: {
-            Task {
-                await model.refresh()
-                if let seamId = model.pendingConflictSeam {
-                    model.pendingConflictSeam = nil
-                    await model.openFirstConflict(seamId: seamId)
-                }
-            }
-        }) { seamId in
-            NavigationStack {
-                SyncFlowView(model: model.makeSyncFlow(seamId: seamId),
-                             onReview: openSeam, onNext: {}, onDone: { model.syncFlowSeamId = nil },
-                             onConflicts: { id in
-                                 model.pendingConflictSeam = id
-                                 model.syncFlowSeamId = nil
-                             })
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close", systemImage: "xmark") { model.syncFlowSeamId = nil }.tint(.ink)
-                        }
-                    }
-            }
-            .tint(.thread)
         }
         .fullScreenCover(item: $model.reviewTarget, onDismiss: { Task { await model.refresh() } }) { target in
             ReviewQueueView(model: model.makeReviewQueue(target), makeDetail: model.makeMatchDetail) {
@@ -110,55 +84,10 @@ struct AppShell: View {
     }
 }
 
-/// Several syncs at once, from the accessory: each with its progress; a
-/// row opens that sync's live sheet (Pause, Hide).
-private struct RunningSyncsSheet: View {
-    let rows: [RunningSync]
-    let onOpen: (UUID) -> Void
-    let onClose: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            List(rows, id: \.seamId) { row in
-                Button { if let seamId = row.seamId { onOpen(seamId) } } label: {
-                    HStack(spacing: Space.s3) {
-                        CoverArt(seed: row.seed, size: 40, cornerRadius: 8)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(row.title).font(.body.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                            Text(row.detail).font(.footnote.monospacedDigit()).foregroundStyle(Color.inkMuted)
-                        }
-                        Spacer(minLength: Space.s2)
-                        ProgressRing(fraction: row.total > 0 ? Double(row.done) / Double(row.total) : 0)
-                    }
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .combine)
-                .accessibilityHint("Opens the sync")
-                .listRowBackground(Color.canvasRaised)
-            }
-            .scrollContentBackground(.hidden)
-            .background(Color.canvas)
-            .navigationTitle("Syncing now")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", systemImage: "xmark", action: onClose).tint(.ink)
-                }
-            }
-            .overlay {
-                if rows.isEmpty { ContentUnavailableView("All done", systemImage: "checkmark.circle") }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .tint(.thread)
-    }
-}
-
 extension AppShell {
     /// Opens a seam's close matches in the review queue.
     func openSeam(_ seamId: UUID) {
-        model.syncFlowSeamId = nil
+        model.closeSyncFlow(seamId: seamId)
         model.showsNewSeam = false
         model.selectedTab = .syncs
         model.syncsPath = [.seam(seamId)]

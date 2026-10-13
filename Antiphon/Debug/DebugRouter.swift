@@ -184,9 +184,10 @@ struct DebugRouteView: View {
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))
-        case "syncing-several": model.showsRunningSyncs = true
+        case "syncing-several":
+            model.reopenRunningSyncs(ids: [PreviewFixtures.runClub.id, PreviewFixtures.lateNightDrive.id], focus: nil)
         case "preview", "syncing", "synced":
-            model.syncFlowSeamId = PreviewFixtures.lateNightDrive.id
+            model.openSyncFlow(seamId: PreviewFixtures.lateNightDrive.id)
             DebugRoute.flowPhase = option
         default: break
         }
