@@ -4,10 +4,11 @@ Antiphon keeps playlists in sync between Spotify and Apple Music (iOS 26, SwiftU
 
 Read this first, then `docs/redesign-plan.md` (decisions D1–D7, the screen map, and a "done" section per milestone with what was verified and what differs from the storyboard).
 
-## Where things stand (2026-10-13)
+## Where things stand (2026-10-14)
 
 - **Work happens on `main`.** The iOS 26 redesign (M0–M8 plus the review fixes) was merged on 2026-10-11 and `redesign/ios26` is deleted. Commit and push to `main` after each unit of work. TestFlight builds are cut from `main`, but only when the user asks.
 - **M9 in progress.** Steps 1–3 are done: App Group and snapshot, answering questions from the notification, widgets with "Sync all", Live Activity, and syncs that keep running in the background. Step 4, the share extension (9.03), is next. Opening the app checks every seam (`SeamChecks`).
+- **1.4.0 shipped to TestFlight 2026-10-14** (unattended overnight session): the sync sheet now caches its `SyncFlowModel` per seam so hiding and reopening it — from anywhere — shows the same content instead of restarting; several running syncs browse in one sheet via a cover strip; an iPad pass fixed Library's column count and three screens (Onboarding, Review's match card, MatchDetailView) that stretched edge to edge with no system sheet to size them. Track matching was investigated against a tester's "wrong album" report and found solid (see `docs/redesign-plan.md`'s last entry) — no code change there. Not verified on a real device tonight; re-check the sync-sheet hide/reopen behavior on your phone.
 - **Design sources:** the design system artifact `TXKAkq1pkYhFFF593kxH63` and the storyboard `BF77MNwKAG2ZbZNv6mL15Q` (boards 1–9). Read them with the Artifact tool if needed.
 
 ## Commands
