@@ -32,6 +32,9 @@ struct OnboardingView: View {
                 case .twins: TwinsStep(model: model, onDone: onDone)
                 }
             }
+            // On an iPad this would otherwise stretch a sign-in field across
+            // the whole screen; the ZStack centers it once it's capped.
+            .frame(maxWidth: 700)
             .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                                               removal: .move(edge: .leading).combined(with: .opacity)))
         }

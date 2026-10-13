@@ -145,6 +145,11 @@ struct MatchDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        // On an iPad this List's own rows would otherwise space their label
+        // and value columns across the whole screen; cap it to a readable
+        // width and let it center in whatever room is left.
+        .frame(maxWidth: 700)
+        .frame(maxWidth: .infinity)
         .background(Color.canvas)
         .navigationTitle(model.item.source.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -152,6 +157,8 @@ struct MatchDetailView: View {
             // At accessibility sizes the buttons sit at the end of the list instead.
             if !dynamicTypeSize.isAccessibilitySize {
                 decisionButtons
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, Space.s4)
                     .padding(.bottom, Space.s2)
             }
