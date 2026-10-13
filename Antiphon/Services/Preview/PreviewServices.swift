@@ -24,6 +24,16 @@ enum PreviewFixtures {
 
     static let seams = [lateNightDrive, gardenSundays, runClub, vinylRips]
 
+    /// The App Store screenshots' fuller home (`shell/store`): seven seams.
+    static let storeSeams = seams + [
+        seam("Morning Coffee", direction: .bidirectional, monitored: true,
+             counts: SeamCounts(synced: 64, review: 0, missing: 0, total: 64), checkedMinutesAgo: 12),
+        seam("Road Trip Lisbon", direction: .spotifyToApple, monitored: true,
+             counts: SeamCounts(synced: 109, review: 0, missing: 3, total: 112), checkedMinutesAgo: 18),
+        seam("Sunday Brunch", direction: .appleToSpotify, monitored: true,
+             counts: SeamCounts(synced: 41, review: 0, missing: 0, total: 41), checkedMinutesAgo: 45)
+    ]
+
     static let lateNightDriveTracks: [SeamTrack] = [
         track("Nightcall", "Kavinsky", state: .synced, isNew: true),
         track("Midnight City", "M83", state: .review(confidence: 86, reason: .versionDifference)),
@@ -127,7 +137,8 @@ extension PreviewSeamRepository: ReviewRepository, ProblemsRepository {
         PreviewFixtures.conflicts.filter { seamId == nil || $0.seamId == seamId }
     }
     func problems() async throws -> [ProblemRecord] {
-        [ProblemRecord(id: UUID(), kind: .playlistDeleted, platform: .appleMusic, seamId: PreviewFixtures.vinylRips.id,
+        guard showsProblems else { return [] }
+        return [ProblemRecord(id: UUID(), kind: .playlistDeleted, platform: .appleMusic, seamId: PreviewFixtures.vinylRips.id,
                        message: "Vinyl Rips was deleted", firstSeenAt: Date().addingTimeInterval(-2 * 86_400), retryAt: nil),
          ProblemRecord(id: UUID(), kind: .rateLimited, platform: .appleMusic, seamId: nil, message: "Apple Music is busy",
                        firstSeenAt: Date(), retryAt: Date().addingTimeInterval(20 * 60))]
@@ -138,11 +149,13 @@ extension PreviewSeamRepository: ReviewRepository, ProblemsRepository {
 actor PreviewSeamRepository: SeamRepository {
     private var summaries: [SeamSummary]
     private var rulesById: [UUID: SeamRules] = [:]
+    private let showsProblems: Bool
     /// Activity › New tracks "Mark all seen".
     var seenAll = false
 
-    init(seams: [SeamSummary] = PreviewFixtures.seams) {
+    init(seams: [SeamSummary] = PreviewFixtures.seams, showsProblems: Bool = true) {
         summaries = seams
+        self.showsProblems = showsProblems
     }
 
     func seams() async throws -> [SeamSummary] { summaries }

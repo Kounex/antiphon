@@ -62,13 +62,17 @@ struct DebugRouteView: View {
             ComponentCatalogView(initialPage: page)
         case .selfTest(let scenario):
             SelfTestView(runner: SelfTestRunner(scenario: scenario))
+        case .onboarding(let step) where step == "connect-spotify":
+            // Spotify signed in, Apple Music not asked yet (App Store screenshot 02).
+            OnboardingView(model: Self.onboardingModel(step)) {}
+                .environment(Self.signedInSpotify)
         case .onboarding(let step):
             OnboardingView(model: Self.onboardingModel(step)) {}
         case .shell(let option):
             AppShell(model: Self.shellModel(option))
                 .tint(.thread)
                 .onAppear {
-                    if option == "syncing" || option == "syncing-several" {
+                    if option == "syncing" || option == "syncing-several" || option == "store" {
                         syncCoordinator.simulateRunning(
                             pairId: PreviewFixtures.runClub.id,
                             progress: SyncProgress(totalTracks: 52, completedTracks: 31, failedTracks: 0)
@@ -91,11 +95,21 @@ struct DebugRouteView: View {
     }
 
     @MainActor
+    private static let signedInSpotify: SpotifyAuthManager = {
+        let auth = SpotifyAuthManager()
+        auth.isAuthenticated = true
+        auth.userProfile = SpotifyUserProfile(id: "preview", displayName: "Maya Klein", email: nil, images: nil, product: "premium")
+        return auth
+    }()
+
+    @MainActor
     private static func onboardingModel(_ step: String?) -> OnboardingModel {
+        var appleMusic = PreviewAppleMusicAccountReader()
+        if step == "connect-spotify" { appleMusic.account = AppleMusicAccount(access: .notAsked) }
         let model = OnboardingModel(library: PreviewLibraryService(), seams: PreviewSeamRepository(seams: []),
-                                    appleMusic: PreviewAppleMusicAccountReader(), requestAppleMusic: {})
+                                    appleMusic: appleMusic, requestAppleMusic: {})
         switch step {
-        case "connect": model.step = .connect
+        case "connect", "connect-spotify": model.step = .connect
         case "defaults": model.step = .defaults
         case "twins": model.step = .twins
         default: break
@@ -105,7 +119,12 @@ struct DebugRouteView: View {
 
     @MainActor
     private static func shellModel(_ option: String?) -> AppShellModel {
-        let repository = PreviewSeamRepository()
+        // `store` (or `-AntiphonStoreData YES` with any shell route): the App Store
+        // screenshots' data, seven seams and nothing broken.
+        let storeData = option == "store" || UserDefaults.standard.bool(forKey: "AntiphonStoreData")
+        let repository = storeData
+            ? PreviewSeamRepository(seams: PreviewFixtures.storeSeams, showsProblems: false)
+            : PreviewSeamRepository()
         let accounts = PreviewAccounts()
         accounts.isSpotifyConnected = option != "problems"
         let model = AppShellModel(seams: repository, accounts: accounts,

@@ -49,7 +49,8 @@ struct LiveAppleMusicAccountReader: AppleMusicAccountReader {
 
 #if DEBUG
 struct PreviewAppleMusicAccountReader: AppleMusicAccountReader {
-    func read() async -> AppleMusicAccount { AppleMusicAccount(access: .allowed, storefront: "Germany store", hasSubscription: true) }
+    var account = AppleMusicAccount(access: .allowed, storefront: "Germany store", hasSubscription: true)
+    func read() async -> AppleMusicAccount { account }
 }
 #endif
 

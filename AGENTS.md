@@ -22,6 +22,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 | Screenshot a debug route | `scripts/screenshot.sh shell/library light library` (`WAIT=6` for slow screens) |
 | Dev build for the phone | `scripts/build-dev.sh` (bundle `com.kounex.antiphon.dev`, installed next to the real app) |
 | On-device self-test, real accounts | `scripts/selftest.sh [scenario]` |
+| App Store screenshot captures (preview data, both Store simulators) | `scripts/store_screenshots.sh [phone\|tablet\|all] [slot …]` → `build/store_screenshots/` |
 
 - The scheme is **"Antiphon (Debug)"**, not "Antiphon".
 - The simulator is the iPhone 17 Pro, `SIM_ID` D6F98034-F7A7-4574-967C-A9E182A7ED3A. The user's phone is `DEVICE_ID` E027CD50-71A3-550D-B5FA-24BA79C6EA30. Both can be overridden with environment variables.
@@ -36,7 +37,8 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
   - `shell/preview|syncing|synced`, `shell/syncing-several` (the list the accessory opens), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>`
   - `shell/settings`, `shell/settings/<spotify|appleMusic|defaults|matching|monitoring|notifications|help>`
   - `shell/settings-flip-<from>-<to>`: switches the theme with the Settings sheet open.
-- **Onboarding:** `onboarding`, `onboarding/connect|defaults|twins`
+  - `shell/store`: the App Store home (7 seams, nothing broken, Run Club syncing). `-AntiphonStoreData YES` gives any shell route that data.
+- **Onboarding:** `onboarding`, `onboarding/connect|defaults|twins`, `onboarding/connect-spotify` (Spotify signed in, Apple Music not asked yet)
 - **Component catalog:** `catalog`, `catalog/<Component>`
 - **Self-test:** `selftest`, `selftest/<scenario>`, real accounts and its own throwaway store.
 
@@ -127,6 +129,10 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
   - Pin the locale when formatting numbers ("1.284" in the German simulator).
   - The legacy `Inspector` is gone; don't reintroduce `HistorySection`-style name clashes.
 - **Simulator:** if a stale system alert (such as the notification prompt) covers screenshots, reboot the simulator: `xcrun simctl shutdown/boot`.
+
+## App Store screenshots
+
+Composed in the store-shots repo (`github.com/Kounex/store-shots`, `projects/antiphon/`, its README has the loop), in the style of the screenshot canvas (claude.ai artifact `Nz2fhRTSzhDHWAifDBTL1i`). Review gallery: https://antiphon-gallery.kounex.com (Cloudflare Access). iPhone 6.9″ and iPad 13″ (the app runs on iPad, so App Store Connect needs both). Captures come from `scripts/store_screenshots.sh`.
 
 ## Other docs
 
