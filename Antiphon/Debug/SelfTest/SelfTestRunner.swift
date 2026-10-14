@@ -46,6 +46,8 @@ final class SelfTestRunner {
     static let sameOrderName = "Antiphon Self-Test (same order)"
     /// Two way, Antiphon-created on both sides, for undo.
     static let undoName = "Antiphon Self-Test (undo)"
+    /// One way into Antiphon's Apple Music playlist, for picking a version.
+    static let pickName = "Antiphon Self-Test (pick)"
 
     // MARK: - Run
 
@@ -63,6 +65,7 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "recheck" { try await recheckUnavailable() }
             if scenario == nil || scenario == "monitor" { try await monitorRun() }
             if scenario == nil || scenario == "opencheck" { try await openCheck() }
+            if scenario == nil || scenario == "pick" { try await pickVersion() }
             // Writes into the person's own playlist, which their real seams
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
@@ -352,6 +355,80 @@ final class SelfTestRunner {
                        "\(source.title), \(choice): from \(expected) (got \(album))")
             }
         }
+    }
+
+    // MARK: - Scenario: picking a version
+
+    /// Word Up! synced as Antiphon's pick (Greatest Hits), swapped for the
+    /// remixes EP, kept through a sync, then undone.
+    private func pickVersion() async throws {
+        log("== Pick a version: swap a synced song, keep it through a sync, undo it")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.pickName)
+        let appleId = try await applePlaylist(named: Self.pickName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up", "Faint"])
+        try await env.apply(try await env.preview(), trigger: .manual)
+
+        func wordUps() async throws -> [CatalogTrack] {
+            try await env.appleTracks().filter { $0.title.localizedCaseInsensitiveContains("Word Up") }
+        }
+        func until(_ done: ([CatalogTrack]) -> Bool) async throws -> [CatalogTrack] {
+            let start = Date()
+            var tracks = try await wordUps()
+            while !done(tracks), Date().timeIntervalSince(start) < 180 {
+                try await Task.sleep(for: .seconds(3))
+                tracks = try await wordUps()
+            }
+            return tracks
+        }
+        func albums(_ tracks: [CatalogTrack]) -> [String] { tracks.map { $0.album ?? "?" } }
+        func onlyFrom(_ album: String) -> ([CatalogTrack]) -> Bool {
+            { $0.count == 1 && $0.first?.album?.localizedCaseInsensitiveContains(album) == true }
+        }
+
+        let before = try await wordUps()
+        expect(onlyFrom("Greatest Hits")(before), "Antiphon's pick is the Greatest Hits version (\(albums(before)))")
+
+        let songs = try await AppleMusicManager().searchCatalog(query: "Korn Word Up The Remixes", limit: 25).map(CatalogTrack.init)
+        guard let ep = songs.first(where: {
+            $0.album?.localizedCaseInsensitiveContains("Remixes") == true && $0.title.localizedCaseInsensitiveContains("Word Up")
+                && VersionTag.parse($0.title).tags.isEmpty
+        }) else { throw SelfTestError("no plain Word Up! on the remixes EP") }
+        log("pick: \(ep.title) — \(ep.album ?? "-") [\(ep.id)]")
+
+        guard let row = try await env.repository.detail(for: env.pairId)?.tracks.first(where: { $0.title.localizedCaseInsensitiveContains("Word Up") }),
+              let target = try await env.repository.pickTarget(seamId: env.pairId, rowId: row.id) else {
+            throw SelfTestError("no Word Up row")
+        }
+        expect(target.current != .notThere && !target.isPicked, "the picker opens on Antiphon's pick (\(PickCopy.status(target)))")
+
+        let outcome = try await env.sync.choose(MatchCandidate(track: ep, confidence: 100, reason: .isrc), for: target.key, seamId: env.pairId)
+        expect(outcome.guided.isEmpty, "Antiphon's own playlist: nothing to do by hand")
+        let swapped = try await until(onlyFrom("Remixes"))
+        expect(onlyFrom("Remixes")(swapped), "Apple Music has the remixes EP version instead (\(albums(swapped)))")
+        let order = try await env.appleTracks().map(\.title)
+        expect(order.first?.localizedCaseInsensitiveContains("Word Up") == true, "in the old one's place (\(order))")
+        let picked = try await env.repository.pickTarget(seamId: env.pairId, rowId: row.id)
+        expect(picked?.isPicked == true, "the song now has the person's pick")
+
+        let planned = try await env.preview()
+        expect(planned.plan.automaticAddCount == 0, "the next sync changes nothing (\(planned.plan.automaticAddCount) adds)")
+        try await env.apply(planned, trigger: .manual)
+        let kept = try await wordUps()
+        expect(onlyFrom("Remixes")(kept), "and keeps the pick (\(albums(kept)))")
+
+        guard let run = try await env.repository.runs().first(where: { $0.trigger == .pick }) else { throw SelfTestError("no pick run") }
+        expect(ActivityCopy.line(run).hasPrefix("Your pick"), "History shows it as your pick (\(ActivityCopy.line(run)))")
+        let undone = try await env.sync.undo(runId: run.id)
+        log("undo landed \(undone.landed.map { "\($0.kind) \($0.track.album ?? $0.track.title)" }), skipped \(undone.skipped.count)")
+        let restored = try await until(onlyFrom("Greatest Hits"))
+        expect(onlyFrom("Greatest Hits")(restored), "undo puts the Greatest Hits version back (\(albums(restored)))")
+        let forgotten = try await env.repository.pickTarget(seamId: env.pairId, rowId: row.id)
+        expect(forgotten?.isPicked == false, "and forgets the pick")
     }
 
     // MARK: - Scenario: match probe (read only, by name)

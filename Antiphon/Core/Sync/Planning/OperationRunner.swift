@@ -198,7 +198,8 @@ actor OperationRunner {
         var outcome = Outcome()
         var operations = [SyncOperation(kind: .add, platform: target, track: pick)]
         if let current, row.effectiveSyncState == .synced {
-            let old = CatalogTrack(platform: target, id: current, title: row.title, artist: row.artist, isrc: row.counterpartISRC)
+            let old = CatalogTrack(platform: target, id: current, title: row.title, artist: row.artist,
+                                   album: row.counterpartAlbum, isrc: row.counterpartISRC)
             if target == .spotify || capabilities(for: pair).appleMusicCanRemove {
                 operations.append(SyncOperation(kind: .remove, platform: target, track: old))
             } else {
@@ -420,7 +421,7 @@ actor OperationRunner {
             RecordedChange(
                 kind: $0.kind, platform: $0.platform,
                 track: CatalogTrack(platform: $0.platform, id: $0.platformTrackId, title: $0.title,
-                                    artist: $0.artist, isrc: $0.isrc, artworkURL: $0.artworkURL),
+                                    artist: $0.artist, album: $0.album, isrc: $0.isrc, artworkURL: $0.artworkURL),
                 fromIndex: $0.fromIndex, toIndex: $0.toIndex
             )
         }

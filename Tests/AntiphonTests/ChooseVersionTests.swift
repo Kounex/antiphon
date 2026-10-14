@@ -29,6 +29,7 @@ struct ChooseVersionTests {
                               spotifyTrackUri: "spotify:track:wordup", appleMusicTrackId: synced ? "i.hits" : nil,
                               source: synced ? .both : .spotify, syncState: synced ? .synced : .needsReview)
         row.counterpartISRC = synced ? "USSM10411917" : nil
+        row.counterpartAlbum = synced ? "Greatest Hits, Vol. 1" : nil
         row.syncPair = pair
         context.insert(row)
         try context.save()
@@ -75,6 +76,9 @@ struct ChooseVersionTests {
         let run = try #require(try runs(f).last)
         #expect(run.trigger == .pick)
         #expect(run.changes.map(\.kind).sorted { $0.rawValue < $1.rawValue } == [.add, .remove])
+        // Undo puts back this release: Apple Music re-resolves library IDs by album.
+        #expect(run.changes.first { $0.kind == .remove }?.album == "Greatest Hits, Vol. 1")
+        #expect(run.changes.first { $0.kind == .add }?.album == "Word Up!: The Remixes - EP")
     }
 
     @Test("The person's own Apple Music playlist: the pick goes in, removing the old one is up to them")

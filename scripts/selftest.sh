@@ -3,7 +3,7 @@
 # Builds the dev app, waits for an unlocked phone, installs, runs, and prints
 # the [SELFTEST] lines. Full device log: build/logs/selftest.log.
 # usage: scripts/selftest.sh [scenario]   (no scenario = all default scenarios)
-# Scenarios: twoway sameorder album library undo recheck monitor
+# Scenarios: twoway sameorder album library undo recheck monitor opencheck pick
 #            (only by name: ownam realpreview icon matchprobe). See SelfTestRunner.swift.
 cd "$(dirname "$0")/.."
 DEV=${DEVICE_ID:-E027CD50-71A3-550D-B5FA-24BA79C6EA30}

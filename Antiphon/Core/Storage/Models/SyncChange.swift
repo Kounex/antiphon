@@ -21,6 +21,8 @@ final class SyncChange {
     var title: String
     var artist: String
     var artworkURL: String?
+    /// The release, so undo can put back this album's version and not another.
+    var album: String?
     var fromIndex: Int?
     var toIndex: Int?
     var confidence: Int?
@@ -45,6 +47,7 @@ final class SyncChange {
         self.title = track.title
         self.artist = track.artist
         self.artworkURL = track.artworkURL
+        self.album = track.album
         self.confidence = confidence
         self.reason = reason
         self.fromIndex = fromIndex

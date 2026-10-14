@@ -646,6 +646,25 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
    - The next sync keeps it.
    - Undo brings the old one back and forgets the pick.
 
+### Version picker: done (2026-10-14)
+
+- **Built as specified above, in four commits.**
+  - Pins: a `PinnedMatch` per seam and song; the planner plans a pinned song from its pick, with no lookup.
+  - Choosing: `OperationRunner.choose`, `keepPick` and `forgetPick`, plus undo of `.pick` runs.
+  - The sheet: `VersionPickerView` and its model.
+  - The four entry points.
+- **The sheet says which seam it's for** (the person's request when approving): stitched covers, "For *seam*", "Goes into *playlist* on *service*".
+- **Found on the way, all fixed:**
+  - A pick shares its recording's ISRC. Undo now puts a version back unless that exact version is there, and takes the pick out first.
+  - Apple Music removals match an entry by ID before ISRC, so removing one version can't take its twin.
+  - Changes now record their album (`SyncChange.album`), and the version being replaced is given its album (`CachedTrack.counterpartAlbum`). Library IDs re-resolve by album when something is put back, so undo restores that exact release.
+- **Review's "Pick another version" is the picker.** `MatchDetailView` is gone, and "Prefer remasters" stays in Settings › Matching.
+- **Verified:**
+  - 432 unit tests.
+  - Screenshots of the picker: light, dark, iPad, from a seam's list, and with the person's own pick.
+  - On the phone, `pick` passed 12 of 12: Greatest Hits swapped for the remixes EP in the same place, the next sync keeps it, History says "Your pick · 1 added to Apple Music, 1 removed from Apple Music", and undo puts Greatest Hits back and forgets the pick.
+- **Not tested on the phone:** the guided case (the person's own Apple Music playlist; unit-tested only) and the UI taps themselves (debug routes only).
+
 ### After 1.4.0: the New seam freeze, whole-row taps, the album setting (2026-10-14)
 
 - **New seam preview froze and iOS killed the app** (a 1.4.0 regression). The phone's crash log, symbolicated against the 1.4.0 dSYM: `0x8BADF00D`, main thread spinning in `SyncFlowView.body`. The wizard's destination called `makeSyncFlow`, which since 1.4.0 also caches into the shell's observed state, so it was writing from a view body that then re-rendered forever. The flow is now made in the button action, and the destination only reads the shell's cache. Reproduced and verified with `shell/newseam/sync` (99% CPU and a frozen screen before, the preview after).

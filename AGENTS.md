@@ -47,7 +47,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 ### Self-test on real accounts (`Antiphon/Debug/SelfTest/SelfTestRunner.swift`)
 
 - **Scenarios:**
-  - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly), `opencheck` (what opening the app checks).
+  - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly), `opencheck` (what opening the app checks), `pick` (swap a synced song for another version, keep it through a sync, undo it).
   - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app), `matchprobe` (read only: every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`).
 - Last full run: **135 of 135** (2026-10-14, the open check rerun on its own after the phone locked mid-run).
 - **Rules from the user:**

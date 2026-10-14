@@ -100,7 +100,8 @@ struct LivePlaylistEditor: PlaylistEditor {
     /// Catalog songs for the tracks: by catalog ID when known, otherwise by
     /// ISRC (library IDs like "i.…" aren't catalog IDs).
     /// Library IDs (`i.`) can't be added from the catalog: those tracks get
-    /// the release syncing would pick (original album first), or are left out.
+    /// their own album's release when it's known, otherwise the release
+    /// syncing would pick, or are left out.
     private func resolveSongs(_ tracks: [CatalogTrack]) async throws -> [Song] {
         let catalog = AppleMusicTrackCatalog(manager: appleMusicManager)
         let preferences = AppPreferences.shared.versionPreferences
@@ -109,7 +110,10 @@ struct LivePlaylistEditor: PlaylistEditor {
             if !track.id.hasPrefix("i.") {
                 catalogIds.append(track.id)
             } else {
-                catalogIds.append(try await ReleaseResolver.catalogTrack(for: track, in: catalog, preferences: preferences)?.id)
+                // Putting a known release back (undo): that album's version, whatever the setting.
+                var putBack = preferences
+                if track.album != nil { putBack.release = .sourceAlbum }
+                catalogIds.append(try await ReleaseResolver.catalogTrack(for: track, in: catalog, preferences: putBack)?.id)
             }
         }
 
