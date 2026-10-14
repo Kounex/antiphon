@@ -106,4 +106,29 @@ struct PickTargetTests {
         let line = await MainActor.run { SeamPresentation.trackDetail(first) }
         #expect(line == "Korn · your pick")
     }
+
+    @Test("A picked song shows the picked version's cover in the seam's list")
+    func listShowsPickedCover() async throws {
+        let f = try makeFixture { _, pair, context in
+            let pin = PinnedMatch(key: TrackKey(platform: .spotify, id: "spotify:track:wordup"),
+                                  track: CatalogTrack(platform: .appleMusic, id: "ep", title: "Word Up!", artist: "Korn",
+                                                      artworkURL: "https://example.com/remixes.jpg"))
+            pin.syncPair = pair
+            context.insert(pin)
+        }
+        let detail = try #require(try await f.repository.detail(for: f.pairId))
+        #expect(detail.tracks.first?.artworkURL == URL(string: "https://example.com/remixes.jpg"))
+    }
+
+    @Test("Preview rows show the cover of the version that will be written, else the song's own")
+    func previewCover() async {
+        let source = CatalogTrack(platform: .spotify, id: "s", title: "Word Up!", artist: "Korn", artworkURL: "https://example.com/source.jpg")
+        let pick = CatalogTrack(platform: .appleMusic, id: "ep", title: "Word Up!", artist: "Korn", artworkURL: "https://example.com/remixes.jpg")
+        let library = CatalogTrack(platform: .appleMusic, id: "i.1", title: "Word Up!", artist: "Korn", artworkURL: "musicKit://artwork/1")
+        await MainActor.run {
+            #expect(SeamPresentation.cover(of: source, writing: pick) == URL(string: "https://example.com/remixes.jpg"))
+            #expect(SeamPresentation.cover(of: source, writing: library) == URL(string: "https://example.com/source.jpg"))
+            #expect(SeamPresentation.cover(of: source, writing: nil) == URL(string: "https://example.com/source.jpg"))
+        }
+    }
 }

@@ -40,7 +40,7 @@ struct LiveSyncSheet: View {
     let onConflicts: (UUID) -> Void
 
     @Environment(SyncCoordinator.self) private var coordinator
-    @State private var detent: PresentationDetent = .medium
+    @State private var detent: PresentationDetent = SyncingView.collapsed
 
     private var ids: [UUID] { shell.liveSeamIds }
 
@@ -69,9 +69,9 @@ struct LiveSyncSheet: View {
             }
         }
         .animation(.smooth, value: focused)
-        .presentationDetents([.medium, .large], selection: $detent)
-        // A result needs the room; progress fits the glass at half height.
-        .onChange(of: focusedIsDone, initial: true) { _, done in detent = done ? .large : .medium }
+        .presentationDetents([SyncingView.collapsed, .large], selection: $detent)
+        // A result needs the room; progress fits the collapsed glass.
+        .onChange(of: focusedIsDone, initial: true) { _, done in detent = done ? .large : SyncingView.collapsed }
         // Pages that aren't mounted still catch up to a sync that finished
         // while the sheet was away (their chip shows it), and get their covers.
         .task(id: ids) {

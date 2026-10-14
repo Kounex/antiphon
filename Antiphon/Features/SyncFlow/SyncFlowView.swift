@@ -30,8 +30,8 @@ struct SyncFlowView: View {
         }
         .sheet(isPresented: $showsSyncing) {
             SyncingView(model: model, onHide: hide)
-                .presentationDetents([.medium, .large])
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .presentationDetents([SyncingView.collapsed, .large])
+                .presentationBackgroundInteraction(.enabled(upThrough: SyncingView.collapsed))
                 .interactiveDismissDisabled()
         }
         .onChange(of: isSyncing) { _, syncing in

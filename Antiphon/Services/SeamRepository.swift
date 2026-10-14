@@ -156,19 +156,22 @@ actor SwiftDataSeamRepository: SeamRepository {
             .map(\.platformTrackId))
         let addedTo = Self.addedTo(pair)
         let leading = Self.leading(pair)
-        let picked = Set(pair.pins.map(\.key))
+        let picks = Dictionary(pair.pins.compactMap { pin in pin.track.map { (pin.key, $0) } }, uniquingKeysWith: { a, _ in a })
 
         let tracks = pair.cachedTracks
             .filter { $0.removalFlag != .extraOnDestination }
             .sorted { $0.addedAt < $1.addedAt }
             .map { track in
-                SeamTrack(
+                let pick = Self.source(of: track, addedTo: addedTo, leading: leading).flatMap { picks[TrackKey($0)] }
+                // A pick shows its own release's cover, like the picker did.
+                let pickCover = pick?.artworkURL.flatMap { $0.hasPrefix("http") ? URL(string: $0) : nil }
+                return SeamTrack(
                     id: track.id, title: track.title, artist: track.artist, album: track.albumName,
-                    artworkURL: track.artworkURL.flatMap(URL.init(string:)),
+                    artworkURL: pickCover ?? track.artworkURL.flatMap(URL.init(string:)),
                     state: TrackRowState(track),
                     isNew: [track.spotifyTrackUri, track.appleMusicTrackId].contains { $0.map(newIds.contains) ?? false },
                     origin: Self.origin(of: track, addedTo: addedTo, leading: leading),
-                    isPicked: Self.source(of: track, addedTo: addedTo, leading: leading).map { picked.contains(TrackKey($0)) } ?? false
+                    isPicked: pick != nil
                 )
             }
         return SeamDetail(summary: summary(pair), tracks: tracks)

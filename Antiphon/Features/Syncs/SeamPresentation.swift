@@ -22,6 +22,13 @@ enum SeamPresentation {
         )
     }
 
+    /// The cover of the version that gets written (a pick shows its own
+    /// release), else the song's. Library `musicKit://` art can't load.
+    static func cover(of source: CatalogTrack, writing match: CatalogTrack?) -> URL? {
+        let web = { (url: String?) in url.flatMap { $0.hasPrefix("http") ? URL(string: $0) : nil } }
+        return web(match?.artworkURL) ?? source.artworkURL.flatMap(URL.init(string:))
+    }
+
     static func health(_ counts: SeamCounts) -> SeamHealth {
         SeamHealth(synced: counts.synced, review: counts.review, missing: counts.missing, total: counts.total)
     }

@@ -242,7 +242,8 @@ private struct EveryTrackSheet: View {
                         picking = model.pickTarget(for: item.source, planned: item.match, candidates: item.candidates)
                     } label: {
                         AntiphonDesign.TrackRow(title: item.source.title, detail: "\(item.source.artist)\n\(item.detail)",
-                                                artwork: CoverArt(url: item.source.artworkURL.flatMap(URL.init(string:)), seed: item.source.title, size: 40),
+                                                artwork: CoverArt(url: SeamPresentation.cover(of: item.source, writing: item.match?.track),
+                                                                  seed: item.source.title, size: 40),
                                                 state: state)
                     }
                     .buttonStyle(.plain)

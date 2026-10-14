@@ -156,6 +156,20 @@ struct SyncFlowModelTests {
         #expect(m.seam?.id == seam.id)
     }
 
+    @Test("The live sheet shows as many rows as fit, around the track being added")
+    func landingWindow() {
+        // Four fit (half height): two added, the current one, one waiting.
+        #expect(SyncingView.window(done: 10, count: 35, fits: 4) == 8..<12)
+        // The sheet expanded: more rows, still centered on the current one.
+        #expect(SyncingView.window(done: 10, count: 35, fits: 9) == 6..<15)
+        // Edges: the first rows at the start, the last rows at the end.
+        #expect(SyncingView.window(done: 0, count: 35, fits: 4) == 0..<4)
+        #expect(SyncingView.window(done: 35, count: 35, fits: 4) == 31..<35)
+        // Fewer tracks than fit, or room for none.
+        #expect(SyncingView.window(done: 1, count: 3, fits: 9) == 0..<3)
+        #expect(SyncingView.window(done: 5, count: 35, fits: 0) == 5..<5)
+    }
+
     @Test("Not syncing: reconciling a flow that hasn't started does nothing")
     func reconcileIgnoresUnstartedFlow() async throws {
         let container = try SharedModelContainer.make(inMemory: true)
