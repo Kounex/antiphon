@@ -28,6 +28,12 @@ private final class RecordingSync: SyncService, Sendable {
         calls.withLock { $0.append("\(what) for \(key.id)") }
         return OperationRunner.Outcome()
     }
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome {
+        calls.withLock { $0.append("choose \(candidate.track.title) for \(key.id)") }
+        return OperationRunner.Outcome()
+    }
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, seamId: UUID) async throws {}
+    func forgetPick(for key: TrackKey, seamId: UUID) async throws {}
 }
 
 @Suite("Question notifications", .serialized)

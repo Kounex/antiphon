@@ -47,13 +47,12 @@ enum PlaylistEntryEdit {
         var removed = Set<Int>()
         for track in tracks {
             let isrc = track.isrc?.lowercased()
-            let match = entries.indices.first { index in
-                guard !removed.contains(index) else { return false }
-                let entry = entries[index]
-                if entry.ids.contains(track.id) { return true }
-                if let isrc, let entryISRC = entry.isrc?.lowercased() { return isrc == entryISRC }
-                return false
-            }
+            // By ID first: two versions of one recording share an ISRC.
+            let match = entries.indices.first { !removed.contains($0) && entries[$0].ids.contains(track.id) }
+                ?? entries.indices.first { index in
+                    guard !removed.contains(index), let isrc, let entryISRC = entries[index].isrc?.lowercased() else { return false }
+                    return isrc == entryISRC
+                }
             if let match { removed.insert(match) }
         }
         guard !removed.isEmpty else { throw Failure.notFound }

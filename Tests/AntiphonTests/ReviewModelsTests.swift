@@ -9,6 +9,7 @@ final class RecordingSyncService: SyncService, Sendable {
         case accept(TrackKey, String)
         case skip(TrackKey)
         case resolve([TrackKey], ConflictResolution.RowUpdate)
+        case choose(TrackKey, String)
     }
 
     private let log = Mutex<[Call]>([])
@@ -26,6 +27,15 @@ final class RecordingSyncService: SyncService, Sendable {
         }
         return OperationRunner.Outcome()
     }
+
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome {
+        if failing { throw URLError(.timedOut) }
+        log.withLock { $0.append(.choose(key, candidate.track.id)) }
+        return OperationRunner.Outcome()
+    }
+
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, seamId: UUID) async throws {}
+    func forgetPick(for key: TrackKey, seamId: UUID) async throws {}
 
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome {
         log.withLock { $0.append(.resolve(resolutions.map(\.conflict.key), resolutions.first?.rowUpdate ?? .keepDifference)) }

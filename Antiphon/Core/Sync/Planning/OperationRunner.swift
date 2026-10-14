@@ -114,7 +114,10 @@ actor OperationRunner {
         outcome.landed = try await execute(plan.operations, pair: pair, context: context,
                                            trigger: .undo, undoOf: runId, outcome: &outcome)
 
-        for operation in outcome.landed where operation.kind == .remove {
+        if run.trigger == .pick {
+            restore(afterUndoing: run, landed: outcome.landed, pair: pair, context: context)
+        }
+        for operation in outcome.landed where operation.kind == .remove && run.trigger != .pick {
             // Keep the undone track from being re-added or asked about.
             guard let row = row(identifiedAs: operation.track, in: pair) else { continue }
             row.removalFlag = operation.platform == .spotify ? .removedFromSpotify : .removedFromAppleMusic
@@ -163,6 +166,105 @@ actor OperationRunner {
             }
             return outcome
         }
+    }
+
+    // MARK: - Picked versions
+
+    /// The person's version for a song: kept for the seam, and written now if
+    /// the song is stored. A synced song gets the pick swapped in for
+    /// Antiphon's version (whose removal is guided where apps can't remove);
+    /// any other stored song gets it added. Logged as one `.pick` run.
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, pairId: UUID) async throws -> Outcome {
+        let context = ModelContext(modelContainer)
+        let pair = try fetchPair(pairId, in: context)
+        let pick = candidate.track
+        keep(pick, for: key, in: pair, context: context)
+        guard let row = row(for: key, in: pair) else {
+            // Not stored yet (a first sync's preview): the plan uses the pick.
+            try context.save()
+            return Outcome()
+        }
+
+        let target = key.platform.other
+        let current = target == .spotify ? row.spotifyTrackUri : row.appleMusicTrackId
+        if current == pick.id {
+            row.matchConfidence = 100
+            row.matchReason = .manual
+            try context.save()
+            return Outcome()
+        }
+
+        var outcome = Outcome()
+        var operations = [SyncOperation(kind: .add, platform: target, track: pick)]
+        if let current, row.effectiveSyncState == .synced {
+            let old = CatalogTrack(platform: target, id: current, title: row.title, artist: row.artist, isrc: row.counterpartISRC)
+            if target == .spotify || capabilities(for: pair).appleMusicCanRemove {
+                operations.append(SyncOperation(kind: .remove, platform: target, track: old))
+            } else {
+                outcome.guided = [SyncOperation(kind: .remove, platform: target, track: old, isGuided: true)]
+            }
+        }
+        outcome.landed = try await execute(operations, pair: pair, context: context, trigger: .pick, undoOf: nil, outcome: &outcome)
+
+        let added = outcome.landed.first { $0.kind == .add }?.track
+        if let added {
+            if added.platform == .spotify { row.spotifyTrackUri = added.id } else { row.appleMusicTrackId = added.id }
+            row.lastSyncAttempt = Date()
+            row.source = .both
+            row.syncState = .synced
+            row.unmatchedPlatform = nil
+            row.unavailableReason = nil
+            row.matchConfidence = 100
+            row.matchReason = .manual
+            row.counterpartISRC = pick.isrc
+        }
+        try context.save()
+        if let added { await place([added.platform: [row.id.uuidString]], pair: pair) }
+        return outcome
+    }
+
+    /// Keeps a pick without writing anything (a preview: the plan uses it).
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, pairId: UUID) async throws {
+        let context = ModelContext(modelContainer)
+        keep(track, for: key, in: try fetchPair(pairId, in: context), context: context)
+        try context.save()
+    }
+
+    /// "Let Antiphon choose again": the pick is forgotten, the playlist stays.
+    func forgetPick(for key: TrackKey, pairId: UUID) async throws {
+        let context = ModelContext(modelContainer)
+        let pair = try fetchPair(pairId, in: context)
+        for pin in pair.pins where pin.key == key { context.delete(pin) }
+        try context.save()
+    }
+
+    private func keep(_ track: CatalogTrack, for key: TrackKey, in pair: SyncPair, context: ModelContext) {
+        if let pin = pair.pins.first(where: { $0.key == key }) {
+            pin.update(to: track)
+        } else {
+            let pin = PinnedMatch(key: key, track: track)
+            pin.syncPair = pair
+            context.insert(pin)
+        }
+    }
+
+    /// Undoing a pick: the old version (or nothing) is the song's counterpart
+    /// again, and the pick is forgotten. Not a removal, unlike other undos.
+    private func restore(afterUndoing run: SyncLog, landed: [SyncOperation], pair: SyncPair, context: ModelContext) {
+        guard let picked = run.orderedChanges.first(where: { $0.kind == .add }) else { return }
+        let target = picked.platform
+        guard let row = pair.cachedTracks.first(where: {
+            (target == .spotify ? $0.spotifyTrackUri : $0.appleMusicTrackId) == picked.platformTrackId
+        }) else { return }
+        let restored = landed.first { $0.kind == .add && $0.platform == target }?.track
+        if target == .spotify { row.spotifyTrackUri = restored?.id } else { row.appleMusicTrackId = restored?.id }
+        row.syncState = restored == nil ? .pending : .synced
+        row.source = restored == nil ? (target == .spotify ? .appleMusic : .spotify) : .both
+        row.matchReason = nil
+        row.matchConfidence = nil
+        if let restored { row.counterpartISRC = restored.isrc }
+        let songId = target == .spotify ? row.appleMusicTrackId : row.spotifyTrackUri
+        for pin in pair.pins where pin.key == TrackKey(platform: target.other, id: songId ?? "") { context.delete(pin) }
     }
 
     // MARK: - Private
@@ -323,7 +425,7 @@ actor OperationRunner {
             let playlistId = platform == .spotify ? pair.spotifyPlaylistId : pair.appleMusicPlaylistId
             current[platform] = try await editor.tracks(in: playlistId, on: platform)
         }
-        return UndoPlanner.plan(for: changes, capabilities: capabilities(for: pair), current: current)
+        return UndoPlanner.plan(for: changes, capabilities: capabilities(for: pair), current: current, versions: run.trigger == .pick)
     }
 
     private func capabilities(for pair: SyncPair) -> PlatformCapabilities {

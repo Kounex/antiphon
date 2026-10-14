@@ -23,18 +23,23 @@ struct UndoPlan: Sendable, Equatable {
 
 enum UndoPlanner {
 
+    /// `versions`: the run swapped one version of a recording for another (a
+    /// pick), so putting a track back checks for that exact version, not the
+    /// recording, and the pick comes out before the old version goes back in.
     static func plan(
         for changes: [RecordedChange],
         capabilities: PlatformCapabilities,
-        current: [Platform: [CatalogTrack]] = [:]
+        current: [Platform: [CatalogTrack]] = [:],
+        versions: Bool = false
     ) -> UndoPlan {
         var operations: [SyncOperation] = []
         var guided: [SyncOperation] = []
         var skipped: [SyncOperation] = []
 
-        for change in changes.reversed() {
+        let ordered = versions ? changes.filter { $0.kind == .add } + changes.filter { $0.kind != .add } : changes.reversed()
+        for change in ordered {
             var inverse = SyncOperation(kind: inverseKind(of: change), platform: change.platform, track: change.track)
-            if let live = current[change.platform], !stillApplies(inverse, in: live) {
+            if let live = current[change.platform], !stillApplies(inverse, in: live, versions: versions) {
                 skipped.append(inverse)
                 continue
             }
@@ -65,9 +70,10 @@ enum UndoPlanner {
         }
     }
 
-    private static func stillApplies(_ operation: SyncOperation, in live: [CatalogTrack]) -> Bool {
+    private static func stillApplies(_ operation: SyncOperation, in live: [CatalogTrack], versions: Bool = false) -> Bool {
         let present = live.contains { MatchFinder.isSameRecording(operation.track, $0) }
         switch operation.kind {
+        case .add where versions: return !live.contains { $0.id == operation.track.id }
         case .add: return !present
         case .remove, .move: return present
         }

@@ -206,6 +206,9 @@ struct PreviewSyncService: SyncService {
     func undo(runId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
     func decide(_ decision: OperationRunner.ReviewDecision, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome { OperationRunner.Outcome() }
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, seamId: UUID) async throws {}
+    func forgetPick(for key: TrackKey, seamId: UUID) async throws {}
 }
 #endif
 

@@ -16,6 +16,13 @@ protocol SyncService: Sendable {
     func undo(runId: UUID) async throws -> OperationRunner.Outcome
     func resolve(_ resolutions: [ConflictResolution], seamId: UUID) async throws -> OperationRunner.Outcome
     func decide(_ decision: OperationRunner.ReviewDecision, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome
+    /// The person's version for a song, kept for the seam and written now
+    /// when the song is stored (swapped in for a synced one).
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome
+    /// Keeps a pick without writing (a preview).
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, seamId: UUID) async throws
+    /// "Let Antiphon choose again".
+    func forgetPick(for key: TrackKey, seamId: UUID) async throws
 }
 
 /// `SyncService` over the existing engine and clients. Each call builds its
@@ -70,6 +77,21 @@ struct LiveSyncService: SyncService {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [QuestionNotice.id(seamId: seamId, key: key)])
         WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
         return outcome
+    }
+
+    func choose(_ candidate: MatchCandidate, for key: TrackKey, seamId: UUID) async throws -> OperationRunner.Outcome {
+        let outcome = try await runner().choose(candidate, for: key, pairId: seamId)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [QuestionNotice.id(seamId: seamId, key: key)])
+        WidgetSnapshotWriter.schedule(modelContainer: modelContainer)
+        return outcome
+    }
+
+    func keepPick(_ track: CatalogTrack, for key: TrackKey, seamId: UUID) async throws {
+        try await runner().keepPick(track, for: key, pairId: seamId)
+    }
+
+    func forgetPick(for key: TrackKey, seamId: UUID) async throws {
+        try await runner().forgetPick(for: key, pairId: seamId)
     }
 
     private func runner() -> OperationRunner {

@@ -53,4 +53,11 @@ struct AppleMusicEditTests {
             try PlaylistEntryEdit.keptIndices(entries: [entry("e1")], expectedCount: 1, removing: [track("zzz")])
         }
     }
+
+    @Test("Two versions of one recording (same ISRC): removing by ID takes that version, not the first")
+    func removeByIDBeforeISRC() throws {
+        let entries = [entry("i.ep", isrc: "USSM10411917"), entry("i.hits", isrc: "USSM10411917")]
+        #expect(try PlaylistEntryEdit.keptIndices(entries: entries, expectedCount: 2,
+                                                  removing: [track("i.hits", isrc: "USSM10411917")]) == [0])
+    }
 }

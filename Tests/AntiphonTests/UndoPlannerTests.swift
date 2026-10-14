@@ -74,4 +74,30 @@ struct UndoPlannerTests {
         #expect(undo.skipped.map(\.track.id) == ["spotify:track:2"])
         #expect(undo.summary == "Removes this track from Spotify. 1 change no longer applies and is skipped.")
     }
+
+    // A swap: the person's pick went in, Antiphon's version (same recording) came out.
+    private var swap: [RecordedChange] {
+        [RecordedChange(kind: .add, platform: .appleMusic,
+                        track: CatalogTrack(platform: .appleMusic, id: "ep", title: "Word Up!", artist: "Korn", isrc: "USSM10411917")),
+         RecordedChange(kind: .remove, platform: .appleMusic,
+                        track: CatalogTrack(platform: .appleMusic, id: "i.hits", title: "Word Up!", artist: "Korn", isrc: "USSM10411917"))]
+    }
+
+    @Test("Undoing a pick puts the old version back, though the pick is the same recording; the pick comes out first")
+    func undoPick() {
+        let current = [CatalogTrack(platform: .appleMusic, id: "ep", title: "Word Up!", artist: "Korn", isrc: "USSM10411917")]
+        let undo = UndoPlanner.plan(for: swap, capabilities: .full, current: [.appleMusic: current], versions: true)
+        #expect(undo.operations.map(\.kind) == [SyncOperation.Kind.remove, .add])
+        #expect(undo.operations.map(\.track.id) == ["ep", "i.hits"])
+        #expect(undo.skipped.isEmpty)
+    }
+
+    @Test("Undoing a pick when the old version is still there (never deleted): only the pick comes out")
+    func undoPickOldStillThere() {
+        let current = [CatalogTrack(platform: .appleMusic, id: "i.hits", title: "Word Up!", artist: "Korn", isrc: "USSM10411917"),
+                       CatalogTrack(platform: .appleMusic, id: "ep", title: "Word Up!", artist: "Korn", isrc: "USSM10411917")]
+        let undo = UndoPlanner.plan(for: swap, capabilities: .full, current: [.appleMusic: current], versions: true)
+        #expect(undo.operations.map(\.track.id) == ["ep"])
+        #expect(undo.skipped.map(\.track.id) == ["i.hits"])
+    }
 }
