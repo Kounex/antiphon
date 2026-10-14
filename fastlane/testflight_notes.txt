@@ -1,3 +1,12 @@
+What's new in 1.4.4:
+
+• Fixed: a seam could show another seam's details, and its Sync now could preview the other seam. This happened after opening a seam from a sync's Review, a widget, Library or Search.
+• Sync results you've already seen no longer come back later in the progress sheet. Sync now on a seam whose sync ended while hidden opens a fresh preview.
+
+Focus for testers:
+• Create two seams in a row (preview and sync each), then open the second one and tap Sync now: it should preview that seam.
+• Tap Review on a sync's result, go back, open another seam: it should show that seam.
+
 What's new in 1.4.3:
 
 • A song you picked a version for now shows that version's cover in the seam's track list. The preview and the sync's progress sheet show the cover of the version being added.
