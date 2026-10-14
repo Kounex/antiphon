@@ -130,6 +130,47 @@ struct AppShellTests {
         #expect(model.syncFlowModels[id] === kept, "already running: reuse it rather than restart it")
     }
 
+    @Test("Review from a finished sync closes the sync sheet even with other syncs open, keeping them")
+    @MainActor
+    func reviewFromSyncClosesSheet() {
+        let model = shellModel()
+        let done = UUID(), running = UUID()
+        model.makeSyncFlow(seamId: done).debugFinish(SyncResult(pairId: done, status: .success, tracksAdded: 1))
+        model.reopenRunningSyncs(ids: [running], focus: done)
+
+        model.openReview(fromSyncOf: done)
+
+        #expect(!model.showsSyncSheet, "a sheet can't present the review queue over it")
+        #expect(model.syncFlowModels[running] != nil, "the other sync is still there for the accessory")
+        #expect(model.syncFlowModels[done] == nil)
+        #expect(model.reviewTarget == .init(seamId: done))
+        #expect(model.syncsPath == [.seam(done)])
+    }
+
+    @Test("Removals to decide close the sync sheet, so their questions open now, not whenever it's closed")
+    @MainActor
+    func conflictsCloseSheet() {
+        let model = shellModel()
+        let asking = UUID(), running = UUID()
+        model.makeSyncFlow(seamId: asking)
+        model.reopenRunningSyncs(ids: [running], focus: asking)
+
+        model.askAboutRemovals(fromSyncOf: asking)
+
+        #expect(!model.showsSyncSheet)
+        #expect(model.pendingConflictSeam == asking)
+        #expect(model.syncFlowModels[running] != nil)
+    }
+
+    @Test("Seams not loaded yet keep a stable order in the sheet")
+    @MainActor
+    func stableOrderForUnknownSeams() {
+        let model = shellModel()
+        let ids = (0..<5).map { _ in UUID() }
+        model.reopenRunningSyncs(ids: ids, focus: nil)
+        #expect(model.orderedSyncFlowSeamIds == ids.sorted { $0.uuidString < $1.uuidString })
+    }
+
     @Test("Sync now after a sync finished (while hidden) starts a fresh preview, not the old result")
     @MainActor
     func syncNowAfterFinished() {

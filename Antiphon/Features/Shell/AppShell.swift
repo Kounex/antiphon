@@ -54,7 +54,7 @@ struct AppShell: View {
             }
         }) {
             SyncFlowCarouselSheet(shell: model, onReview: openSeam) { id in
-                model.pendingConflictSeam = id
+                model.askAboutRemovals(fromSyncOf: id)
             }
         }
         .sheet(isPresented: $model.showsNewSeam, onDismiss: {
@@ -100,11 +100,7 @@ struct AppShell: View {
 extension AppShell {
     /// Opens a seam's close matches in the review queue.
     func openSeam(_ seamId: UUID) {
-        model.closeSyncFlow(seamId: seamId)
-        model.showsNewSeam = false
-        model.selectedTab = .syncs
-        model.syncsPath = [.seam(seamId)]
-        model.reviewTarget = .init(seamId: seamId)
+        model.openReview(fromSyncOf: seamId)
     }
 }
 

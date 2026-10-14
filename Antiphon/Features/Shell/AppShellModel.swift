@@ -225,9 +225,30 @@ final class AppShellModel {
     /// Every open flow, in the order the carousel shows them (by seam name,
     /// like the accessory's own list).
     var orderedSyncFlowSeamIds: [UUID] {
-        let allSeams = seams
-        let name: (UUID) -> String = { id in allSeams.first { $0.id == id }?.name ?? "" }
-        return syncFlowModels.keys.sorted { name($0).localizedStandardCompare(name($1)) == .orderedAscending }
+        let names = Dictionary(seams.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        return syncFlowModels.keys.sorted { a, b in
+            let order = (names[a] ?? "").localizedStandardCompare(names[b] ?? "")
+            return order == .orderedSame ? a.uuidString < b.uuidString : order == .orderedAscending
+        }
+    }
+
+    /// "Review" on a sync's result: the sheet closes, since it can't present
+    /// the review queue over itself; other syncs stay for the accessory.
+    func openReview(fromSyncOf seamId: UUID) {
+        closeSyncFlow(seamId: seamId)
+        hideSyncSheet()
+        showsNewSeam = false
+        selectedTab = .syncs
+        syncsPath = [.seam(seamId)]
+        reviewTarget = .init(seamId: seamId)
+    }
+
+    /// A sync left only removals to decide: the sheet closes and their
+    /// questions open, instead of waiting until the person closes it.
+    func askAboutRemovals(fromSyncOf seamId: UUID) {
+        pendingConflictSeam = seamId
+        closeSyncFlow(seamId: seamId)
+        hideSyncSheet()
     }
 
     /// Closes the sheet. A flow that hasn't started yet (an abandoned

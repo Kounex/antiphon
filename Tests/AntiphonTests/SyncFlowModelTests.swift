@@ -136,10 +136,11 @@ struct SyncFlowModelTests {
         // give the coordinator a finished result for this pair without one.
         coordinator.cancelSync(pairId: m.seamId)
 
-        await m.reconcile(with: coordinator)
+        let caughtUp = await m.reconcile(with: coordinator)
 
         guard case .done(let result) = m.phase else { Issue.record("expected the real result, got \(m.phase)"); return }
         #expect(result.status == .failed)
+        #expect(caughtUp, "the caller then does what the live sheet would have (open removal questions)")
     }
 
     @Test("A flow that's only following a running sync still gets the seam's name and covers")

@@ -46,7 +46,7 @@ private struct SyncFlowPage: View {
                 model: model, onReview: onReview, onNext: {},
                 onDone: { shell.closeSyncFlow(seamId: seamId) },
                 onHide: { shell.hideSyncSheet() },
-                onConflicts: { onConflicts($0); shell.closeSyncFlow(seamId: seamId) }
+                onConflicts: onConflicts
             )
         }
     }
@@ -63,32 +63,35 @@ private struct SyncFlowCarousel: View {
     let onReview: (UUID) -> Void
     let onConflicts: (UUID) -> Void
 
-    @State private var focused: UUID?
     @Environment(SyncCoordinator.self) private var coordinator
+
+    /// The shell's focus is the only one: it's right from the first frame.
+    private var focused: UUID? {
+        shell.focusedSyncSeamId.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             strip
-            if let id = focused ?? ids.first {
+            if let id = focused {
                 SyncFlowPage(shell: shell, seamId: id, onReview: onReview, onConflicts: onConflicts)
                     .id(id)
                     .transition(.opacity)
             }
         }
         .animation(.smooth, value: focused)
-        .onAppear { focused = shell.focusedSyncSeamId ?? ids.first }
-        .onChange(of: ids) { _, newIds in
-            if let focused, !newIds.contains(focused) { self.focused = newIds.first }
-        }
-        // Every chip needs its name and cover, not just the focused page
-        // that's actually mounted.
+        // Every chip needs its name and cover, and pages that aren't mounted
+        // still catch up to a sync that finished while the sheet was away.
         .task(id: ids) {
-            for id in ids { await shell.syncFlowModels[id]?.loadSeamIfNeeded() }
+            for id in ids {
+                guard let flow = shell.syncFlowModels[id] else { continue }
+                await flow.loadSeamIfNeeded()
+                if await flow.reconcile(with: coordinator), flow.asksAboutRemovals {
+                    onConflicts(id)
+                    return
+                }
+            }
         }
-    }
-
-    private var focusBinding: Binding<UUID?> {
-        Binding(get: { focused ?? ids.first }, set: { focused = $0 })
     }
 
     private var strip: some View {
@@ -105,9 +108,9 @@ private struct SyncFlowCarousel: View {
     private func chip(for id: UUID) -> some View {
         let model = shell.syncFlowModels[id]
         let name = model?.seam?.name ?? "Seam"
-        let isFocused = focusBinding.wrappedValue == id
+        let isFocused = focused == id
         return Button {
-            withAnimation(.smooth) { focused = id }
+            withAnimation(.smooth) { shell.focusedSyncSeamId = id }
         } label: {
             HStack(spacing: Space.s1 + 2) {
                 ZStack(alignment: .bottomTrailing) {

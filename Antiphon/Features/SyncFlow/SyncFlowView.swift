@@ -54,7 +54,10 @@ struct SyncFlowView: View {
             // just caught up to a result that landed while hidden) — show
             // its live sheet right away instead of waiting for a phase
             // transition that already happened off-screen.
-            await model.reconcile(with: coordinator)
+            if await model.reconcile(with: coordinator), model.asksAboutRemovals {
+                onConflicts(model.seamId)
+                return
+            }
             showsSyncing = isSyncing && model.afterApply == .showResult
             #if DEBUG
             if DebugRoute.flowPhase != nil {

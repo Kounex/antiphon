@@ -104,13 +104,22 @@ final class SyncFlowModel {
     /// Reopened after being hidden: if the coordinator finished (or gave up)
     /// while no one was watching, catch up to its real result instead of
     /// sitting on a stale "syncing" phase.
-    func reconcile(with coordinator: SyncCoordinator) async {
-        guard case .syncing = phase, !coordinator.isSyncing(seamId) else { return }
+    /// Returns whether it caught up, so the caller can do what the live sheet
+    /// would have (open removal questions).
+    @discardableResult
+    func reconcile(with coordinator: SyncCoordinator) async -> Bool {
+        guard case .syncing = phase, !coordinator.isSyncing(seamId) else { return false }
         if let result = coordinator.lastResults[seamId] {
             await finished(with: result)
         } else {
             await plan()
         }
+        return true
+    }
+
+    /// Finished with only removals to decide: their questions come next.
+    var asksAboutRemovals: Bool {
+        if case .done = phase { afterApply == .openConflicts } else { false }
     }
 
     func start(using coordinator: SyncCoordinator) {
