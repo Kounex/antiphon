@@ -130,6 +130,19 @@ struct AppShellTests {
         #expect(model.syncFlowModels[id] === kept, "already running: reuse it rather than restart it")
     }
 
+    @Test("Sync now after a sync finished (while hidden) starts a fresh preview, not the old result")
+    @MainActor
+    func syncNowAfterFinished() {
+        let model = shellModel()
+        let id = UUID()
+        let finished = model.makeSyncFlow(seamId: id)
+        finished.debugFinish(SyncResult(pairId: id, status: .success, tracksAdded: 3))
+
+        model.openSyncFlow(seamId: id)
+
+        #expect(model.syncFlowModels[id] !== finished)
+    }
+
     @Test("Opening a running sync from the accessory follows it without restarting its preview")
     @MainActor
     func reopenRunningSyncsFollowsUnknownIds() {

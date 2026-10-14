@@ -88,6 +88,10 @@ final class SyncFlowModel {
         return PickTarget(seam: seam, source: source, current: current, candidates: candidates)
     }
 
+    var isSyncing: Bool {
+        if case .syncing = phase { true } else { false }
+    }
+
     /// Whether this flow is worth keeping once the sheet hides it: a running
     /// sync, or a result not yet acknowledged. An abandoned preview isn't.
     var keepsStateWhileHidden: Bool {

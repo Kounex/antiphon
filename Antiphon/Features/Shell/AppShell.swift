@@ -43,6 +43,8 @@ struct AppShell: View {
             model.reopenRunningSyncs(ids: Array(syncCoordinator.syncingPairIds), focus: running.seamId)
         })
         .sheet(isPresented: $model.showsSyncSheet, onDismiss: {
+            // Swiped down: the same as Close, so an abandoned preview doesn't linger.
+            model.hideSyncSheet()
             Task {
                 await model.refresh()
                 if let seamId = model.pendingConflictSeam {

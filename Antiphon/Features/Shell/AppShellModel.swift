@@ -200,10 +200,10 @@ final class AppShellModel {
 
     /// "Sync now": shows the shell's sheet with a fresh preview, from
     /// wherever the person is — never changes the selected tab or path.
-    /// Reuses an already-running or just-finished flow for this seam rather
-    /// than restarting it from under them.
+    /// Reuses a flow still syncing for this seam rather than restarting it
+    /// from under them; a finished one gives way to a fresh preview.
     func openSyncFlow(seamId: UUID) {
-        if syncFlowModels[seamId]?.keepsStateWhileHidden != true {
+        if syncFlowModels[seamId]?.isSyncing != true {
             makeSyncFlow(seamId: seamId)
         }
         focusedSyncSeamId = seamId
