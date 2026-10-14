@@ -56,6 +56,8 @@ final class CachedTrack {
     var counterpartISRC: String?
     /// JSON-encoded `[MatchCandidate]`; read through `candidates`.
     var candidatesData: Data?
+    /// The album of the version on the other side, as matched ("Greatest Hits, Vol. 1").
+    var counterpartAlbum: String?
     var unavailableReason: UnavailableReason?
     /// Storefront country code for `.regionLocked`, e.g. "DE".
     var unavailableStorefront: String?

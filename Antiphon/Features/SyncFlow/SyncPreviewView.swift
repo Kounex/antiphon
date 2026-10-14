@@ -172,6 +172,15 @@ private struct SideCard: View {
 private struct EveryTrackSheet: View {
     let model: SyncFlowModel
     @Environment(\.dismiss) private var dismiss
+    @State private var picking: PickTarget?
+
+    /// One planned song: what Antiphon would add, and what else it found.
+    private struct Item {
+        let source: CatalogTrack
+        let detail: String
+        let match: MatchCandidate?
+        let candidates: [MatchCandidate]
+    }
 
     var body: some View {
         NavigationStack {
@@ -186,9 +195,11 @@ private struct EveryTrackSheet: View {
                     }
                 }
                 ForEach(model.sides, id: \.platform) { side in
-                    section("Added to \(model.playlistName(on: side.platform))", side.automaticAdds.map { ($0.source, Self.matchDetail($0)) }, state: .synced)
-                    section("Waiting for you", side.reviewAdds.map { ($0.source, Self.matchDetail($0)) }, state: .review(confidence: 0))
-                    section("Not on \(side.platform.rawValue)", side.unavailable.map { ($0.source, $0.source.artist) }, state: .missing)
+                    section("Added to \(model.playlistName(on: side.platform))", side.automaticAdds.map(Self.item), state: .synced)
+                    section("Waiting for you", side.reviewAdds.map(Self.item), state: .review(confidence: 0))
+                    section("Not on \(side.platform.rawValue)",
+                            side.unavailable.map { Item(source: $0.source, detail: $0.source.artist, match: nil, candidates: $0.alternatives) },
+                            state: .missing)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -196,7 +207,23 @@ private struct EveryTrackSheet: View {
             .navigationTitle("Every track")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .sheet(item: $picking) { target in
+                if let search = model.search {
+                    VersionPickerView(
+                        model: VersionPickerModel(target: target, search: search, preferences: AppPreferences.shared.versionPreferences),
+                        onUse: { candidate in
+                            try await model.choose(candidate, for: target.source)
+                            return []
+                        },
+                        onClose: { picking = nil }
+                    )
+                }
+            }
         }
+    }
+
+    private static func item(_ add: SyncPlan.Add) -> Item {
+        Item(source: add.source, detail: matchDetail(add), match: add.match, candidates: [add.match] + add.alternatives)
     }
 
     /// "Hybrid Theory (2000) · 100% · ISRC match": which release will be used.
@@ -207,13 +234,20 @@ private struct EveryTrackSheet: View {
     }
 
     @ViewBuilder
-    private func section(_ title: String, _ items: [(CatalogTrack, String)], state: AntiphonDesign.TrackRow.State) -> some View {
+    private func section(_ title: String, _ items: [Item], state: AntiphonDesign.TrackRow.State) -> some View {
         if !items.isEmpty {
             Section(title) {
-                ForEach(items, id: \.0.id) { track, detail in
-                    AntiphonDesign.TrackRow(title: track.title, detail: "\(track.artist)\n\(detail)",
-                                            artwork: CoverArt(url: track.artworkURL.flatMap(URL.init(string:)), seed: track.title, size: 40),
-                                            state: state)
+                ForEach(items, id: \.source.id) { item in
+                    Button {
+                        picking = model.pickTarget(for: item.source, planned: item.match, candidates: item.candidates)
+                    } label: {
+                        AntiphonDesign.TrackRow(title: item.source.title, detail: "\(item.source.artist)\n\(item.detail)",
+                                                artwork: CoverArt(url: item.source.artworkURL.flatMap(URL.init(string:)), seed: item.source.title, size: 40),
+                                                state: state)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.search == nil)
+                    .accessibilityHint("Choose the version")
                     .listRowBackground(Color.canvasRaised)
                 }
             }

@@ -159,8 +159,10 @@ final class AppShellModel {
         VersionPickerModel(target: target, search: catalogSearch, preferences: AppPreferences.shared.versionPreferences)
     }
 
-    func makeMatchDetail(_ item: ReviewItem) -> MatchDetailModel {
-        MatchDetailModel(item: item, search: catalogSearch)
+    /// Review's "Pick another version": nothing is in the playlist yet.
+    func makeReviewPicker(_ item: ReviewItem) -> VersionPickerModel? {
+        guard let seam = seams.first(where: { $0.id == item.seamId }) else { return nil }
+        return makeVersionPicker(PickTarget(seam: seam, source: item.source, current: .notThere, candidates: item.candidates))
     }
 
     func makeProblems() -> ProblemsModel {
@@ -191,7 +193,7 @@ final class AppShellModel {
     @discardableResult
     func makeSyncFlow(seamId: UUID) -> SyncFlowModel {
         let isFirst = seams.first { $0.id == seamId }.map { $0.lastCheckedAt == nil } ?? true
-        let model = SyncFlowModel(seamId: seamId, isFirstSync: isFirst, sync: sync, seams: seamRepository)
+        let model = SyncFlowModel(seamId: seamId, isFirstSync: isFirst, sync: sync, seams: seamRepository, search: catalogSearch)
         syncFlowModels[seamId] = model
         return model
     }

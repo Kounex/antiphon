@@ -158,6 +158,7 @@ actor OperationRunner {
                 row.matchConfidence = candidate.confidence
                 row.matchReason = candidate.reason
                 row.counterpartISRC = candidate.track.isrc
+                row.counterpartAlbum = candidate.track.album
                 row.adoptArtwork(from: candidate.track)
             }
             try context.save()
@@ -217,6 +218,7 @@ actor OperationRunner {
             row.matchConfidence = 100
             row.matchReason = .manual
             row.counterpartISRC = pick.isrc
+            row.counterpartAlbum = pick.album
         }
         try context.save()
         if let added { await place([added.platform: [row.id.uuidString]], pair: pair) }
@@ -262,7 +264,9 @@ actor OperationRunner {
         row.source = restored == nil ? (target == .spotify ? .appleMusic : .spotify) : .both
         row.matchReason = nil
         row.matchConfidence = nil
-        if let restored { row.counterpartISRC = restored.isrc }
+        row.counterpartISRC = restored?.isrc
+        // The old version's album isn't recorded with the run.
+        row.counterpartAlbum = nil
         let songId = target == .spotify ? row.appleMusicTrackId : row.spotifyTrackUri
         for pin in pair.pins where pin.key == TrackKey(platform: target.other, id: songId ?? "") { context.delete(pin) }
     }

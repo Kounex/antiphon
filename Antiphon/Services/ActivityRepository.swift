@@ -33,7 +33,8 @@ extension SwiftDataSeamRepository: ActivityRepository {
             guard let run = change.run, let pair = run.syncPair else { return nil }
             return NewTrack(id: change.id, seamId: pair.id, seamName: Self.activityName(of: pair), direction: pair.syncDirection,
                             title: change.title, artist: change.artist, artworkURL: change.artworkURL.flatMap(URL.init(string:)),
-                            landedOn: change.platform, date: run.startedAt ?? run.timestamp)
+                            landedOn: change.platform, date: run.startedAt ?? run.timestamp,
+                            landedTrackId: change.platformTrackId, isrc: change.isrc)
         }
     }
 

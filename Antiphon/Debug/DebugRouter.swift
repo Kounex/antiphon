@@ -163,8 +163,11 @@ struct DebugRouteView: View {
         case "review": model.reviewTarget = .init(seamId: nil)
         case "review-removal": model.reviewTarget = .init(seamId: PreviewFixtures.gardenSundays.id)
         case "match":
-            model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id),
-                               .match(seamId: PreviewFixtures.lateNightDrive.id, rowId: PreviewFixtures.reviewItems[0].id)]
+            // A close match from the seam's track list: nothing in the playlist yet.
+            let item = PreviewFixtures.reviewItems[0]
+            model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
+            model.picking = PickTarget(seam: PreviewFixtures.lateNightDrive, source: item.source, current: .notThere,
+                                       candidates: item.candidates)
         case "pick", "pick-yours":
             // Midnight City synced as Antiphon's remaster, or already the person's pick.
             let item = PreviewFixtures.reviewItems[0]

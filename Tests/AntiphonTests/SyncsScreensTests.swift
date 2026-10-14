@@ -288,4 +288,6 @@ actor StubDetailRepository: SeamRepository {
     func update(_ rules: SeamRules, for id: UUID) async throws {}
     func unlink(_ id: UUID) async throws {}
     func markViewed(_ id: UUID) async throws {}
+    func pickTarget(seamId: UUID, rowId: UUID) async throws -> PickTarget? { nil }
+    func pickTarget(seamId: UUID, added: TrackKey, isrc: String?) async throws -> PickTarget? { nil }
 }

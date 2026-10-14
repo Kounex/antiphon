@@ -96,6 +96,16 @@ final class ReviewQueueModel {
         }
     }
 
+    /// A version picked in the version picker: added, kept as the person's
+    /// pick, and the queue moves on. Throws so the picker can say it failed.
+    func choose(_ candidate: MatchCandidate) async throws -> [SyncOperation] {
+        guard let item = current else { return [] }
+        let outcome = try await sync.choose(candidate, for: item.key, seamId: item.seamId)
+        added += 1
+        advance()
+        return outcome.guided
+    }
+
     func skip() async {
         guard let item = current else { return }
         do {

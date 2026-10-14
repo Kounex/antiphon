@@ -42,6 +42,8 @@ struct SeamTrack: Identifiable, Hashable, Sendable {
     let isNew: Bool
     /// The side the track came from, shown as the source dot.
     var origin: Platform = .spotify
+    /// The person picked the version on the other side.
+    var isPicked = false
 }
 
 struct SeamDetail: Sendable {
@@ -91,6 +93,10 @@ protocol SeamRepository: Sendable {
     func unlink(_ id: UUID) async throws
     /// The person opened the seam; resets what counts as "New".
     func markViewed(_ id: UUID) async throws
+    /// The version picker for one stored song.
+    func pickTarget(seamId: UUID, rowId: UUID) async throws -> PickTarget?
+    /// The same, found by the version Antiphon added (Activity › New tracks).
+    func pickTarget(seamId: UUID, added: TrackKey, isrc: String?) async throws -> PickTarget?
 }
 
 /// `SeamRepository` over the shared SwiftData store.
@@ -148,12 +154,9 @@ actor SwiftDataSeamRepository: SeamRepository {
             .flatMap(\.changes)
             .filter { $0.kind == .add }
             .map(\.platformTrackId))
-        // Where Antiphon copied tracks to, by the ID they got there.
-        let addedTo: [String: Platform] = Dictionary(
-            pair.syncLogs.flatMap(\.changes).filter { $0.kind == .add }.map { ($0.platformTrackId, $0.platform) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let leading: Platform = pair.syncDirection == .appleToSpotify ? .appleMusic : .spotify
+        let addedTo = Self.addedTo(pair)
+        let leading = Self.leading(pair)
+        let picked = Set(pair.pins.map(\.key))
 
         let tracks = pair.cachedTracks
             .filter { $0.removalFlag != .extraOnDestination }
@@ -164,7 +167,8 @@ actor SwiftDataSeamRepository: SeamRepository {
                     artworkURL: track.artworkURL.flatMap(URL.init(string:)),
                     state: TrackRowState(track),
                     isNew: [track.spotifyTrackUri, track.appleMusicTrackId].contains { $0.map(newIds.contains) ?? false },
-                    origin: Self.origin(of: track, addedTo: addedTo, leading: leading)
+                    origin: Self.origin(of: track, addedTo: addedTo, leading: leading),
+                    isPicked: Self.source(of: track, addedTo: addedTo, leading: leading).map { picked.contains(TrackKey($0)) } ?? false
                 )
             }
         return SeamDetail(summary: summary(pair), tracks: tracks)
@@ -229,6 +233,57 @@ actor SwiftDataSeamRepository: SeamRepository {
             }
             return leading
         }
+    }
+
+    func pickTarget(seamId: UUID, rowId: UUID) async throws -> PickTarget? {
+        let context = ModelContext(modelContainer)
+        guard let pair = try fetch(seamId, in: context),
+              let row = pair.cachedTracks.first(where: { $0.id == rowId }) else { return nil }
+        return pickTarget(row, in: pair)
+    }
+
+    func pickTarget(seamId: UUID, added: TrackKey, isrc: String?) async throws -> PickTarget? {
+        let context = ModelContext(modelContainer)
+        guard let pair = try fetch(seamId, in: context) else { return nil }
+        let byId = pair.cachedTracks.first { (added.platform == .spotify ? $0.spotifyTrackUri : $0.appleMusicTrackId) == added.id }
+        // Apple Music lists an add under another ID later; the ISRC still finds it.
+        let byISRC = isrc.map { $0.lowercased() }.flatMap { isrc in
+            pair.cachedTracks.first { $0.counterpartISRC?.lowercased() == isrc || $0.isrc.lowercased() == isrc }
+        }
+        return (byId ?? byISRC).flatMap { pickTarget($0, in: pair) }
+    }
+
+    /// The song on the side it came from; the version goes to the other.
+    private func pickTarget(_ row: CachedTrack, in pair: SyncPair) -> PickTarget? {
+        guard let source = Self.source(of: row, addedTo: Self.addedTo(pair), leading: Self.leading(pair)) else { return nil }
+        let target = source.platform.other
+        let current: PickTarget.Current
+        if let pick = pair.pinnedTracks[TrackKey(source)] {
+            current = .yourPick(pick)
+        } else if row.effectiveSyncState == .synced, let id = target == .spotify ? row.spotifyTrackUri : row.appleMusicTrackId {
+            current = .antiphonsPick(CatalogTrack(platform: target, id: id, title: row.title, artist: row.artist,
+                                                  album: row.counterpartAlbum, isrc: row.counterpartISRC))
+        } else {
+            current = .notThere
+        }
+        return PickTarget(seam: summary(pair), source: source, current: current, candidates: row.candidates)
+    }
+
+    private static func source(of row: CachedTrack, addedTo: [String: Platform], leading: Platform) -> CatalogTrack? {
+        let origin = origin(of: row, addedTo: addedTo, leading: leading)
+        guard let id = origin == .spotify ? row.spotifyTrackUri : row.appleMusicTrackId else { return nil }
+        return CatalogTrack(platform: origin, id: id, title: row.title, artist: row.artist, album: row.albumName,
+                            durationMs: row.durationMs, isrc: row.isrc.hasPrefix("local-") ? nil : row.isrc, artworkURL: row.artworkURL)
+    }
+
+    /// Where Antiphon copied tracks to, by the ID they got there.
+    private static func addedTo(_ pair: SyncPair) -> [String: Platform] {
+        Dictionary(pair.syncLogs.flatMap(\.changes).filter { $0.kind == .add }.map { ($0.platformTrackId, $0.platform) },
+                   uniquingKeysWith: { first, _ in first })
+    }
+
+    private static func leading(_ pair: SyncPair) -> Platform {
+        pair.syncDirection == .appleToSpotify ? .appleMusic : .spotify
     }
 
     private func fetch(_ id: UUID, in context: ModelContext) throws -> SyncPair? {

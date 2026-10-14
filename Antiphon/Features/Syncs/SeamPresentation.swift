@@ -49,6 +49,7 @@ enum SeamPresentation {
         case .missing(let text), .failed(let text):
             return text
         default:
+            if track.isPicked { return "\(track.artist) · your pick" }
             if track.isNew { return "\(track.artist) · added recently" }
             return [track.artist, track.album].compactMap { $0 }.joined(separator: " · ")
         }

@@ -89,6 +89,20 @@ struct SyncFlowModelTests {
         #expect(m.conflictTitles == ["Holocene", "Holocene"])
     }
 
+    @Test("Picking a version in the preview changes the plan in place, as the person's pick")
+    func chooseInPreview() async throws {
+        let m = await model(plan(adds: 3))
+        let adds = { m.planned?.plan.side(.appleMusic).automaticAdds ?? [] }
+        let source = try #require(adds().dropFirst().first?.source)
+        let pick = CatalogTrack(platform: .appleMusic, id: "picked", title: "Track 1", artist: "A", album: "The Remixes - EP")
+
+        try await m.choose(MatchCandidate(track: pick, confidence: 80, reason: .titleArtistDuration), for: source)
+
+        #expect(adds().map(\.match.track.id) == ["s0", "picked", "s2"])
+        #expect(adds()[1].match.reason == .manual)
+        #expect(m.writeCount == 3, "still three tracks to write")
+    }
+
     @Test("Only a running sync or an unacknowledged result survive being hidden")
     func keepsStateWhileHidden() async {
         let m = await model(plan(adds: 1))

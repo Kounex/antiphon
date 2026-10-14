@@ -53,6 +53,9 @@ struct NewTrack: Identifiable, Hashable, Sendable {
     /// Where Antiphon wrote it; it came from the other side.
     let landedOn: Platform
     let date: Date
+    /// The version Antiphon added, as `landedOn` knows it: finds the song for the version picker.
+    var landedTrackId = ""
+    var isrc: String? = nil
 }
 
 // MARK: - History

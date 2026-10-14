@@ -6,10 +6,9 @@ enum SyncsRoute: Hashable {
     case seam(UUID)
     case rules(UUID)
     case problems
-    case match(seamId: UUID, rowId: UUID)
 }
 
-/// The Syncs tab: home, seam detail, rules, match detail and problems on
+/// The Syncs tab: home, seam detail, rules and problems on
 /// one navigation stack.
 struct SyncsRoot: View {
     let shell: AppShellModel
@@ -50,48 +49,20 @@ struct SyncsRoot: View {
                 case .problems:
                     ProblemsView(model: shell.makeProblems(), onSignIn: { shell.showsSettings = true },
                                  onOpenSeam: { shell.syncsPath.append(.seam($0)) })
-                case .match(let seamId, let rowId):
-                    MatchDetailLoader(shell: shell, seamId: seamId, rowId: rowId) { shell.syncsPath.removeLast() }
                 }
             }
         }
         // SyncsHomeView reloads `home` on every store change.
     }
 
-    /// Close matches open their evidence; removals open their question.
+    /// Removals open their question; every other song opens the version picker.
     private func openTrack(_ track: SeamTrack, seamId: UUID) {
-        switch track.state {
-        case .review:
-            shell.syncsPath.append(.match(seamId: seamId, rowId: track.id))
-        case .removed:
-            Task { await shell.openConflict(rowId: track.id, seamId: seamId) }
-        default:
-            break
-        }
-    }
-}
-
-/// Loads a close match for its detail screen, then decides through the sync service.
-private struct MatchDetailLoader: View {
-    let shell: AppShellModel
-    let seamId: UUID
-    let rowId: UUID
-    let onDone: () -> Void
-    @State private var item: ReviewItem?
-
-    var body: some View {
-        Group {
-            if let item {
-                MatchDetailView(model: shell.makeMatchDetail(item)) { candidate in
-                    Task {
-                        _ = try? await shell.sync.decide(candidate.map { .accept($0) } ?? .skip, for: item.key, seamId: seamId)
-                        onDone()
-                    }
-                }
+        Task {
+            if case .removed = track.state {
+                await shell.openConflict(rowId: track.id, seamId: seamId)
             } else {
-                ProgressView()
+                shell.picking = try? await shell.seamRepository.pickTarget(seamId: seamId, rowId: track.id)
             }
         }
-        .task { item = await shell.reviewItem(rowId: rowId, seamId: seamId) }
     }
 }

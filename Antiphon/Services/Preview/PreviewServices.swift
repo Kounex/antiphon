@@ -182,6 +182,22 @@ actor PreviewSeamRepository: SeamRepository {
     func update(_ rules: SeamRules, for id: UUID) async throws { rulesById[id] = rules }
     func unlink(_ id: UUID) async throws { summaries.removeAll { $0.id == id } }
     func markViewed(_ id: UUID) async throws {}
+
+    func pickTarget(seamId: UUID, rowId: UUID) async throws -> PickTarget? {
+        guard let seam = summaries.first(where: { $0.id == seamId }),
+              let track = (try await detail(for: seamId))?.tracks.first(where: { $0.id == rowId }) else { return nil }
+        let source = CatalogTrack(platform: track.origin, id: "\(track.origin.rawValue)-\(track.title)", title: track.title,
+                                  artist: track.artist, album: track.album, durationMs: 243_000)
+        let current = CatalogTrack(platform: track.origin.other, id: "current-\(track.title)", title: track.title,
+                                   artist: track.artist, album: "\(track.album ?? track.title) (Remaster)", durationMs: 244_000)
+        return PickTarget(seam: seam, source: source, current: track.isPicked ? .yourPick(current) : .antiphonsPick(current))
+    }
+
+    func pickTarget(seamId: UUID, added: TrackKey, isrc: String?) async throws -> PickTarget? {
+        guard let seam = summaries.first(where: { $0.id == seamId }) else { return nil }
+        let item = PreviewFixtures.reviewItems[0]
+        return PickTarget(seam: seam, source: item.source, current: .antiphonsPick(item.candidates[0].track), candidates: item.candidates)
+    }
 }
 
 /// `SyncService` that never touches a platform.

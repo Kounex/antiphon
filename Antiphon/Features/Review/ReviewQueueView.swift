@@ -6,7 +6,8 @@ import SwiftUI
 /// waiting for an answer follow as cards of their own.
 struct ReviewQueueView: View {
     @State var model: ReviewQueueModel
-    let makeDetail: (ReviewItem) -> MatchDetailModel
+    /// The version picker for a close match (`nil` if its seam is gone).
+    let makePicker: (ReviewItem) -> VersionPickerModel?
     let onClose: () -> Void
 
     @State private var player = AudioPreviewPlayer()
@@ -51,12 +52,17 @@ struct ReviewQueueView: View {
                     }
                 }
             }
-            .navigationDestination(item: $detailItem) { item in
-                MatchDetailView(model: makeDetail(item)) { candidate in
-                    detailItem = nil
-                    Task {
-                        if let candidate { await model.accept(candidate) } else { await model.skip() }
-                    }
+            .sheet(item: $detailItem) { item in
+                if let picker = makePicker(item) {
+                    VersionPickerView(
+                        model: picker,
+                        onUse: { candidate in try await model.choose(candidate) },
+                        onSkip: {
+                            detailItem = nil
+                            Task { await model.skip() }
+                        },
+                        onClose: { detailItem = nil }
+                    )
                 }
             }
         }

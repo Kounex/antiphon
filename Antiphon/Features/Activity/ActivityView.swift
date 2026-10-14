@@ -14,7 +14,12 @@ struct ActivityRoot: View {
         @Bindable var shell = shell
         let model = shell.activityModel
         NavigationStack(path: $shell.activityPath) {
-            ActivityView(model: model)
+            ActivityView(model: model) { track in
+                Task {
+                    shell.picking = try? await shell.seamRepository.pickTarget(
+                        seamId: track.seamId, added: TrackKey(platform: track.landedOn, id: track.landedTrackId), isrc: track.isrc)
+                }
+            }
                 .toolbar {
                     if model.tab == .newTracks, !model.newTracks.isEmpty {
                         ToolbarItem(placement: .topBarTrailing) {
@@ -37,6 +42,8 @@ struct ActivityRoot: View {
 
 struct ActivityView: View {
     let model: ActivityModel
+    /// A New tracks row: opens the version picker for that song.
+    var onOpenNewTrack: (NewTrack) -> Void = { _ in }
 
     var body: some View {
         @Bindable var model = model
@@ -95,7 +102,7 @@ struct ActivityView: View {
     private var newTracks: some View {
         Text(model.sinceText).font(.subheadline).foregroundStyle(Color.inkMuted).plainRow()
         ForEach(model.groups) { group in
-            NewTrackSection(group: group, now: model.currentDate)
+            NewTrackSection(group: group, now: model.currentDate, onOpen: onOpenNewTrack)
         }
     }
 }
@@ -189,6 +196,8 @@ struct QuietRow: View {
 struct NewTrackSection: View {
     let group: NewTrackGroup
     let now: Date
+    /// Opens the version picker for the song.
+    var onOpen: (NewTrack) -> Void = { _ in }
     @State private var expanded = false
 
     private static let preview = 4
@@ -196,13 +205,17 @@ struct NewTrackSection: View {
     var body: some View {
         Section {
             ForEach(expanded ? group.tracks : Array(group.tracks.prefix(Self.preview))) { track in
-                AntiphonDesign.TrackRow(
-                    title: track.title,
-                    detail: "\(track.artist) · \(ActivityCopy.origin(track, now: now))",
-                    artwork: CoverArt(url: track.artworkURL, seed: track.title, size: 40,
-                                      service: SeamPresentation.service(track.landedOn.other)),
-                    state: .plain
-                )
+                Button { onOpen(track) } label: {
+                    AntiphonDesign.TrackRow(
+                        title: track.title,
+                        detail: "\(track.artist) · \(ActivityCopy.origin(track, now: now))",
+                        artwork: CoverArt(url: track.artworkURL, seed: track.title, size: 40,
+                                          service: SeamPresentation.service(track.landedOn.other)),
+                        state: .plain
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Choose the version")
             }
             if !expanded, group.tracks.count > Self.preview {
                 Button("\(group.tracks.count - Self.preview) more") { withAnimation { expanded = true } }

@@ -26,12 +26,15 @@ final class SyncFlowModel {
 
     private let sync: SyncService
     private let seams: SeamRepository
+    /// For the version picker in the preview's track list.
+    let search: CatalogSearchService?
 
-    init(seamId: UUID, isFirstSync: Bool, sync: SyncService, seams: SeamRepository) {
+    init(seamId: UUID, isFirstSync: Bool, sync: SyncService, seams: SeamRepository, search: CatalogSearchService? = nil) {
         self.seamId = seamId
         self.isFirstSync = isFirstSync
         self.sync = sync
         self.seams = seams
+        self.search = search
     }
 
     func load() async {
@@ -67,6 +70,22 @@ final class SyncFlowModel {
         isFollowing = true
         startedAt = startedAt ?? Date()
         phase = .syncing
+    }
+
+    /// A version picked from the preview's track list: kept for the seam, and
+    /// the plan uses it. Nothing is written until the person syncs.
+    func choose(_ candidate: MatchCandidate, for source: CatalogTrack) async throws {
+        try await sync.keepPick(candidate.track, for: TrackKey(source), seamId: seamId)
+        guard let planned else { return }
+        self.planned = PlannedSync(plan: planned.plan.choosing(candidate.track, for: source),
+                                   fingerprint: planned.fingerprint, sourcePlatform: planned.sourcePlatform)
+    }
+
+    /// The version picker for one planned song.
+    func pickTarget(for source: CatalogTrack, planned match: MatchCandidate?, candidates: [MatchCandidate]) -> PickTarget? {
+        guard let seam else { return nil }
+        let current: PickTarget.Current = match.map { $0.reason == .manual ? .yourPick($0.track) : .antiphonsPick($0.track) } ?? .notThere
+        return PickTarget(seam: seam, source: source, current: current, candidates: candidates)
     }
 
     /// Whether this flow is worth keeping once the sheet hides it: a running

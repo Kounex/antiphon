@@ -100,6 +100,34 @@ struct SyncPlan: Sendable {
     }
 }
 
+// MARK: - Picks
+
+extension SyncPlan {
+    /// The plan with the person's version for one song, as a certain add. An
+    /// automatic add keeps its place; a close match or a song that wasn't
+    /// found becomes an add at the end.
+    func choosing(_ pick: CatalogTrack, for source: CatalogTrack) -> SyncPlan {
+        let key = TrackKey(source)
+        let target = source.platform.other
+        var side = self.side(target)
+        let add = Add(source: source, match: MatchCandidate(track: pick, confidence: 100, reason: .manual), alternatives: [])
+        if let index = side.automaticAdds.firstIndex(where: { TrackKey($0.source) == key }) {
+            side.automaticAdds[index] = add
+        } else {
+            side.reviewAdds.removeAll { TrackKey($0.source) == key }
+            side.unavailable.removeAll { TrackKey($0.source) == key }
+            side.alreadyPresent.removeAll { TrackKey($0.source) == key }
+            side.automaticAdds.append(add)
+        }
+        var sides = self.sides
+        sides[target] = side
+        var plan = SyncPlan(pairId: pairId, createdAt: createdAt, sides: sides, conflicts: conflicts, inSyncCount: inSyncCount)
+        plan.uncheckedCount = uncheckedCount
+        plan.reorders = reorders
+        return plan
+    }
+}
+
 // MARK: - Decisions
 
 /// What applying a plan does with one track, keyed by `TrackKey`.

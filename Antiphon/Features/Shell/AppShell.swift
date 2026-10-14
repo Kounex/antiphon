@@ -66,7 +66,7 @@ struct AppShell: View {
                             syncFlow: { model.syncFlowModels[$0] }, onReview: openSeam)
         }
         .fullScreenCover(item: $model.reviewTarget, onDismiss: { Task { await model.refresh() } }) { target in
-            ReviewQueueView(model: model.makeReviewQueue(target), makeDetail: model.makeMatchDetail) {
+            ReviewQueueView(model: model.makeReviewQueue(target), makePicker: model.makeReviewPicker) {
                 model.reviewTarget = nil
             }
             .tint(.thread)

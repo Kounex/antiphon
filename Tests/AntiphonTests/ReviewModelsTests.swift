@@ -134,16 +134,19 @@ struct ReviewModelsTests {
         #expect(model.current?.source.title == "B", "B is shown next, not skipped")
     }
 
-    @Test("Picking another version adds that one instead")
-    func pickAnother() async {
+    @Test("Picking a version in Review adds it as the person's pick and moves on; a swipe accepts without a pick")
+    func pickAnother() async throws {
         let sync = RecordingSyncService()
         let a = item("Midnight City", candidateTitle: "Midnight City (Remaster)")
-        let model = ReviewQueueModel(seamId: nil, reviews: FixedReviews(items: [a]), sync: sync)
+        let b = item("Pump It", candidateTitle: "Pump It (Radio Edit)")
+        let model = ReviewQueueModel(seamId: nil, reviews: FixedReviews(items: [a, b]), sync: sync)
         await model.load()
         let other = MatchCandidate(track: CatalogTrack(platform: .appleMusic, id: "orig", title: "Midnight City", artist: "M83"),
-                                   confidence: 99, reason: .manual)
-        await model.accept(other)
-        #expect(sync.calls == [.accept(a.key, "orig")])
+                                   confidence: 99, reason: .titleArtistDuration)
+        _ = try await model.choose(other)
+        #expect(model.current?.source.title == "Pump It")
+        await model.accept()
+        #expect(sync.calls == [.choose(a.key, "orig"), .accept(b.key, "am-Pump It")])
     }
 
     @Test("A failed decision keeps the card and says why")

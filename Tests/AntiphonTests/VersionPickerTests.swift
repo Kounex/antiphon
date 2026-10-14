@@ -113,6 +113,50 @@ struct VersionPickerTests {
         #expect(PickCopy.status(target(.notThere)) == "Not in Remixes AM yet")
     }
 
+    // MARK: - In a preview
+
+    private func add(_ id: String, _ title: String, confidence: Int, album: String) -> SyncPlan.Add {
+        let source = CatalogTrack(platform: .spotify, id: "spotify:track:\(id)", title: title, artist: "Korn")
+        return SyncPlan.Add(source: source, match: MatchCandidate(track: am("am-\(id)", title, album: album), confidence: confidence,
+                                                                  reason: .titleArtistDuration), alternatives: [])
+    }
+
+    private func plan(automatic: [SyncPlan.Add] = [], review: [SyncPlan.Add] = [], unavailable: [SyncPlan.Unavailable] = []) -> SyncPlan {
+        SyncPlan(pairId: UUID(), createdAt: .now,
+                 sides: [.appleMusic: SyncPlan.Side(platform: .appleMusic, automaticAdds: automatic, reviewAdds: review, unavailable: unavailable)],
+                 conflicts: [], inSyncCount: 0)
+    }
+
+    @Test("A pick in a preview replaces Antiphon's choice where it was, as the person's pick")
+    func choosingInPlace() {
+        let first = add("1", "Freak on a Leash", confidence: 100, album: "Follow the Leader")
+        let wordUp = add("2", "Word Up!", confidence: 100, album: "Greatest Hits, Vol. 1")
+        let last = add("3", "Falling Away from Me", confidence: 100, album: "Issues")
+        let ep = am("ep", album: "Word Up!: The Remixes - EP")
+
+        let chosen = plan(automatic: [first, wordUp, last]).choosing(ep, for: wordUp.source)
+
+        #expect(chosen.side(.appleMusic).automaticAdds.map(\.match.track.id) == ["am-1", "ep", "am-3"])
+        #expect(chosen.side(.appleMusic).automaticAdds[1].match == MatchCandidate(track: ep, confidence: 100, reason: .manual))
+    }
+
+    @Test("A pick for a close match or a song that wasn't found makes it an add")
+    func choosingMovesToAdds() {
+        let close = add("1", "Word Up!", confidence: 86, album: "Pure... Rock")
+        let missing = SyncPlan.Unavailable(source: CatalogTrack(platform: .spotify, id: "spotify:track:9", title: "Y'All Want a Single",
+                                                                artist: "Korn"), alternatives: [])
+        let ep = am("ep", album: "Word Up!: The Remixes - EP")
+        let single = am("single", "Y'All Want a Single", album: "Take a Look in the Mirror")
+
+        let chosen = plan(review: [close], unavailable: [missing]).choosing(ep, for: close.source).choosing(single, for: missing.source)
+
+        let side = chosen.side(.appleMusic)
+        #expect(side.reviewAdds.isEmpty)
+        #expect(side.unavailable.isEmpty)
+        #expect(side.automaticAdds.map(\.match.track.id) == ["ep", "single"])
+        #expect(chosen.decisions()[TrackKey(close.source)] == .add(MatchCandidate(track: ep, confidence: 100, reason: .manual)))
+    }
+
     @Test("Each version says its album, year and kind")
     func versionDetail() {
         var track = am("ep", album: "Word Up!: The Remixes - EP")

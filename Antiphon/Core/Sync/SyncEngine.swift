@@ -928,6 +928,7 @@ actor SyncEngine {
         track.matchConfidence = match.confidence
         track.matchReason = match.reason
         track.counterpartISRC = match.track.isrc
+        track.counterpartAlbum = match.track.album
     }
     
     /// Resolves the Apple Music songs a plan chose, by catalog ID, 25 per request.
