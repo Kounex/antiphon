@@ -47,7 +47,8 @@ struct NewSeamFlowView: View {
                             nextName: model.queue?.next?.name,
                             onReview: { onReview($0); dismiss() },
                             onNext: { if model.advanceQueue() { path = [.twin] } else { dismiss() } },
-                            onDone: { dismiss() }
+                            onDone: { dismiss() },
+                            onHide: { dismiss() }
                         )
                     }
                 }

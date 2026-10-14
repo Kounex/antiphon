@@ -196,9 +196,16 @@ struct DebugRouteView: View {
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))
         case "syncing-several":
             model.reopenRunningSyncs(ids: [PreviewFixtures.runClub.id, PreviewFixtures.lateNightDrive.id], focus: nil)
-        case "preview", "syncing", "synced":
+        case "preview", "syncing", "synced", "syncing-hide":
             model.openSyncFlow(seamId: PreviewFixtures.lateNightDrive.id)
             DebugRoute.flowPhase = option
+            if option == "syncing-hide" {
+                // The live sheet presses Hide after 2 s; then the accessory reopens it.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(5))
+                    model.reopenRunningSyncs(ids: [PreviewFixtures.lateNightDrive.id], focus: PreviewFixtures.lateNightDrive.id)
+                }
+            }
         default: break
         }
         return model
@@ -213,7 +220,7 @@ extension SyncFlowModel {
         guard let phase = DebugRoute.flowPhase else { return }
         await load()
         switch phase {
-        case "syncing":
+        case "syncing", "syncing-hide":
             debugStart()
             coordinator.simulateRunning(pairId: seamId, progress: SyncProgress(totalTracks: 35, completedTracks: 20, failedTracks: 0))
         case "synced":

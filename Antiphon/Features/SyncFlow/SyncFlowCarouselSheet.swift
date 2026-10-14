@@ -45,6 +45,7 @@ private struct SyncFlowPage: View {
             SyncFlowView(
                 model: model, onReview: onReview, onNext: {},
                 onDone: { shell.closeSyncFlow(seamId: seamId) },
+                onHide: { shell.hideSyncSheet() },
                 onConflicts: { onConflicts($0); shell.closeSyncFlow(seamId: seamId) }
             )
         }

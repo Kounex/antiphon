@@ -7,7 +7,11 @@ struct SyncFlowView: View {
     var nextName: String? = nil
     let onReview: (UUID) -> Void
     let onNext: () -> Void
+    /// Finished with this flow (its result seen, or nothing to sync).
     let onDone: () -> Void
+    /// "Hide" on the live sheet: put it away while the sync keeps running.
+    /// Not `onDone`: the flow has to stay so reopening shows the same thing.
+    let onHide: () -> Void
     /// Opens the seam's removal questions.
     var onConflicts: (UUID) -> Void = { _ in }
 
@@ -53,7 +57,16 @@ struct SyncFlowView: View {
             await model.reconcile(with: coordinator)
             showsSyncing = isSyncing && model.afterApply == .showResult
             #if DEBUG
-            if DebugRoute.flowPhase != nil { await model.debugApplyRoute(coordinator: coordinator); return }
+            if DebugRoute.flowPhase != nil {
+                await model.debugApplyRoute(coordinator: coordinator)
+                if DebugRoute.flowPhase == "syncing-hide" {
+                    showsSyncing = true
+                    try? await Task.sleep(for: .seconds(2))
+                    DebugRoute.flowPhase = nil
+                    hide()
+                }
+                return
+            }
             #endif
             if coordinator.isSyncing(model.seamId), model.planned == nil {
                 model.followRunningSync()
@@ -70,7 +83,7 @@ struct SyncFlowView: View {
         showsSyncing = false
         Task {
             try? await Task.sleep(for: .milliseconds(350))
-            onDone()
+            onHide()
         }
     }
 
