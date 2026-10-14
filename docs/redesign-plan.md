@@ -594,6 +594,58 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
   - **Pull to refresh on Syncs checks again at once.** It skips the 5 minutes and the gates, like Sync now, and the engine's own cooldown too. Seams already being checked aren't checked twice. The spinner stays until the checks are done.
 - **Verified:** 380 unit tests pass (new: pull to refresh forces the check; which seams opening the app syncs or reads, the cooldown, waiting changes, card copy while checking, the Checking pill, several running syncs as rows, unchanged snapshots). Screenshots of `shell/checking` and `shell/syncing-several` were checked in light and dark. A new self-test scenario, `opencheck`, covers: nothing waiting right after a sync; an unwatched seam found with the new Spotify track waiting and not added; a watched seam synced on open; and nothing on a reopen within 5 minutes. It hasn't run yet because the phone was unavailable.
 
+### Version picker spec (2026-10-14)
+
+**Decisions (the person, 2026-10-14).** Any song can get a version the person picks. On a song that's already synced, the pick replaces Antiphon's choice in place. The pick holds for this song in this seam only. The picker opens from four places: a seam's track list, Activity › New tracks, a preview's "Every track", and Review, where it replaces "Pick another version". The sheet always says which seam it's for.
+
+**The sheet, "Choose the version":**
+- **Header:** "For *seam name*", with the seam's covers and direction, and "Goes into *target playlist* on *platform*".
+- **The song** as it is on its own side: cover, title, artist, album, year, length. Below it, what the other playlist holds now: "Antiphon's pick: *title*, *album*", "Your pick: …" or "Not in *playlist* yet".
+- **Search field**, filled with "artist title". Results from the other side load at once, the matcher's own candidates first.
+- **Each row:** cover, title, album · year · album/single/compilation, length, match %, a radio and a preview button where there is one. The whole row takes the tap.
+- **The selected row** shows the comparison table, with differences highlighted.
+- **Buttons:** "Use this version". In Review also "Skip track". On a song with a pick, also "Let Antiphon choose again".
+
+**What "Use this version" does:**
+- **The pick is kept** for the song in this seam. Every later plan, previews and background runs alike, uses it at 100% as "Your pick", without looking the song up.
+- **In a preview,** the plan changes in place. Nothing is written until "Sync now".
+- **A stored song not in the other playlist yet** (waiting, close match, not found) is added right away.
+- **A synced song** gets the pick added where the old version was, and the old version removed. That works on Spotify and in Apple Music playlists Antiphon made. In the person's own Apple Music playlists the removal is guided: "Delete the old *title* in the Music app." It shows in Activity as one run, "Your pick".
+- **Undoing that run** puts the old version back, or returns the song to waiting, and forgets the pick.
+- **Picking the version already in the playlist** only keeps it.
+- **"Let Antiphon choose again"** forgets the pick. The playlist stays as it is.
+- **Two-way seams:** the picker searches the side the song didn't come from.
+- **A seam's track list** says "Your pick" for these songs.
+
+**Not changing:** the automatic matching rules, and other seams with the same song.
+
+**Steps, each tested, reviewed, committed:**
+1. **Pins.**
+   - A `PinnedMatch` model: seam, source track key, the picked track. It's deleted with its seam.
+   - Repository reads and writes.
+   - `SyncPlanner` plans pinned rows from the pin (100%, `.manual`, already-in-target by `isSameRecording`).
+   - A `.pick` run trigger with History copy.
+   - *Accept:* planner tests (no lookup for a pinned row, the pin is planned, already there counts), a 1.4.0 store opens, unlinking removes pins.
+2. **Choosing.**
+   - `OperationRunner.choose` behind `SyncService.choose` / `pin` / `unpin`.
+   - Cases: replace on a synced row (add, then remove or guide, then update the row, put it in place, log one run); add on an unsynced stored row; pin only without a stored row; pin only for the same track.
+   - Undo of a `.pick` run restores the old counterpart and forgets the pin.
+   - *Accept:* runner tests with the fake editor for each case, including the person's own Apple Music playlist (guided) and undo.
+3. **The sheet.**
+   - `VersionPickerModel`: query, merging and scoring candidates, order, selection, current status, seam header copy.
+   - `VersionPickerView`.
+   - *Accept:* model tests, a debug route, screenshots in light, dark and on iPad.
+4. **Where it opens.**
+   - Seam track list: by row, "Your pick" detail.
+   - New tracks: the row is found by the landed track.
+   - Preview: pin plus `SyncPlan.choosing(_:for:)`.
+   - Review: replaces `MatchDetailView`. A swipe still accepts without pinning.
+   - *Accept:* tests for `choosing` and the New tracks lookup, screenshots of each entry.
+5. **On the phone.** A self-test scenario, `pick`, on Antiphon-created playlists:
+   - Sync, then pick another version of a synced song: the old one is gone, the new one is in its place, and it's kept.
+   - The next sync keeps it.
+   - Undo brings the old one back and forgets the pick.
+
 ### After 1.4.0: the New seam freeze, whole-row taps, the album setting (2026-10-14)
 
 - **New seam preview froze and iOS killed the app** (a 1.4.0 regression). The phone's crash log, symbolicated against the 1.4.0 dSYM: `0x8BADF00D`, main thread spinning in `SyncFlowView.body`. The wizard's destination called `makeSyncFlow`, which since 1.4.0 also caches into the shell's observed state, so it was writing from a view body that then re-rendered forever. The flow is now made in the button action, and the destination only reads the shell's cache. Reproduced and verified with `shell/newseam/sync` (99% CPU and a frozen screen before, the preview after).
