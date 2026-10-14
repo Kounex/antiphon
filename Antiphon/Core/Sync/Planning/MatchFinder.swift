@@ -6,12 +6,20 @@ protocol TrackCatalog: Sendable {
     var platform: Platform { get }
     func tracks(withISRC isrc: String) async throws -> [CatalogTrack]
     func search(_ query: String, limit: Int) async throws -> [CatalogTrack]
-    /// Release types for catalog IDs whose tracks didn't come with one.
-    func albumKinds(for ids: [String]) async -> [String: AlbumKind]
+    /// Album type and year for catalog IDs whose tracks didn't come with them.
+    func albums(for ids: [String]) async -> [String: AlbumDetails]
 }
 
 extension TrackCatalog {
-    func albumKinds(for ids: [String]) async -> [String: AlbumKind] { [:] }
+    func albums(for ids: [String]) async -> [String: AlbumDetails] { [:] }
+}
+
+/// What a lookup knows about a track's album.
+struct AlbumDetails: Equatable, Sendable {
+    var kind: AlbumKind?
+    /// The album's own year. Apple Music's song lookups give the song's, so a
+    /// 2013 compilation of a 2004 song says 2004.
+    var year: Int?
 }
 
 /// Finds a track's counterpart in another catalog and scores every candidate.
@@ -69,15 +77,21 @@ enum MatchFinder {
         }
 
         // The original album needs to know compilations that don't say so
-        // in their title ("It's Hard Rock, Hallelujah!").
-        if preferences.release == .original {
-            let unknown = scored.filter { $0.confidence >= strongMatch && $0.track.albumKind == nil }.map(\.track.id)
-            let kinds = await catalog.albumKinds(for: Array(Set(unknown)))
-            if !kinds.isEmpty {
+        // in their title ("It's Hard Rock, Hallelujah!"). So does the source's
+        // album when it isn't among the solid matches: then "not a compilation"
+        // decides, and Apple Music's lookups don't say which ones are.
+        let unknown = scored.filter { $0.confidence >= strongMatch && $0.track.albumKind == nil }.map(\.track.id)
+        let sourceAlbumMissing = preferences.release == .sourceAlbum && source.album != nil && !unknown.isEmpty
+            && !ReleasePreference.isCompilation(source)
+            && !scored.contains { $0.confidence >= strongMatch && ReleasePreference.albumMatch($0.track, source) > 0 }
+        if preferences.release == .original || sourceAlbumMissing {
+            let albums = await catalog.albums(for: Array(Set(unknown)))
+            if !albums.isEmpty {
                 scored = scored.map { candidate in
-                    guard let kind = kinds[candidate.track.id] else { return candidate }
+                    guard let album = albums[candidate.track.id] else { return candidate }
                     var track = candidate.track
-                    track.albumKind = kind
+                    if let kind = album.kind { track.albumKind = kind }
+                    if let year = album.year { track.releaseYear = year }
                     return MatchCandidate(track: track, confidence: candidate.confidence, reason: candidate.reason)
                 }
             }

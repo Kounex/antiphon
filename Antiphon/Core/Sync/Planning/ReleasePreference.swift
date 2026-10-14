@@ -39,7 +39,7 @@ enum ReleasePreference {
     /// ("Meteora" for "Meteora (Bonus Edition)"). 0: a different album.
     static func albumMatch(_ candidate: CatalogTrack, _ source: CatalogTrack) -> Int {
         guard let a = candidate.album, let b = source.album else { return 0 }
-        if collapse(a) == collapse(b) { return 3 }
+        if asWritten(a) == asWritten(b) { return 3 }
         let x = baseAlbum(a), y = baseAlbum(b)
         guard !x.isEmpty, !y.isEmpty else { return 0 }
         return x == y || x.hasPrefix(y + " ") || y.hasPrefix(x + " ") ? 2 : 0
@@ -85,8 +85,13 @@ enum ReleasePreference {
         album.lowercased().range(of: #"\s-\s(single|ep)$"#, options: .regularExpression) != nil
     }
 
-    private static func collapse(_ text: String) -> String {
-        text.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    /// The title as written, without punctuation or Apple's " - Single" /
+    /// " - EP": Spotify's "Word Up! (The Remixes)" is Apple's "Word Up!: The Remixes - EP".
+    private static func asWritten(_ album: String) -> String {
+        album.lowercased()
+            .replacingOccurrences(of: #"\s-\s(single|ep)$"#, with: "", options: .regularExpression)
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .joined(separator: " ")
     }
 
     /// The album title without edition words, normalized for matching.

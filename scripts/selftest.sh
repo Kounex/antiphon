@@ -4,7 +4,7 @@
 # the [SELFTEST] lines. Full device log: build/logs/selftest.log.
 # usage: scripts/selftest.sh [scenario]   (no scenario = all default scenarios)
 # Scenarios: twoway sameorder album library undo recheck monitor
-#            (only by name: ownam realpreview icon). See SelfTestRunner.swift.
+#            (only by name: ownam realpreview icon matchprobe). See SelfTestRunner.swift.
 cd "$(dirname "$0")/.."
 DEV=${DEVICE_ID:-E027CD50-71A3-550D-B5FA-24BA79C6EA30}
 APP=build/dev/Build/Products/Debug-iphoneos/Antiphon.app
@@ -20,10 +20,13 @@ for i in {1..120}; do
 done
 (( installed )) || { echo "Couldn't install on the phone (locked or disconnected?); not running the self-test." >&2; exit 1; }
 ROUTE=selftest${1:+/$1}
+# matchprobe: PROBE="Title|Artist" picks the song (default Word Up by Korn).
+extra=()
+[[ -n $PROBE ]] && extra=(-AntiphonProbe "$PROBE")
 # A locked phone refuses the launch: wait for it to be unlocked.
 for i in {1..60}; do
   xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \
-    -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES > $LOG 2>&1
+    -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES "${extra[@]}" > $LOG 2>&1
   grep -q "could not be, unlocked" $LOG || break
   (( i == 1 )) && echo "The phone is locked; unlock it to start the self-test." >&2
   sleep 10

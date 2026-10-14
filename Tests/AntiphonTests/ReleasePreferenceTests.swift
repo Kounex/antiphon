@@ -264,6 +264,77 @@ struct OriginalAlbumTests {
         #expect(CatalogTrack(track).albumKind == .compilation)
     }
 
+    // The device probe from 2026-10-14 (selftest matchprobe): Spotify's "Word Up!"
+    // on its remixes EP. Apple Music returns nine releases for the ISRC, all 100%.
+
+    private func korn(_ id: String, album: String, kind: AlbumKind? = nil, platform: Platform = .appleMusic) -> CatalogTrack {
+        var track = CatalogTrack(platform: platform, id: id, title: "Word Up!", artist: "Korn", album: album,
+                                 durationMs: 172_000, isrc: "USSM10411917", releaseYear: 2004)
+        track.albumKind = kind
+        return track
+    }
+
+    private var kornOnAppleMusic: [CatalogTrack] {
+        [korn("fitness", album: "Pure... Fitness"), korn("hallelujah", album: "It's Hard Rock, Hallelujah!"),
+         korn("rock", album: "Pure... Rock"), korn("ep", album: "Word Up!: The Remixes - EP"),
+         korn("hits", album: "Greatest Hits, Vol. 1"), korn("laut", album: "Life & Style Music: Laut")]
+    }
+
+    @Test("Each catalog's name for the same EP is the same album",
+          arguments: [("Word Up! (The Remixes)", "Word Up!: The Remixes - EP"),
+                      ("Word Up!: The Remixes - EP", "Word Up! (The Remixes)"),
+                      ("Hybrid Theory", "Hybrid Theory - EP"),
+                      ("Lost", "Lost - Single")])
+    func catalogNamingSameAlbum(spotify: String, apple: String) {
+        #expect(ReleasePreference.albumMatch(korn("a", album: apple), korn("s", album: spotify, platform: .spotify)) > 0)
+    }
+
+    @Test("Different albums still don't match", arguments: [("Word Up! (The Remixes)", "Greatest Hits, Vol. 1"),
+                                                             ("Meteora", "Hybrid Theory"),
+                                                             ("Word Up! (The Remixes)", "Pure... Rock")])
+    func differentAlbums(spotify: String, apple: String) {
+        #expect(ReleasePreference.albumMatch(korn("a", album: apple), korn("s", album: spotify, platform: .spotify)) == 0)
+    }
+
+    @Test("Same as source: Word Up! from the remixes EP gets the remixes EP, not a compilation")
+    func kornRemixesEP() async throws {
+        let source = korn("s", album: "Word Up! (The Remixes)", kind: .single, platform: .spotify)
+        let outcome = try await MatchFinder.find(source, in: FakeCatalog(byISRC: ["USSM10411917": kornOnAppleMusic]), targetPlaylist: [])
+        #expect(outcome.best?.track.id == "ep")
+    }
+
+    @Test("Same as source, the album isn't on the other side: compilations Apple doesn't name as such still lose")
+    func sourceAlbumMissingSkipsUnnamedCompilations() async throws {
+        let source = korn("s", album: "Word Up! (The Remixes)", kind: .single, platform: .spotify)
+        let withoutEP = kornOnAppleMusic.filter { $0.id != "ep" } + [korn("studio", album: "Untouchables")]
+        let kinds: [String: AlbumKind] = ["fitness": .compilation, "hallelujah": .compilation, "rock": .compilation,
+                                          "hits": .compilation, "laut": .compilation, "studio": .album]
+        let outcome = try await MatchFinder.find(source, in: FakeCatalog(byISRC: ["USSM10411917": withoutEP], albumKinds: kinds),
+                                                 targetPlaylist: [])
+        #expect(outcome.best?.track.id == "studio")
+    }
+
+    @Test("Original: Apple Music's lookups give the song's year, so the album's own year decides (Greatest Hits 2004, not Pure... Fitness 2013)")
+    func originalUsesAlbumYears() async throws {
+        let source = korn("s", album: "Word Up! (The Remixes)", kind: .single, platform: .spotify)
+        let catalog = FakeCatalog(
+            byISRC: ["USSM10411917": kornOnAppleMusic],
+            albumKinds: ["fitness": .compilation, "hallelujah": .compilation, "rock": .compilation, "ep": .single,
+                         "hits": .compilation, "laut": .compilation],
+            albumYears: ["fitness": 2013, "hallelujah": 2006, "rock": 2012, "ep": 2004, "hits": 2004, "laut": 2008]
+        )
+        let outcome = try await MatchFinder.find(source, in: catalog, targetPlaylist: [], preferences: VersionPreferences(release: .original))
+        #expect(outcome.best?.track.id == "hits")
+    }
+
+    @Test("Same as source, the album is there: no release types are looked up")
+    func sourceAlbumFoundNoLookup() async throws {
+        let source = korn("s", album: "Word Up! (The Remixes)", kind: .single, platform: .spotify)
+        let catalog = FakeCatalog(byISRC: ["USSM10411917": kornOnAppleMusic])
+        _ = try await MatchFinder.find(source, in: catalog, targetPlaylist: [])
+        #expect(!catalog.recordedCalls.contains { $0.hasPrefix("kinds:") })
+    }
+
     @Test("Edition and single titles are recognized")
     func titles() {
         #expect(ReleasePreference.isSpecialEdition("Hybrid Theory (20th Anniversary Edition)"))

@@ -67,6 +67,7 @@ final class SelfTestRunner {
             // may use too: only when asked for by name.
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
             if scenario == "realpreview" { try await previewPersonsSeam() }
+            if scenario == "matchprobe" { try await matchProbe() }
             // Changes the Home Screen icon (iOS shows a notice): only by name.
             if scenario == "icon" { try await iconFollowsTheme() }
             // Needs the person to tap a notification button: only by name.
@@ -332,7 +333,9 @@ final class SelfTestRunner {
         let catalog = AppleMusicTrackCatalog(manager: AppleMusicManager())
         let cases: [(query: String, album: String, original: String)] = [
             ("track:Waiting for the End artist:Linkin Park", "Papercuts", "A Thousand Suns"),
-            ("track:Word Up artist:Korn", "Greatest Hits", "Greatest Hits")
+            ("track:Word Up artist:Korn", "Greatest Hits", "Greatest Hits"),
+            // Spotify's "Word Up! (The Remixes)" is Apple's "Word Up!: The Remixes - EP" (2026-10-14).
+            ("track:Word Up artist:Korn", "The Remixes", "Greatest Hits")
         ]
         for item in cases {
             let source = try await spotifyTrack(item.query, album: item.album)
@@ -347,6 +350,42 @@ final class SelfTestRunner {
                 let expected = choice == .original ? item.original : ReleasePreference.baseAlbum(source.album ?? "")
                 expect(ReleasePreference.baseAlbum(album).localizedCaseInsensitiveContains(ReleasePreference.baseAlbum(expected)),
                        "\(source.title), \(choice): from \(expected) (got \(album))")
+            }
+        }
+    }
+
+    // MARK: - Scenario: match probe (read only, by name)
+
+    /// Every candidate the matcher sees for one song, both ways, under each
+    /// album setting. `-AntiphonProbe "Title|Artist"` picks the song.
+    private func matchProbe() async throws {
+        let spec = (UserDefaults.standard.string(forKey: "AntiphonProbe") ?? "Word Up|Korn").split(separator: "|").map(String.init)
+        let title = spec[0], artist = spec.count > 1 ? spec[1] : ""
+        log("== Match probe (read only): \(title) by \(artist)")
+        let spotify = SpotifyTrackCatalog(client: SpotifyAPIClient())
+        let apple = AppleMusicTrackCatalog(manager: AppleMusicManager())
+        func describe(_ t: CatalogTrack) -> String {
+            let length = t.durationMs.map { String(format: "%d:%02d", $0 / 60_000, $0 / 1000 % 60) } ?? "?"
+            return "\(t.title) — \(t.album ?? "?") (\(t.releaseYear.map(String.init) ?? "?"), \(t.albumKind.map { "\($0)" } ?? "kind ?")) \(length) isrc \(t.isrc ?? "-")"
+        }
+        let ways: [(String, any TrackCatalog, any TrackCatalog)] = [("Spotify → Apple Music", spotify, apple), ("Apple Music → Spotify", apple, spotify)]
+        for (way, from, into) in ways {
+            log("-- \(way)")
+            let sources = try await from.search("\(artist) \(title)", limit: 10)
+                .filter { $0.title.localizedCaseInsensitiveContains(title) }
+            for source in sources { log("source option: \(describe(source))") }
+            for source in sources where !(source.album ?? "").localizedCaseInsensitiveContains("greatest") {
+                log("SOURCE \(describe(source))")
+                if let isrc = source.isrc {
+                    for hit in try await into.tracks(withISRC: isrc) { log("  isrc hit: \(describe(hit))") }
+                }
+                for choice in ReleaseChoice.allCases {
+                    let outcome = try await MatchFinder.find(source, in: into, targetPlaylist: [], preferences: VersionPreferences(release: choice))
+                    log("  \(choice):")
+                    for c in [outcome.best].compactMap({ $0 }) + outcome.alternatives {
+                        log("    \(c.confidence)% \(c.reason) | \(describe(c.track))")
+                    }
+                }
             }
         }
     }

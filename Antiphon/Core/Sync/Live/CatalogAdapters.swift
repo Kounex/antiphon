@@ -114,18 +114,20 @@ final class AppleMusicTrackCatalog: TrackCatalog, Sendable {
     }
 
     /// One request for the songs' albums. Search results don't carry them.
-    func albumKinds(for ids: [String]) async -> [String: AlbumKind] {
+    func albums(for ids: [String]) async -> [String: AlbumDetails] {
         guard !ids.isEmpty else { return [:] }
         do {
             var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids.map { MusicItemID($0) })
             request.properties = [.albums]
-            var kinds: [String: AlbumKind] = [:]
+            var albums: [String: AlbumDetails] = [:]
             for song in try await request.response().items {
                 guard let album = song.albums?.first else { continue }
-                kinds[song.id.rawValue] = album.isCompilation == true || album.artistName == "Various Artists" ? .compilation
+                let kind: AlbumKind = album.isCompilation == true || album.artistName == "Various Artists" ? .compilation
                     : album.isSingle == true ? .single : .album
+                albums[song.id.rawValue] = AlbumDetails(
+                    kind: kind, year: album.releaseDate.map { Calendar(identifier: .gregorian).component(.year, from: $0) })
             }
-            return kinds
+            return albums
         } catch {
             print("[AppleMusicTrackCatalog] Album lookup failed: \(error.localizedDescription)")
             return [:]
