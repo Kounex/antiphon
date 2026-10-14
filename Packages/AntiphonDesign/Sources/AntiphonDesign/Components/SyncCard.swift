@@ -76,7 +76,7 @@ public struct SyncCard: View {
             SeamLine(
                 leading: leading, trailing: trailing, direction: direction,
                 isMonitoring: status.isMonitoring && !status.isPaused,
-                knot: status.failure != nil ? .problem : (status.isPaused ? .paused : .direction),
+                knot: Self.knot(status: status),
                 style: .card
             )
             VStack(alignment: .leading, spacing: Space.s1) {
@@ -88,6 +88,7 @@ public struct SyncCard: View {
         }
         .padding(Space.s4)
         .background(Color.canvasRaised, in: .rect(cornerRadius: Radius.card))
+        .overlay { CardBorder(tone: Self.tone(health: health, status: status)) }
         .accessibilityElement(children: .combine)
     }
 
@@ -116,6 +117,41 @@ public struct SyncCard: View {
         }
     }
 
+    /// What the card's border marks. All good (and paused) has no border.
+    public enum Tone: Hashable, Sendable {
+        case syncing, checking, failed, review
+
+        /// Something is happening now: the border's light runs round it.
+        public var isActive: Bool { self == .syncing || self == .checking }
+
+        var color: Color {
+            switch self {
+            case .syncing, .checking: .thread
+            case .failed: .statusFailed
+            case .review: .statusReview
+            }
+        }
+    }
+
+    /// Activity first (it's what changes while you look), then a failure,
+    /// then tracks to review.
+    public static func tone(health: SeamHealth, status: Status) -> Tone? {
+        if status.isSyncing { return .syncing }
+        if status.isChecking { return .checking }
+        if status.failure != nil { return .failed }
+        if health.review > 0 { return .review }
+        return nil
+    }
+
+    /// The knot shows what the seam is doing right now: syncing, checking,
+    /// a problem, paused, or its direction.
+    public static func knot(status: Status) -> SeamLine.Knot {
+        if status.isSyncing { return .syncing }
+        if status.isChecking { return .checking }
+        if status.failure != nil { return .problem }
+        return status.isPaused ? .paused : .direction
+    }
+
     /// At most two pills, by priority: Failed > Review > Syncing > Paused,
     /// Checking or Monitoring > In sync.
     public static func pills(health: SeamHealth, status: Status) -> [StatusPill.State] {
@@ -133,6 +169,62 @@ public struct SyncCard: View {
         let inSync = health.total > 0 && health.synced == health.total
         if inSync && status.failure == nil { candidates.append(.inSync) }
         return Array(candidates.prefix(2))
+    }
+}
+
+/// The card's border for a special state. Syncing and checking: a faint
+/// gold edge with a light running round it (one lap every 2.4 s). Failed
+/// and review: their color, breathing slowly. Changing state cross-fades;
+/// Reduce Motion keeps a still border.
+struct CardBorder: View {
+    let tone: SyncCard.Tone?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private static let lap: TimeInterval = 2.4
+
+    var body: some View {
+        ZStack {
+            if let tone {
+                border(tone)
+                    .id(tone)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.45), value: tone)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func border(_ tone: SyncCard.Tone) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card)
+        let color = tone.color
+        if reduceMotion {
+            shape.strokeBorder(color.opacity(0.8), lineWidth: 1.5)
+        } else if tone.isActive {
+            TimelineView(.animation) { context in
+                let lap = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: Self.lap) / Self.lap
+                shape
+                    .strokeBorder(color.opacity(0.3), lineWidth: 1.5)
+                    .overlay {
+                        shape.strokeBorder(
+                            AngularGradient(stops: [
+                                .init(color: color.opacity(0), location: 0),
+                                .init(color: color.opacity(0), location: 0.62),
+                                .init(color: color, location: 0.9),
+                                .init(color: color.opacity(0), location: 1)
+                            ], center: .center, angle: .degrees(lap * 360)),
+                            lineWidth: 2
+                        )
+                    }
+            }
+        } else {
+            shape
+                .strokeBorder(color, lineWidth: 1.5)
+                .phaseAnimator([0.45, 0.95]) { border, opacity in
+                    border.opacity(opacity)
+                } animation: { _ in .easeInOut(duration: 1.6) }
+        }
     }
 }
 

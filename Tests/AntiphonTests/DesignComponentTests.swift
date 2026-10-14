@@ -8,6 +8,38 @@ struct DesignComponentTests {
 
     private let watching = SyncCard.Status(isMonitoring: true)
 
+    @Test("The border marks special states; all good has none")
+    func borderTone() {
+        let good = SeamHealth(synced: 6, review: 0, missing: 0, total: 6)
+        let review = SeamHealth(synced: 4, review: 2, missing: 0, total: 6)
+        #expect(SyncCard.tone(health: good, status: watching) == nil)
+        #expect(SyncCard.tone(health: good, status: .init(isMonitoring: true, isPaused: true)) == nil)
+        #expect(SyncCard.tone(health: review, status: watching) == .review)
+        #expect(SyncCard.tone(health: good, status: .init(isMonitoring: true, failure: "Failed")) == .failed)
+        #expect(SyncCard.tone(health: good, status: .init(isMonitoring: true, isChecking: true)) == .checking)
+        #expect(SyncCard.tone(health: good, status: .init(isMonitoring: true, isSyncing: true)) == .syncing)
+    }
+
+    @Test("Activity wins the border: syncing, checking, then failed, then review")
+    func borderPriority() {
+        let review = SeamHealth(synced: 4, review: 2, missing: 0, total: 6)
+        #expect(SyncCard.tone(health: review, status: .init(isMonitoring: true, isSyncing: true, isChecking: true, failure: "Failed")) == .syncing)
+        #expect(SyncCard.tone(health: review, status: .init(isMonitoring: true, isChecking: true, failure: "Failed")) == .checking)
+        #expect(SyncCard.tone(health: review, status: .init(isMonitoring: true, failure: "Failed")) == .failed)
+        #expect(SyncCard.Tone.syncing.isActive && SyncCard.Tone.checking.isActive)
+        #expect(!SyncCard.Tone.failed.isActive && !SyncCard.Tone.review.isActive)
+    }
+
+    @Test("The knot shows what the seam is doing right now")
+    func knot() {
+        #expect(SyncCard.knot(status: watching) == .direction)
+        #expect(SyncCard.knot(status: .init(isMonitoring: true, isChecking: true)) == .checking)
+        #expect(SyncCard.knot(status: .init(isMonitoring: true, isSyncing: true, isChecking: true, failure: "Failed")) == .syncing)
+        #expect(SyncCard.knot(status: .init(isMonitoring: true, isPaused: true)) == .paused)
+        #expect(SyncCard.knot(status: .init(isMonitoring: true, isPaused: true, failure: "Failed")) == .problem)
+        #expect(SyncCard.knot(status: .init(isMonitoring: false, isSyncing: true, isPaused: true)) == .syncing)
+    }
+
     @Test("Storyboard card shows Review 3 and Watching")
     func reviewAndWatching() {
         let health = SeamHealth(synced: 48, review: 3, missing: 1, total: 52)

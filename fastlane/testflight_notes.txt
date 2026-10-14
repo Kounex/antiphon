@@ -1,3 +1,14 @@
+What's new in 1.4.5:
+
+• Seam cards show what's happening. While a seam is checked, a gold ring spins round the eye between its covers; while it syncs, the arrows there turn. The card's border marks special states: gold with a light running round it while syncing or checking, red when something failed, violet when tracks wait for review. Cards that are all good look as before.
+• Spotify now requires Premium for the apps people create, so Antiphon says so where you connect Spotify.
+• The Spotify client ID guide follows Spotify's Create app form, with Copy buttons for the name, description and redirect URI. The client ID field has a Paste button, and Antiphon tells you if what you pasted isn't a client ID.
+
+Focus for testers:
+• Open the app: the seams being checked should show the spinning ring and the running border, which stop when the check is done.
+• Sync a seam: its card should show the turning arrows and the gold border. A seam with tracks to review should have a violet border.
+• Settings › Spotify › How to get one: follow the guide and use the Copy and Paste buttons.
+
 What's new in 1.4.4:
 
 • Fixed: a seam could show another seam's details, and its Sync now could preview the other seam. This happened after opening a seam from a sync's Review, a widget, Library or Search.

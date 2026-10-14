@@ -716,3 +716,14 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **Where it's stated:** the connect form's footnote, the guide's "Before you start" note, the App Store description's "What you need", and the website (hero bullet, a new "Do I need Spotify Premium?" in the FAQ and on /support, and the sign-in troubleshooting answer). The review notes (local, gitignored) say the demo account is Premium and owns the client ID.
 - **Easier guide (`SpotifyKeyGuide`):** follows Spotify's Create app form, where the redirect URI and the Web API checkbox are now part of the form. Name, description and redirect URI each have a Copy button. Step 3 says to copy the Client ID, not the secret. The form gets a system Paste button, so iOS doesn't ask to allow pasting. A pasted value is checked (`SpotifyClientID`: 32 hex characters; a copied "Client ID" label and whitespace are fine). Anything else shows what to copy, and Connect stays off.
 - **Verified:** 452 unit tests (new: `SpotifyClientIDTests`). Simulator screenshots: `onboarding/spotify-guide` (new route) in dark, light and AX5, and `onboarding/connect` (dark). Not tested on the phone or against a real new Spotify app.
+
+### Seam cards show checking, syncing and problems (2026-10-15)
+
+- **Asked:** while a seam was being checked, only the subtitle ("checking now") and a pill said so. The pill was often pushed out by Review and Failed. Cards should show special states in an animated border; cards that are all good stay as they were.
+- **The knot** between the covers (`SeamLine.Knot`) gets `.syncing` (sync arrows, rotating) and `.checking` (the eye, pulsing, inside a gold arc that circles once a second, `SpinnerRing`). `SyncCard.knot(status:)` picks it in this order: syncing > checking > problem > paused > direction.
+- **The border** (`SyncCard.tone`, `CardBorder`) is ordered syncing > checking > failed > review:
+  - Syncing and checking: a faint gold edge with a light running round it (one lap every 2.4 s).
+  - Failed (red) and review (violet): breathe slowly.
+  - All good and paused: no border.
+  - Changes between states cross-fade. Reduce Motion keeps a still border and still knots.
+- **Verified:** 455 unit tests (new: border tone and priority, knot). Screenshots: `shell/checking` (dark), `shell/store` (light, review border), `catalog/SyncCard` (dark, every state; a syncing sample was added). Two frames 0.7 s apart differ, so the animations run. Not tested on the phone.

@@ -264,6 +264,13 @@ private struct SyncCardSamples: View {
             direction: .oneWay, health: SeamHealth(synced: 80, review: 0, missing: 7, total: 87),
             status: .init(isMonitoring: true, failure: "Sign in")
         )
+        SyncCard(
+            title: "Run Club", subtitle: "Spotify → Apple Music · syncing 31 of 52",
+            leading: CoverArt(seed: "Run Club", size: 56, service: .spotify),
+            trailing: CoverArt(seed: "Run Club", size: 56, service: .appleMusic),
+            direction: .oneWay, health: SeamHealth(synced: 31, review: 0, missing: 0, total: 52),
+            status: .init(isMonitoring: true, isSyncing: true)
+        )
     }
 }
 

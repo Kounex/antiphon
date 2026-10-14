@@ -22,6 +22,11 @@ public struct SeamLine: View {
         case paused
         /// A conflict or failure on this seam.
         case problem
+        /// Syncing now: the sync arrows turn.
+        case syncing
+        /// Its playlists are being read: the watching eye, with a ring
+        /// spinning round the knot.
+        case checking
     }
 
     public let leading: CoverArt
@@ -74,6 +79,8 @@ public struct SeamLine: View {
         case .direction: parts.append("watching")
         case .paused: parts.append("not watching")
         case .problem: parts.append("needs attention")
+        case .syncing: parts.append("syncing")
+        case .checking: parts.append("checking")
         }
         return parts.joined(separator: ", ")
     }
@@ -152,15 +159,32 @@ struct KnotView: View {
                     .overlay(Circle().strokeBorder(Color.hairline, lineWidth: 1))
                     .frame(width: size, height: size)
             }
-            Image(systemName: symbol)
+            symbolImage
                 .font(.system(size: size * 0.42, weight: .bold))
                 .foregroundStyle(tint)
                 .contentTransition(.symbolEffect(.replace))
                 .animation(.smooth, value: symbol)
+            if knot == .checking {
+                SpinnerRing(isSpinning: !reduceMotion)
+                    .frame(width: size + 6, height: size + 6)
+                    .transition(.opacity)
+            }
             if reduceMotion && isLive && knot == .direction {
                 PulseDot()
                     .offset(y: size * 0.62)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var symbolImage: some View {
+        let image = Image(systemName: symbol)
+        if knot == .syncing && !reduceMotion {
+            image.symbolEffect(.rotate, options: .repeat(.continuous))
+        } else if knot == .checking && !reduceMotion {
+            image.symbolEffect(.pulse, options: .repeat(.continuous))
+        } else {
+            image
         }
     }
 
@@ -169,15 +193,34 @@ struct KnotView: View {
         case .direction: direction.symbol
         case .paused: "pause.fill"
         case .problem: "exclamationmark.triangle.fill"
+        case .syncing: "arrow.triangle.2.circlepath"
+        case .checking: "eye"
         }
     }
 
     private var tint: Color {
         switch knot {
-        case .direction: .thread
+        case .direction, .syncing, .checking: .thread
         case .paused: .inkMuted
         case .problem: .statusFailed
         }
+    }
+}
+
+/// A short gold arc running round the knot while a seam is checked; one
+/// turn a second. Still (a quarter ring) with Reduce Motion.
+struct SpinnerRing: View {
+    let isSpinning: Bool
+
+    var body: some View {
+        TimelineView(.animation(paused: !isSpinning)) { context in
+            let turn = isSpinning ? context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1) : 0
+            Circle()
+                .trim(from: 0, to: 0.28)
+                .stroke(Color.thread, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(turn * 360 - 90))
+        }
+        .accessibilityHidden(true)
     }
 }
 
