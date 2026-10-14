@@ -19,7 +19,7 @@ PRIVATE BY DESIGN
 Antiphon runs on your iPhone and iPad and talks to Spotify and Apple Music directly. There's no Antiphon server and no account. Your sign-ins stay in the iOS Keychain, and Antiphon only reads and edits playlists. It never plays, follows or posts anything.
 
 WHAT YOU NEED
-- A Spotify account and a free Spotify developer client ID. Antiphon walks you through creating one in a few steps.
+- Spotify Premium, and a Spotify developer client ID, which is free to create. Spotify only lets Premium accounts use the apps they create; Antiphon walks you through it in a few minutes.
 - An Apple Music subscription, to add tracks to your Apple Music library and playlists.
 
 Antiphon isn't affiliated with Spotify or Apple.

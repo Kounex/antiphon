@@ -22,7 +22,8 @@ enum DebugRoute {
     /// End-to-end checks on the real accounts: `selftest` or `selftest/<scenario>`
     /// (see `SelfTestRunner.run` and `scripts/selftest.sh`).
     case selfTest(String?)
-    /// First launch: `onboarding/connect`, `/defaults`, `/twins`.
+    /// First launch: `onboarding/connect`, `/defaults`, `/twins`;
+    /// `onboarding/spotify-guide` is the client ID guide on its own.
     case onboarding(String?)
 
     /// Every route starts on the System theme, so the simulator's appearance
@@ -66,6 +67,8 @@ struct DebugRouteView: View {
             // Spotify signed in, Apple Music not asked yet (App Store screenshot 02).
             OnboardingView(model: Self.onboardingModel(step)) {}
                 .environment(Self.signedInSpotify)
+        case .onboarding(let step) where step == "spotify-guide":
+            SpotifyKeyGuide()
         case .onboarding(let step):
             OnboardingView(model: Self.onboardingModel(step)) {}
         case .shell(let option):
