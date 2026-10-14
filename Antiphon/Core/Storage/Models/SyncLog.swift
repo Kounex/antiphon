@@ -96,13 +96,15 @@ enum SyncTrigger: String, Codable, Sendable {
     case review
     case conflict
     case undo
+    /// The person picked a version of a song.
+    case pick
 
     /// Runs nobody previewed: background checks, Sync all, Shortcuts. Their
     /// adds are what Activity › New tracks lists.
     var isUnattended: Bool {
         switch self {
         case .monitor, .widget, .shortcut: true
-        case .firstSync, .manual, .review, .conflict, .undo: false
+        case .firstSync, .manual, .review, .conflict, .undo, .pick: false
         }
     }
 }

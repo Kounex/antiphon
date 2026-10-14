@@ -13,6 +13,7 @@
 		06A276D115C296AA1082E97C /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12E487A823D182C64EB4DAE /* WidgetViews.swift */; };
 		07F387EDD19568F53602E33D /* SyncAllIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C05E4FDD6560871D0438C4D /* SyncAllIntent.swift */; };
 		08A78B57DAB787F7539152AA /* PlaylistEntryEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB07EEC8F741307983879651 /* PlaylistEntryEdit.swift */; };
+		09E90E75FDCC294268C9781A /* PinnedMatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E07F4A276716F91F4929CB1 /* PinnedMatchTests.swift */; };
 		09EB98FCF1BAA7181E879C78 /* OperationRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7443C3623F7B45E9A17B27 /* OperationRunnerTests.swift */; };
 		0A7576CF6116DCA1549071F4 /* NewSeamLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC593A3BFC2FE4C48DF130 /* NewSeamLogic.swift */; };
 		0AEED1F0A37B5209293342FB /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44555A4D1FC05272BC09979 /* KeychainManager.swift */; };
@@ -187,6 +188,7 @@
 		F5847AB37BEF40D8D5620A80 /* AppPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4987EAE27BB0FCACD3F2C72F /* AppPreferencesTests.swift */; };
 		F59E07BB31955FD444E65692 /* OpenCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ADD65E0AE30CDB54BBF22A /* OpenCheck.swift */; };
 		F60A528030762805709F8651 /* DesignComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773B87050646909E8EFEC9C6 /* DesignComponentTests.swift */; };
+		F6D45F9796245F71BF6A447B /* PinnedMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E36BCB5990602A4A7F5CE18 /* PinnedMatch.swift */; };
 		F914BA061A6D0722B455FCAF /* ComponentCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12694559F1B12A6ED1BEA33 /* ComponentCatalogView.swift */; };
 		FA771915EBE80700E807997D /* TwinSuggester.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FE66A2FFA5F0DAD9AB0960 /* TwinSuggester.swift */; };
 		FA995B60398FD6014B7BFBFD /* SyncPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22525DF51EAAFB0EA1991E03 /* SyncPlan.swift */; };
@@ -249,6 +251,7 @@
 		1C68001EE22B1D000F6E200B /* PlanCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanCopy.swift; sourceTree = "<group>"; };
 		1D70BADB8E6EE6E25C849F1D /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		1DC838BC8149311FA1528D59 /* QuestionNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionNotifications.swift; sourceTree = "<group>"; };
+		1E36BCB5990602A4A7F5CE18 /* PinnedMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedMatch.swift; sourceTree = "<group>"; };
 		1F9E5378BE7D55B1A4A7FAF0 /* SpotifyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyModels.swift; sourceTree = "<group>"; };
 		2035E83AD10D7BA22E7C2743 /* ReleasePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleasePreference.swift; sourceTree = "<group>"; };
 		21387B4BD9F68CA7F85FE79A /* MatchFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchFinderTests.swift; sourceTree = "<group>"; };
@@ -270,6 +273,7 @@
 		39B9FCEC2F9A2B240C44E94A /* WidgetSnapshotBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotBuilder.swift; sourceTree = "<group>"; };
 		3D0BB1C535C3C1EA40F0DBA3 /* ConflictResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolverTests.swift; sourceTree = "<group>"; };
 		3D96F2E1B49D79E67BD8B77F /* ActivityLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLogic.swift; sourceTree = "<group>"; };
+		3E07F4A276716F91F4929CB1 /* PinnedMatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedMatchTests.swift; sourceTree = "<group>"; };
 		3F4B59BE51177ADD3F3366BB /* DryRunStageA.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DryRunStageA.swift; sourceTree = "<group>"; };
 		40B7CC9ED27E85FCB8D7526F /* WidgetSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotTests.swift; sourceTree = "<group>"; };
 		4257F83C1FF1D0E552F0DF4D /* StoreChanges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreChanges.swift; sourceTree = "<group>"; };
@@ -553,6 +557,7 @@
 				9686A18BE21C554D67A33D3C /* OnboardingTests.swift */,
 				2CB11AF38340224DD89FD05E /* OpenCheckTests.swift */,
 				7E7443C3623F7B45E9A17B27 /* OperationRunnerTests.swift */,
+				3E07F4A276716F91F4929CB1 /* PinnedMatchTests.swift */,
 				7E323EA36F7F49A4D2DD8E40 /* PlanBuilderTests.swift */,
 				DAD631A22591B730A3F18737 /* PlanCopyTests.swift */,
 				A119350F389951E8FECC5131 /* ProblemsTests.swift */,
@@ -828,6 +833,7 @@
 			isa = PBXGroup;
 			children = (
 				23F3404651655D7A5447EB77 /* CachedTrack.swift */,
+				1E36BCB5990602A4A7F5CE18 /* PinnedMatch.swift */,
 				CF368C02A6229077F37D46AB /* SyncChange.swift */,
 				E8BC9147487C1DED6DA49EA2 /* SyncLog.swift */,
 				44FA160B1B3DA6A3592D01DC /* SyncPair.swift */,
@@ -1011,7 +1017,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -1073,6 +1079,7 @@
 				3E890D54A7B605F694709410 /* OnboardingTests.swift in Sources */,
 				EF141DE15FACF954A51F505B /* OpenCheckTests.swift in Sources */,
 				09EB98FCF1BAA7181E879C78 /* OperationRunnerTests.swift in Sources */,
+				09E90E75FDCC294268C9781A /* PinnedMatchTests.swift in Sources */,
 				548C99900EAFEC0A5DB38299 /* PlanBuilderTests.swift in Sources */,
 				4536A14BC6EA4DAC9BEA3A8D /* PlanCopyTests.swift in Sources */,
 				EA5A21703A9874B277A9C746 /* ProblemsTests.swift in Sources */,
@@ -1169,6 +1176,7 @@
 				DFE6853F108B9378993E1C0B /* OnboardingView.swift in Sources */,
 				F59E07BB31955FD444E65692 /* OpenCheck.swift in Sources */,
 				F34175A2334B7EF41B5409AE /* OperationRunner.swift in Sources */,
+				F6D45F9796245F71BF6A447B /* PinnedMatch.swift in Sources */,
 				4A1BE668FE2EE53C4E59951D /* PlacementStep.swift in Sources */,
 				9F8282B5A28CCA4DD9128FD9 /* PlanBuilder.swift in Sources */,
 				3BAE7B65ED32E06EBC959AFE /* PlanCopy.swift in Sources */,

@@ -13,7 +13,7 @@ enum SharedModelContainer {
     /// written by earlier versions open through SwiftData's automatic
     /// lightweight migration (covered by `SchemaMigrationTests`).
     static let models: [any PersistentModel.Type] = [
-        SyncPair.self, CachedTrack.self, SyncLog.self, SyncChange.self, SyncProblem.self
+        SyncPair.self, CachedTrack.self, SyncLog.self, SyncChange.self, SyncProblem.self, PinnedMatch.self
     ]
 
     static let container: ModelContainer = {

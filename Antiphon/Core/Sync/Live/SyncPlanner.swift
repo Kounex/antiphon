@@ -107,17 +107,20 @@ actor SyncPlanner {
                 && AvailabilityRecheck.isDue(retryCount: row.retryCount, lastAttempt: row.lastAttempt, cadence: recheck, now: Date()))
             return needsWork && PlanBuilder.allows(stageA.direction, from: row.source.platform)
         }
-        let toMatch = candidates
+        let spotifyPlaylist = live.spotify.compactMap { $0.track.map(CatalogTrack.init) }
+        let applePlaylist = live.appleMusic.map(CatalogTrack.init)
+
+        // Songs the person picked a version for aren't looked up.
+        let pinned = PinnedPlanning.split(candidates, pins: live.pins,
+                                          targetPlaylists: [.spotify: spotifyPlaylist, .appleMusic: applePlaylist])
+        let toMatch = pinned.toLookUp
 
         let spotifyCatalog = SpotifyTrackCatalog(client: spotifyClient)
         let appleCatalog = AppleMusicTrackCatalog(manager: appleMusicManager)
         let prefetching = toMatch.filter { $0.source.platform == .spotify }.compactMap(\.source.isrc)
         await appleCatalog.prefetch(isrcs: unattended == nil ? prefetching : Array(prefetching.prefix(Self.unattendedPrefetch)))
 
-        let spotifyPlaylist = live.spotify.compactMap { $0.track.map(CatalogTrack.init) }
-        let applePlaylist = live.appleMusic.map(CatalogTrack.init)
-
-        var outcomes: [TrackKey: MatchOutcome] = [:]
+        var outcomes = pinned.outcomes
         var unchecked = 0
         for (index, row) in toMatch.enumerated() {
             try Task.checkCancellation()
@@ -207,6 +210,7 @@ actor SyncPlanner {
         let spotifyId = pair.spotifyPlaylistId
         let appleId = pair.appleMusicPlaylistId
         let mirrorTarget = pair.mirrorTarget
+        let pins = pair.pinnedTracks
         // A playlist Antiphon is about to create counts as Antiphon's.
         let capabilities = PlatformCapabilities.forSeam(
             appleMusicCreatedByAntiphon: pair.appleMusicCreatedByAntiphon || appleId.hasPrefix("pending-creation-")
@@ -227,14 +231,14 @@ actor SyncPlanner {
             ? [] : try await spotifyClient.getPlaylistTracks(playlistId: spotifyId)
 
         guard !appleId.hasPrefix("pending-creation-") else {
-            return LiveTracks(spotify: spotify, appleMusic: [], capabilities: capabilities, mirrorTarget: nil)
+            return LiveTracks(spotify: spotify, appleMusic: [], capabilities: capabilities, mirrorTarget: nil, pins: pins)
         }
         let playlists = try await appleMusicManager.fetchUserPlaylists()
         guard let playlist = playlists.first(where: { $0.id.rawValue == appleId }) else {
             throw SyncError.appleMusicPlaylistNotFound
         }
         let appleMusic = try await appleMusicManager.fetchPlaylistTracks(for: playlist, localISRCLookup: lookup)
-        return LiveTracks(spotify: spotify, appleMusic: appleMusic, capabilities: capabilities, mirrorTarget: mirrorTarget)
+        return LiveTracks(spotify: spotify, appleMusic: appleMusic, capabilities: capabilities, mirrorTarget: mirrorTarget, pins: pins)
     }
 
     private struct LiveTracks {
@@ -243,5 +247,7 @@ actor SyncPlanner {
         let capabilities: PlatformCapabilities
         /// "Same order": the playlist that follows the other side.
         let mirrorTarget: Platform?
+        /// Versions the person picked, by song.
+        let pins: [TrackKey: CatalogTrack]
     }
 }

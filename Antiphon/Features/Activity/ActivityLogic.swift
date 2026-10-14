@@ -215,11 +215,12 @@ enum ActivityCopy {
         switch run.trigger {
         case .firstSync: what = "First sync · \(what)"
         case .undo: what = "Undo · \(what)"
+        case .pick: what = "Your pick · \(what)"
         default: break
         }
         if run.undoneAt != nil { return "\(what) · undone" }
         if run.trigger == .monitor { return "\(what) · watching" }
-        if run.direction == .bidirectional, run.trigger != .firstSync, run.trigger != .undo { return "\(what) · both ways" }
+        if run.direction == .bidirectional, ![.firstSync, .undo, .pick].contains(run.trigger) { return "\(what) · both ways" }
         return what
     }
 
@@ -260,6 +261,7 @@ enum ActivityCopy {
         case .review: "From your review"
         case .conflict: "From your answer to a removal"
         case .undo: "Undo of an earlier sync"
+        case .pick: "Your pick"
         }
         guard let duration = run.duration else { return how }
         let seconds = Int(duration.rounded())

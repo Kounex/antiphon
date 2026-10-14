@@ -70,6 +70,10 @@ final class SyncPair {
     @Relationship(deleteRule: .cascade, inverse: \SyncProblem.pair)
     var problems: [SyncProblem] = []
 
+    /// Versions the person picked, one per song.
+    @Relationship(deleteRule: .cascade, inverse: \PinnedMatch.syncPair)
+    var pins: [PinnedMatch] = []
+
     init(
         spotifyPlaylistId: String,
         spotifyPlaylistName: String,

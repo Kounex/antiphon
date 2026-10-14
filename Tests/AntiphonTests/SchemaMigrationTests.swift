@@ -60,6 +60,7 @@ struct SchemaMigrationTests {
         #expect(pair.pausedAt == nil)
         #expect(pair.notifyNewTracks == false)
         #expect(pair.spotifyCreatedByAntiphon == false)
+        #expect(pair.pins.isEmpty)
 
         let track = try #require(pair.cachedTracks.first)
         #expect(track.matchConfidence == nil)
