@@ -159,6 +159,18 @@ actor PreviewSeamRepository: SeamRepository {
     }
 
     func seams() async throws -> [SeamSummary] { summaries }
+
+    /// `shell/store-live`: a seam's synced count while its sync runs.
+    func setSynced(_ synced: Int, seamId: UUID) {
+        guard let i = summaries.firstIndex(where: { $0.id == seamId }) else { return }
+        let s = summaries[i]
+        summaries[i] = SeamSummary(id: s.id, spotify: s.spotify, appleMusic: s.appleMusic, direction: s.direction,
+                                   isMonitored: s.isMonitored, isPaused: s.isPaused,
+                                   monitorIntervalMinutes: s.monitorIntervalMinutes, lastCheckedAt: s.lastCheckedAt,
+                                   lastResult: s.lastResult,
+                                   counts: SeamCounts(synced: synced, review: s.counts.review,
+                                                      missing: s.counts.missing, total: s.counts.total))
+    }
     func create(_ draft: SeamDraft) async throws -> UUID { PreviewFixtures.lateNightDrive.id }
 
     func detail(for id: UUID) async throws -> SeamDetail? {

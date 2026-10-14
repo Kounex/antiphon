@@ -72,7 +72,7 @@ struct DebugRouteView: View {
             AppShell(model: Self.shellModel(option))
                 .tint(.thread)
                 .onAppear {
-                    if option == "syncing" || option == "syncing-several" || option == "store" {
+                    if option == "syncing" || option == "syncing-several" || option == "store" || option == "store-live" {
                         syncCoordinator.simulateRunning(
                             pairId: PreviewFixtures.runClub.id,
                             progress: SyncProgress(totalTracks: 52, completedTracks: 31, failedTracks: 0)
@@ -85,6 +85,7 @@ struct DebugRouteView: View {
                                                    phase: .adding(platformName: "Apple Music"))
                         )
                     }
+                    if option == "store-live" { Self.runStoreSync(syncCoordinator) }
                     if option == "checking" {
                         // Opening the app: one seam still being read, one read with changes waiting.
                         SeamChecks.shared.begin([PreviewFixtures.lateNightDrive.id, PreviewFixtures.gardenSundays.id])
@@ -93,6 +94,27 @@ struct DebugRouteView: View {
                 }
         }
     }
+
+    /// `shell/store-live` (the App Store header and search videos): the store
+    /// home with Run Club's sync running, one track every 0.6 s after a 1 s
+    /// pause, so the accessory and "tracks in sync" count up from the
+    /// screenshot's 31 of 52 to done.
+    @MainActor
+    private static func runStoreSync(_ coordinator: SyncCoordinator) {
+        guard let repository = storeRepository else { return }
+        let id = PreviewFixtures.runClub.id
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            for done in 32...52 {
+                try? await Task.sleep(for: .milliseconds(600))
+                coordinator.simulateRunning(pairId: id, progress: SyncProgress(totalTracks: 52, completedTracks: done, failedTracks: 0))
+                await repository.setSynced(done, seamId: id)
+                StoreChanges.shared.noteChange()
+            }
+        }
+    }
+
+    @MainActor private static var storeRepository: PreviewSeamRepository?
 
     @MainActor
     private static let signedInSpotify: SpotifyAuthManager = {
@@ -121,10 +143,11 @@ struct DebugRouteView: View {
     private static func shellModel(_ option: String?) -> AppShellModel {
         // `store` (or `-AntiphonStoreData YES` with any shell route): the App Store
         // screenshots' data, seven seams and nothing broken.
-        let storeData = option == "store" || UserDefaults.standard.bool(forKey: "AntiphonStoreData")
+        let storeData = option == "store" || option == "store-live" || UserDefaults.standard.bool(forKey: "AntiphonStoreData")
         let repository = storeData
             ? PreviewSeamRepository(seams: PreviewFixtures.storeSeams, showsProblems: false)
             : PreviewSeamRepository()
+        storeRepository = repository
         let accounts = PreviewAccounts()
         accounts.isSpotifyConnected = option != "problems"
         let model = AppShellModel(seams: repository, accounts: accounts,

@@ -138,7 +138,7 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
 
 ## App Store screenshots
 
-Composed in the store-shots repo (`github.com/Kounex/store-shots`, `projects/antiphon/`, its README has the loop), in the style of the screenshot canvas (claude.ai artifact `Nz2fhRTSzhDHWAifDBTL1i`). Review gallery: https://antiphon-gallery.kounex.com (Cloudflare Access). iPhone 6.9″ and iPad 13″ (the app runs on iPad, so App Store Connect needs both). Captures come from `scripts/store_screenshots.sh`.
+Composed in the store-shots repo (`github.com/Kounex/store-shots`, `projects/antiphon/`, its README has the loop), in the style of the screenshot canvas (claude.ai artifact `Nz2fhRTSzhDHWAifDBTL1i`). Review gallery: https://antiphon-gallery.kounex.com (Cloudflare Access). iPhone 6.9″ and iPad 13″ (the app runs on iPad, so App Store Connect needs both). Captures come from `scripts/store_screenshots.sh`. The App Store header and search-result videos (15 s "live images", sets `apple-header` / `apple-search`, cuts `appstore-header` / `appstore-search`) play a recording from `scripts/store_recording.sh` (route `shell/store-live`: Run Club's sync counting up on the store home) on the phone.
 
 ## Other docs
 
