@@ -62,7 +62,8 @@ struct AppShell: View {
                 await model.libraryModel.load()
             }
         }) {
-            NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow, onReview: openSeam)
+            NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow,
+                            syncFlow: { model.syncFlowModels[$0] }, onReview: openSeam)
         }
         .fullScreenCover(item: $model.reviewTarget, onDismiss: { Task { await model.refresh() } }) { target in
             ReviewQueueView(model: model.makeReviewQueue(target), makeDetail: model.makeMatchDetail) {

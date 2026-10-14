@@ -227,6 +227,11 @@ extension NewSeamModel {
         case "compare":
             await loadOverlap()
             return [.twin, .compare]
+        case "sync":
+            // "Preview changes" on the last step: the seam's first preview, inside the wizard.
+            await loadOverlap()
+            let id = (try? await createSeam()) ?? PreviewFixtures.lateNightDrive.id
+            return [.twin, .compare, .rules, .sync(id)]
         default:
             await loadOverlap()
             direction = .bidirectional

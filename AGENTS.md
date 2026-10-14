@@ -123,6 +123,9 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
   - Batch `delete(model:)` fails on the run → change relationship. Delete object by object (`resetAll`).
   - Enum comparisons don't work in `#Predicate`; filter in memory.
 - **SwiftUI:**
+  - Never call anything that writes observed state from a view body, such as a factory that also caches (`AppShellModel.makeSyncFlow`). The write invalidates the body that just read it, so SwiftUI re-renders forever, the main thread spins, and iOS kills the app with `0x8BADF00D`. This was 1.4.0's New seam preview freeze; `shell/newseam/sync` reproduces that path.
+  - A `navigationDestination` doesn't see later changes to the presenting view's `@State`. Read `@Observable` state there instead.
+  - For crashes on the person's phone, pull the reports with `xcrun devicectl device copy from --device <id> --domain-type systemCrashLogs --source / --destination <dir>` and symbolicate the app frames with `atos` against the archive's dSYM (`build/release/Antiphon.xcarchive/dSYMs`).
   - `lazy var` in an `@Observable` class needs `@ObservationIgnored`.
   - `preferredColorScheme` doesn't reach a sheet that's already open, so the theme is set on the windows instead (`AppearanceApplier`).
   - iOS cancels `setAlternateIconName` at launch, so `AppIconSwitcher` waits until the app is active.

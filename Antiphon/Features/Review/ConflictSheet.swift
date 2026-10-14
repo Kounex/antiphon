@@ -68,6 +68,7 @@ struct ConflictSheet: View {
             }
             .padding(Space.s4)
             .background(on ? Color.threadSoft : Color.canvasRaised, in: .rect(cornerRadius: Radius.row))
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])

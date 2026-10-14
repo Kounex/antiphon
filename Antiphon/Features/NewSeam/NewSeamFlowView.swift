@@ -9,7 +9,13 @@ enum NewSeamStep: Hashable {
 /// gets its own twin, comparison, rules and previewed first sync.
 struct NewSeamFlowView: View {
     @State var model: NewSeamModel
+    /// Makes (and caches in the shell) a seam's preview → sync flow. Call it
+    /// from actions only: it writes observed state, and calling it from a view
+    /// body re-rendered that body forever (the 1.4.0 freeze).
     let makeSyncFlow: (UUID) -> SyncFlowModel
+    /// The cached flow, read-only. Observed state, so the pushed step sees it;
+    /// a `navigationDestination` doesn't see later changes to this view's `@State`.
+    let syncFlow: (UUID) -> SyncFlowModel?
     let onReview: (UUID) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -30,15 +36,20 @@ struct NewSeamFlowView: View {
                 case .compare:
                     CompareStep(model: model) { path.append(.rules) }
                 case .rules:
-                    HowToSyncStep(model: model) { id in path.append(.sync(id)) }
+                    HowToSyncStep(model: model) { id in
+                        _ = makeSyncFlow(id)
+                        path.append(.sync(id))
+                    }
                 case .sync(let id):
-                    SyncFlowView(
-                        model: makeSyncFlow(id),
-                        nextName: model.queue?.next?.name,
-                        onReview: { onReview($0); dismiss() },
-                        onNext: { if model.advanceQueue() { path = [.twin] } else { dismiss() } },
-                        onDone: { dismiss() }
-                    )
+                    if let flow = syncFlow(id) {
+                        SyncFlowView(
+                            model: flow,
+                            nextName: model.queue?.next?.name,
+                            onReview: { onReview($0); dismiss() },
+                            onNext: { if model.advanceQueue() { path = [.twin] } else { dismiss() } },
+                            onDone: { dismiss() }
+                        )
+                    }
                 }
             }
         }
@@ -48,7 +59,11 @@ struct NewSeamFlowView: View {
         // A seam unlinked meanwhile frees its playlists.
         .task(id: StoreChanges.shared.revision) { await model.refreshLinked() }
         #if DEBUG
-        .task { let steps = await model.debugPrepare(); if !steps.isEmpty { path = steps } }
+        .task {
+            let steps = await model.debugPrepare()
+            for case .sync(let id) in steps { _ = makeSyncFlow(id) }
+            if !steps.isEmpty { path = steps }
+        }
         #endif
     }
 }
@@ -149,6 +164,7 @@ struct PickPlaylistsStep: View {
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .disabled(reason != nil)
@@ -230,7 +246,9 @@ struct TwinStep: View {
                     Text(title).font(.headline).foregroundStyle(Color.ink)
                     Text(detail).font(.footnote).foregroundStyle(Color.inkMuted)
                 }
+                Spacer(minLength: 0)
             }
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -250,6 +268,7 @@ struct TwinStep: View {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .font(.title2).foregroundStyle(on ? Color.thread : Color.inkFaint)
             }
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .padding(.leading, Space.s6)

@@ -120,6 +120,7 @@ struct MatchDetailView: View {
                             Image(systemName: model.selected?.track.id == version.track.id ? "largecircle.fill.circle" : "circle")
                                 .foregroundStyle(model.selected?.track.id == version.track.id ? Color.thread : Color.inkFaint)
                         }
+                        .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(model.selected?.track.id == version.track.id ? .isSelected : [])

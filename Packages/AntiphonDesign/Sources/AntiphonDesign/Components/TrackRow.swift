@@ -60,6 +60,8 @@ public struct TrackRow: View {
             }
         }
         .padding(.vertical, Space.s1)
+        // As a button label, the whole row takes the tap, not only its text and icons.
+        .contentShape(.rect)
         .opacity(state == .missing ? Opacity.missing : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(title), \(detail)"))
