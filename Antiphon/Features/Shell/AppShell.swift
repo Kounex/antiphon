@@ -42,20 +42,17 @@ struct AppShell: View {
             // focused on it; several open the browsable carousel.
             model.reopenRunningSyncs(ids: Array(syncCoordinator.syncingPairIds), focus: running.seamId)
         })
-        .sheet(isPresented: $model.showsSyncSheet, onDismiss: {
+        // "Sync now": the preview, then the live glass sheet on top.
+        .sheet(item: $model.previewSeamId, onDismiss: {
             // Swiped down: the same as Close, so an abandoned preview doesn't linger.
-            model.hideSyncSheet()
-            Task {
-                await model.refresh()
-                if let seamId = model.pendingConflictSeam {
-                    model.pendingConflictSeam = nil
-                    await model.openFirstConflict(seamId: seamId)
-                }
-            }
-        }) {
-            SyncFlowCarouselSheet(shell: model, onReview: openSeam) { id in
-                model.askAboutRemovals(fromSyncOf: id)
-            }
+            model.closePreview()
+            afterSyncSheet()
+        }) { seamId in
+            SyncPreviewSheet(shell: model, seamId: seamId, onReview: openSeam) { model.askAboutRemovals(fromSyncOf: $0) }
+        }
+        // The bar above the tabs: only the live glass sheet.
+        .sheet(isPresented: $model.showsLiveSheet, onDismiss: afterSyncSheet) {
+            LiveSyncSheet(shell: model, onReview: openSeam) { model.askAboutRemovals(fromSyncOf: $0) }
         }
         .sheet(isPresented: $model.showsNewSeam, onDismiss: {
             model.newSeamSource = nil
@@ -101,6 +98,17 @@ extension AppShell {
     /// Opens a seam's close matches in the review queue.
     func openSeam(_ seamId: UUID) {
         model.openReview(fromSyncOf: seamId)
+    }
+
+    /// After either sync sheet closes: counts follow, and removal questions open.
+    func afterSyncSheet() {
+        Task {
+            await model.refresh()
+            if let seamId = model.pendingConflictSeam {
+                model.pendingConflictSeam = nil
+                await model.openFirstConflict(seamId: seamId)
+            }
+        }
     }
 }
 

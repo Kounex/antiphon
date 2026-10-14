@@ -36,7 +36,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
   - `shell/search-<query>`, `shell/activity`, `shell/activity-new`, `shell/activity-run`
   - `shell/detail`, `shell/rules`, `shell/review`, `shell/review-removal`, `shell/conflict`, `shell/problems`
   - The version picker: `shell/pick` (Antiphon's pick), `shell/pick-yours` (the person's pick), `shell/match` (a close match from a seam's track list)
-  - `shell/preview|syncing|synced`, `shell/syncing-hide` (presses Hide, then reopens from the accessory: screenshot it over time), `shell/syncing-several` (several flows in one sheet), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>` (`sync` is the first preview inside the wizard)
+  - `shell/preview|syncing|synced`, `shell/syncing-hide` (presses Hide, then reopens from the accessory: only the glass sheet, no preview; screenshot it over time), `shell/syncing-several` (the accessory's glass sheet with several syncs), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>` (`sync` is the first preview inside the wizard)
   - `shell/settings`, `shell/settings/<spotify|appleMusic|defaults|matching|monitoring|notifications|help>`
   - `shell/settings-flip-<from>-<to>`: switches the theme with the Settings sheet open.
   - `shell/store`: the App Store home (7 seams, nothing broken, Run Club syncing). `-AntiphonStoreData YES` gives any shell route that data.

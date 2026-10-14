@@ -117,58 +117,69 @@ struct AppShellTests {
                              appleMusicAccount: PreviewAppleMusicAccountReader())
     }
 
-    @Test("Sync now caches the flow, so reopening the same seam hands back the same model")
+    @Test("Sync now opens the preview for that seam, and only that")
     @MainActor
-    func makeSyncFlowCaches() {
+    func syncNowOpensPreview() {
         let model = shellModel()
         let id = UUID()
-        let first = model.makeSyncFlow(seamId: id)
-        #expect(model.makeSyncFlow(seamId: id) !== first, "a fresh 'Sync now' always starts over")
-        let kept = model.makeSyncFlow(seamId: id)
-        kept.debugStart()
         model.openSyncFlow(seamId: id)
-        #expect(model.syncFlowModels[id] === kept, "already running: reuse it rather than restart it")
+        #expect(model.previewSeamId == id)
+        #expect(!model.showsLiveSheet)
+        #expect(model.syncFlowModels[id] != nil)
     }
 
-    @Test("Review from a finished sync closes the sync sheet even with other syncs open, keeping them")
+    @Test("The bar above the tabs opens only the glass sheet, never the preview")
     @MainActor
-    func reviewFromSyncClosesSheet() {
+    func barOpensOnlyLiveSheet() {
         let model = shellModel()
-        let done = UUID(), running = UUID()
-        model.makeSyncFlow(seamId: done).debugFinish(SyncResult(pairId: done, status: .success, tracksAdded: 1))
-        model.reopenRunningSyncs(ids: [running], focus: done)
+        let id = UUID()
+        let flow = model.makeSyncFlow(seamId: id)
+        flow.debugStart()
 
-        model.openReview(fromSyncOf: done)
+        model.reopenRunningSyncs(ids: [id], focus: id)
 
-        #expect(!model.showsSyncSheet, "a sheet can't present the review queue over it")
-        #expect(model.syncFlowModels[running] != nil, "the other sync is still there for the accessory")
-        #expect(model.syncFlowModels[done] == nil)
-        #expect(model.reviewTarget == .init(seamId: done))
-        #expect(model.syncsPath == [.seam(done)])
+        #expect(model.showsLiveSheet)
+        #expect(model.previewSeamId == nil, "the preview stays closed")
+        #expect(model.focusedLiveSeamId == id)
+        #expect(model.syncFlowModels[id] === flow, "the same flow, so the same tracklist")
     }
 
-    @Test("Removals to decide close the sync sheet, so their questions open now, not whenever it's closed")
+    @Test("Hide in the preview puts it away and keeps the running sync for the glass sheet")
     @MainActor
-    func conflictsCloseSheet() {
+    func hidePreviewKeepsSync() {
         let model = shellModel()
-        let asking = UUID(), running = UUID()
-        model.makeSyncFlow(seamId: asking)
-        model.reopenRunningSyncs(ids: [running], focus: asking)
+        let id = UUID()
+        model.openSyncFlow(seamId: id)
+        model.syncFlowModels[id]?.debugStart()
 
-        model.askAboutRemovals(fromSyncOf: asking)
+        model.closePreview()
 
-        #expect(!model.showsSyncSheet)
-        #expect(model.pendingConflictSeam == asking)
-        #expect(model.syncFlowModels[running] != nil)
+        #expect(model.previewSeamId == nil)
+        #expect(model.syncFlowModels[id] != nil)
+        #expect(model.liveSeamIds == [id])
     }
 
-    @Test("Seams not loaded yet keep a stable order in the sheet")
+    @Test("Closing a preview that never started drops it")
     @MainActor
-    func stableOrderForUnknownSeams() {
+    func closeUnstartedPreview() {
         let model = shellModel()
-        let ids = (0..<5).map { _ in UUID() }
-        model.reopenRunningSyncs(ids: ids, focus: nil)
-        #expect(model.orderedSyncFlowSeamIds == ids.sorted { $0.uuidString < $1.uuidString })
+        let id = UUID()
+        model.openSyncFlow(seamId: id)
+        model.closePreview()
+        #expect(model.syncFlowModels[id] == nil)
+    }
+
+    @Test("Sync now on a seam that's syncing opens its glass sheet instead of restarting it")
+    @MainActor
+    func syncNowWhileSyncing() {
+        let model = shellModel()
+        let id = UUID()
+        let flow = model.makeSyncFlow(seamId: id)
+        flow.debugStart()
+        model.openSyncFlow(seamId: id)
+        #expect(model.syncFlowModels[id] === flow)
+        #expect(model.showsLiveSheet)
+        #expect(model.previewSeamId == nil)
     }
 
     @Test("Sync now after a sync finished (while hidden) starts a fresh preview, not the old result")
@@ -178,69 +189,84 @@ struct AppShellTests {
         let id = UUID()
         let finished = model.makeSyncFlow(seamId: id)
         finished.debugFinish(SyncResult(pairId: id, status: .success, tracksAdded: 3))
-
         model.openSyncFlow(seamId: id)
-
         #expect(model.syncFlowModels[id] !== finished)
+        #expect(model.previewSeamId == id)
     }
 
-    @Test("Opening a running sync from the accessory follows it without restarting its preview")
+    @Test("A sync the shell doesn't know yet (started in the background) is followed, not previewed")
     @MainActor
-    func reopenRunningSyncsFollowsUnknownIds() {
+    func reopenFollowsUnknownIds() {
         let model = shellModel()
         let id = UUID()
         model.reopenRunningSyncs(ids: [id], focus: id)
-        #expect(model.showsSyncSheet)
-        #expect(model.focusedSyncSeamId == id)
         guard case .syncing = model.syncFlowModels[id]?.phase else {
             Issue.record("expected a model that follows the running sync")
             return
         }
     }
 
-    @Test("Several running: the carousel orders them by seam name, like the accessory's own list")
+    @Test("The glass sheet lists running and finished syncs by seam name, not previews; unknown seams keep a stable order")
     @MainActor
-    func orderedSyncFlowSeamIds() async {
+    func liveSeamOrder() async {
         let a = seam("Zebra Mix", .spotifyToApple)
         let b = seam("Ambient Focus", .spotifyToApple)
         let model = shellModel([a, b])
         await model.refresh()
-        model.reopenRunningSyncs(ids: [a.id, b.id], focus: nil)
-        #expect(model.orderedSyncFlowSeamIds == [b.id, a.id])
-        #expect(model.focusedSyncSeamId == b.id, "no explicit focus: the first in that order")
+        let unknown = [UUID(), UUID()].sorted { $0.uuidString < $1.uuidString }
+        model.openSyncFlow(seamId: UUID())           // a preview: not in the glass sheet
+        model.closePreview()
+        model.makeSyncFlow(seamId: UUID())            // another preview left open elsewhere
+        model.reopenRunningSyncs(ids: [a.id, b.id] + unknown, focus: nil)
+        #expect(model.liveSeamIds == unknown + [b.id, a.id])
+        #expect(model.focusedLiveSeamId == unknown.first)
     }
 
-    @Test("Hiding keeps a running or finished flow, but drops an abandoned preview")
-    @MainActor
-    func hideSyncSheetKeepsOnlyLiveFlows() {
-        let model = shellModel()
-        let running = UUID()
-        let abandoned = UUID()
-        model.makeSyncFlow(seamId: running).debugStart()
-        model.makeSyncFlow(seamId: abandoned) // still just a preview
-        model.showsSyncSheet = true
-
-        model.hideSyncSheet()
-
-        #expect(!model.showsSyncSheet)
-        #expect(model.syncFlowModels[running] != nil, "still running: kept, so reopening shows the same thing")
-        #expect(model.syncFlowModels[abandoned] == nil, "never started: nothing to keep")
-    }
-
-    @Test("Closing one seam's flow moves focus to another still open, or closes the sheet if none are left")
+    @Test("Closing one seam's flow moves the glass sheet to another, or closes it when none are left")
     @MainActor
     func closeSyncFlowMovesFocusOrCloses() {
         let model = shellModel()
-        let a = UUID()
-        let b = UUID()
+        let a = UUID(), b = UUID()
         model.reopenRunningSyncs(ids: [a, b], focus: a)
 
         model.closeSyncFlow(seamId: a)
-        #expect(model.showsSyncSheet, "one flow is still open")
-        #expect(model.focusedSyncSeamId == b)
+        #expect(model.showsLiveSheet)
+        #expect(model.focusedLiveSeamId == b)
 
         model.closeSyncFlow(seamId: b)
-        #expect(!model.showsSyncSheet, "nothing left to show")
+        #expect(!model.showsLiveSheet)
+    }
+
+    @Test("Review from a sync's result closes the sheets; other syncs stay for the bar")
+    @MainActor
+    func reviewFromSyncClosesSheets() {
+        let model = shellModel()
+        let done = UUID(), running = UUID()
+        model.makeSyncFlow(seamId: done).debugFinish(SyncResult(pairId: done, status: .success, tracksAdded: 1))
+        model.reopenRunningSyncs(ids: [running], focus: done)
+
+        model.openReview(fromSyncOf: done)
+
+        #expect(!model.showsLiveSheet && model.previewSeamId == nil, "a sheet can't present the review queue over it")
+        #expect(model.syncFlowModels[running] != nil)
+        #expect(model.syncFlowModels[done] == nil)
+        #expect(model.reviewTarget == .init(seamId: done))
+        #expect(model.syncsPath == [.seam(done)])
+    }
+
+    @Test("Removals to decide close the sheets, so their questions open now")
+    @MainActor
+    func conflictsCloseSheets() {
+        let model = shellModel()
+        let asking = UUID(), running = UUID()
+        model.makeSyncFlow(seamId: asking)
+        model.reopenRunningSyncs(ids: [running], focus: asking)
+
+        model.askAboutRemovals(fromSyncOf: asking)
+
+        #expect(!model.showsLiveSheet && model.previewSeamId == nil)
+        #expect(model.pendingConflictSeam == asking)
+        #expect(model.syncFlowModels[running] != nil)
     }
 
     @Test("A widget link opens its seam, or New tracks, over whatever was open")

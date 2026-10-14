@@ -38,14 +38,7 @@ struct SyncFlowView: View {
             // Recording a no-change check or removals needs no live sheet.
             showsSyncing = syncing && model.afterApply == .showResult
         }
-        .onChange(of: coordinator.isSyncing(model.seamId)) { wasSyncing, nowSyncing in
-            guard wasSyncing, !nowSyncing, case .syncing = model.phase,
-                  let result = coordinator.lastResults[model.seamId] else { return }
-            Task {
-                await model.finished(with: result)
-                if model.afterApply == .openConflicts, case .done = model.phase { onConflicts(model.seamId) }
-            }
-        }
+        .modifier(FollowsSyncToItsResult(model: model, onConflicts: onConflicts))
         .task {
             // A flow discovered from the accessory (a sync this view never
             // previewed) never gets its seam loaded otherwise.
@@ -93,5 +86,24 @@ struct SyncFlowView: View {
     private var isSyncing: Bool {
         if case .syncing = model.phase { return true }
         return false
+    }
+}
+
+/// When the coordinator finishes this flow's sync while it's on screen: show
+/// the result, or the removal questions when that's all it left.
+struct FollowsSyncToItsResult: ViewModifier {
+    let model: SyncFlowModel
+    let onConflicts: (UUID) -> Void
+    @Environment(SyncCoordinator.self) private var coordinator
+
+    func body(content: Content) -> some View {
+        content.onChange(of: coordinator.isSyncing(model.seamId)) { wasSyncing, nowSyncing in
+            guard wasSyncing, !nowSyncing, case .syncing = model.phase,
+                  let result = coordinator.lastResults[model.seamId] else { return }
+            Task {
+                await model.finished(with: result)
+                if model.asksAboutRemovals { onConflicts(model.seamId) }
+            }
+        }
     }
 }

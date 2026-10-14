@@ -105,13 +105,15 @@ final class AppShellModel {
     /// by the app; previews and tests check nothing.
     @ObservationIgnored var checkSeams: @MainActor () async -> Void = {}
     /// Every seam whose flow is loaded: running, just finished, or mid-preview.
-    /// Kept across the sheet closing and reopening, so "Hide" never loses the
-    /// tracklist or progress — reopening shows exactly what was there before.
+    /// Both sync sheets show these, so "Hide" never loses the tracklist or
+    /// progress: reopening shows exactly what was there before.
     private(set) var syncFlowModels: [UUID: SyncFlowModel] = [:]
-    /// The one sheet for every open sync flow, single or several at once.
-    var showsSyncSheet = false
-    /// Which seam's page the sheet shows first, when more than one is open.
-    var focusedSyncSeamId: UUID?
+    /// "Sync now": the preview sheet for this seam (the live glass sheet on top).
+    var previewSeamId: UUID?
+    /// The bar above the tabs: only the live glass sheet, over whatever is open.
+    var showsLiveSheet = false
+    /// Which sync the glass sheet shows, when several are running.
+    var focusedLiveSeamId: UUID?
     /// The open review queue: one seam, or every seam.
     var reviewTarget: ReviewTarget?
     /// The open two-way removal question.
@@ -198,77 +200,86 @@ final class AppShellModel {
         return model
     }
 
-    /// "Sync now": shows the shell's sheet with a fresh preview, from
-    /// wherever the person is — never changes the selected tab or path.
-    /// Reuses a flow still syncing for this seam rather than restarting it
-    /// from under them; a finished one gives way to a fresh preview.
+    /// "Sync now": the preview for this seam, from wherever the person is
+    /// (never a tab or path change). A seam that's syncing shows its glass
+    /// sheet instead of restarting; a finished one gets a fresh preview.
     func openSyncFlow(seamId: UUID) {
-        if syncFlowModels[seamId]?.isSyncing != true {
-            makeSyncFlow(seamId: seamId)
+        if syncFlowModels[seamId]?.isSyncing == true {
+            reopenRunningSyncs(ids: [], focus: seamId)
+            return
         }
-        focusedSyncSeamId = seamId
-        showsSyncSheet = true
+        makeSyncFlow(seamId: seamId)
+        previewSeamId = seamId
     }
 
-    /// The accessory was tapped: reopen every seam it's tracking, each
-    /// keeping whatever content it already had. A seam the shell doesn't
-    /// know about yet (a background-started sync) gets a model that
-    /// follows it rather than previewing it again.
+    /// The bar above the tabs: only the glass sheet with the live progress,
+    /// over whatever is open, each sync keeping the content it had. A sync
+    /// the shell doesn't know yet (started in the background) is followed,
+    /// not previewed again.
     func reopenRunningSyncs(ids: [UUID], focus: UUID?) {
         for id in ids where syncFlowModels[id] == nil {
             makeSyncFlow(seamId: id).followRunningSync()
         }
-        focusedSyncSeamId = focus ?? orderedSyncFlowSeamIds.first
-        showsSyncSheet = true
+        focusedLiveSeamId = focus.flatMap { liveSeamIds.contains($0) ? $0 : nil } ?? liveSeamIds.first
+        showsLiveSheet = true
     }
 
-    /// Every open flow, in the order the carousel shows them (by seam name,
-    /// like the accessory's own list).
-    var orderedSyncFlowSeamIds: [UUID] {
+    /// The glass sheet's syncs: running or finished (not previews), by seam
+    /// name like the bar's own list, and stable for seams not loaded yet.
+    var liveSeamIds: [UUID] {
         let names = Dictionary(seams.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
-        return syncFlowModels.keys.sorted { a, b in
+        return syncFlowModels.filter { $0.value.keepsStateWhileHidden }.keys.sorted { a, b in
             let order = (names[a] ?? "").localizedStandardCompare(names[b] ?? "")
             return order == .orderedSame ? a.uuidString < b.uuidString : order == .orderedAscending
         }
     }
 
-    /// "Review" on a sync's result: the sheet closes, since it can't present
-    /// the review queue over itself; other syncs stay for the accessory.
+    /// "Review" on a sync's result: the sheets close, since neither can
+    /// present the review queue over itself; other syncs stay for the bar.
     func openReview(fromSyncOf seamId: UUID) {
         closeSyncFlow(seamId: seamId)
-        hideSyncSheet()
+        closeSheets()
         showsNewSeam = false
         selectedTab = .syncs
         syncsPath = [.seam(seamId)]
         reviewTarget = .init(seamId: seamId)
     }
 
-    /// A sync left only removals to decide: the sheet closes and their
-    /// questions open, instead of waiting until the person closes it.
+    /// A sync left only removals to decide: the sheets close and their
+    /// questions open, instead of waiting until the person closes them.
     func askAboutRemovals(fromSyncOf seamId: UUID) {
         pendingConflictSeam = seamId
         closeSyncFlow(seamId: seamId)
-        hideSyncSheet()
+        closeSheets()
     }
 
-    /// Closes the sheet. A flow that hasn't started yet (an abandoned
-    /// preview) is dropped; a running or just-finished one stays cached so
-    /// reopening it — from anywhere — shows the same content.
-    func hideSyncSheet() {
+    /// Closes the preview (Close, a swipe, or Hide on its glass sheet). A
+    /// preview that never started is dropped; a running sync stays for the bar.
+    func closePreview() {
+        previewSeamId = nil
+        // By flow, not by seam: a swipe clears `previewSeamId` before this runs.
         for (id, flow) in syncFlowModels where !flow.keepsStateWhileHidden {
             syncFlowModels[id] = nil
         }
-        showsSyncSheet = false
-        focusedSyncSeamId = nil
     }
 
-    /// This seam's flow is done being looked at (its result acknowledged,
-    /// or handed off to the removal questions): drop it, and close the
-    /// sheet only if nothing else is open.
+    /// Hide on the glass sheet: every sync keeps running and stays for the bar.
+    func hideLiveSheet() {
+        showsLiveSheet = false
+    }
+
+    private func closeSheets() {
+        closePreview()
+        hideLiveSheet()
+    }
+
+    /// This seam's flow is done being looked at (its result acknowledged):
+    /// drop it. The glass sheet moves to another sync, or closes.
     func closeSyncFlow(seamId: UUID) {
         syncFlowModels[seamId] = nil
-        if focusedSyncSeamId == seamId { focusedSyncSeamId = orderedSyncFlowSeamIds.first }
-        if syncFlowModels.isEmpty { showsSyncSheet = false }
+        if previewSeamId == seamId { previewSeamId = nil }
+        if focusedLiveSeamId == seamId { focusedLiveSeamId = liveSeamIds.first }
+        if liveSeamIds.isEmpty { showsLiveSheet = false }
     }
 
     func makeNewSeam() -> NewSeamModel {
@@ -301,7 +312,7 @@ final class AppShellModel {
         showsNewSeam = false
         reviewTarget = nil
         openConflict = nil
-        hideSyncSheet()
+        closeSheets()
         switch link {
         case .seam(let id):
             openSeamDetail(id)
