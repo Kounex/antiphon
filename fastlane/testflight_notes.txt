@@ -1,3 +1,12 @@
+What's new in 1.4.3:
+
+• A song you picked a version for now shows that version's cover in the seam's track list. The preview and the sync's progress sheet show the cover of the version being added.
+• The sync's progress sheet no longer cuts off Pause, Hide or the note below them. It opens a little taller, and expanding it shows more of the tracklist.
+
+Focus for testers:
+• Pick another version for a song: its cover in the seam's list should change to the one you picked.
+• Start a sync: Pause, Hide and "You can leave…" should be fully visible. Drag the sheet up: more tracks should appear.
+
 What's new in 1.4.2:
 
 • The bar above the tabs now opens only the sync's progress sheet, over whatever screen you're on. Before, it also brought back the preview behind it.
