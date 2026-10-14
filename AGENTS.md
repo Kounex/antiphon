@@ -140,6 +140,10 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
 
 Composed in the store-shots repo (`github.com/Kounex/store-shots`, `projects/antiphon/`, its README has the loop), in the style of the screenshot canvas (claude.ai artifact `Nz2fhRTSzhDHWAifDBTL1i`). Review gallery: https://antiphon-gallery.kounex.com (Cloudflare Access). iPhone 6.9″ and iPad 13″ (the app runs on iPad, so App Store Connect needs both). Captures come from `scripts/store_screenshots.sh`. The App Store header and search-result videos (15 s "live images", sets `apple-header` / `apple-search`, cuts `appstore-header` / `appstore-search`) play a recording from `scripts/store_recording.sh` (route `shell/store-live`: Run Club's sync counting up on the store home) on the phone.
 
+## Website
+
+https://antiphon.kounex.com: landing page, `/support` and `/privacy-policy` (the App Store listing's URLs), `/imprint`. Code on the NAS in `~/agent/antiphon-site/` (its AGENTS.md: design, the scroll-drawn thread, deploy, Cloudflare). The privacy policy there is written against this app's code: update it before a release that adds a network call or a new data store.
+
 ## Other docs
 
 - `docs/redesign-plan.md`: the plan and the per-milestone record. Keep adding to it.
