@@ -19,7 +19,7 @@ struct AppShell: View {
         TabView(selection: $model.selectedTab) {
             Tab(AntiphonTab.syncs.title, systemImage: AntiphonTab.syncs.symbol, value: AppShellModel.Tab.syncs) {
                 // Every sync starts from a preview.
-                SyncsRoot(shell: model, onSyncNow: { model.openSyncFlow(seamId: $0) })
+                SyncsRoot(shell: model, onSyncNow: { model.openSyncFlow(seamId: $0, isRunning: syncCoordinator.isSyncing($0)) })
             }
             .badge(AntiphonTab.syncsBadge(reviewCount: model.reviewCount))
 
@@ -51,17 +51,22 @@ struct AppShell: View {
             SyncPreviewSheet(shell: model, seamId: seamId, onReview: openSeam) { model.askAboutRemovals(fromSyncOf: $0) }
         }
         // The bar above the tabs: only the live glass sheet.
-        .sheet(isPresented: $model.showsLiveSheet, onDismiss: afterSyncSheet) {
+        .sheet(isPresented: $model.showsLiveSheet, onDismiss: {
+            // Swiped away: a result it showed has been seen.
+            model.hideLiveSheet()
+            afterSyncSheet()
+        }) {
             LiveSyncSheet(shell: model, onReview: openSeam) { model.askAboutRemovals(fromSyncOf: $0) }
         }
         .sheet(isPresented: $model.showsNewSeam, onDismiss: {
             model.newSeamSource = nil
+            model.closeNewSeam()
             Task {
                 await model.refresh()
                 await model.libraryModel.load()
             }
         }) {
-            NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeSyncFlow,
+            NewSeamFlowView(model: model.makeNewSeam(), makeSyncFlow: model.makeNewSeamSyncFlow,
                             syncFlow: { model.syncFlowModels[$0] }, onReview: openSeam)
         }
         .fullScreenCover(item: $model.reviewTarget, onDismiss: { Task { await model.refresh() } }) { target in
@@ -69,11 +74,14 @@ struct AppShell: View {
                 model.reviewTarget = nil
             }
             .tint(.thread)
+            // A new target is a new queue, never the last one's state.
+            .id(target.id)
         }
         .sheet(item: $model.openConflict, onDismiss: { Task { await model.refresh() } }) { presentation in
             ConflictSheet(model: ConflictModel(item: presentation.item, others: presentation.others, sync: model.sync)) {
                 model.openConflict = nil
             }
+            .id(presentation.id)
         }
         .sheet(item: $model.picking, onDismiss: { Task { await model.refresh() } }) { target in
             VersionPickerView(
@@ -84,6 +92,7 @@ struct AppShell: View {
                 onForget: { try await model.sync.forgetPick(for: target.key, seamId: target.seam.id) },
                 onClose: { model.picking = nil }
             )
+            .id(target.id)
         }
         .sheet(isPresented: $model.showsSettings, onDismiss: { Task { await model.refresh() } }) {
             SettingsView(model: model.makeSettings())

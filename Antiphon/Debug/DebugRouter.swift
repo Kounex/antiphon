@@ -194,6 +194,14 @@ struct DebugRouteView: View {
         case let step? where step.hasPrefix("newseam/"):
             model.showsNewSeam = true
             DebugRoute.newSeamStep = String(step.dropFirst("newseam/".count))
+        case "seam-swap":
+            // One seam's screen, then the path replaced by another (as Review,
+            // a widget or Library do): the second seam must show, not the first.
+            model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id)]
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                model.syncsPath = [.seam(PreviewFixtures.runClub.id)]
+            }
         case "syncing-several":
             model.reopenRunningSyncs(ids: [PreviewFixtures.runClub.id, PreviewFixtures.lateNightDrive.id], focus: nil)
         case "preview", "syncing", "synced", "syncing-hide":

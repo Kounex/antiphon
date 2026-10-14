@@ -19,6 +19,8 @@ struct SyncPreviewSheet: View {
                         onHide: { shell.closePreview() },
                         onConflicts: onConflicts
                     )
+                    // A new flow is a new view: no live-sheet state carries over.
+                    .id(ObjectIdentifier(model))
                 }
             }
             .toolbar {

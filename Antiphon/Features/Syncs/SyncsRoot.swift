@@ -44,8 +44,13 @@ struct SyncsRoot: View {
                         onReview: { shell.reviewTarget = .init(seamId: id) },
                         onOpenTrack: { track in openTrack(track, seamId: id) }
                     )
+                    // Each seam gets its own screen and model. Replacing the
+                    // path in place (Review, a widget, Library) otherwise
+                    // reused the last seam's, so Sync now synced that one.
+                    .id(id)
                 case .rules(let id):
                     RulesView(model: RulesModel(seamId: id, repository: shell.seamRepository), path: $shell.syncsPath)
+                        .id(id)
                 case .problems:
                     ProblemsView(model: shell.makeProblems(), onSignIn: { shell.showsSettings = true },
                                  onOpenSeam: { shell.syncsPath.append(.seam($0)) })

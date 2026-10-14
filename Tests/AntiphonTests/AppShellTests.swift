@@ -194,6 +194,70 @@ struct AppShellTests {
         #expect(model.previewSeamId == id)
     }
 
+    @Test("Sync now on a seam whose sync ended while no one watched: a fresh preview, not its stale progress")
+    @MainActor
+    func syncNowAfterUnwatchedFinish() {
+        let model = shellModel()
+        let id = UUID()
+        let stale = model.makeSyncFlow(seamId: id)
+        stale.debugStart()   // still says syncing; the coordinator is done with it
+        model.openSyncFlow(seamId: id, isRunning: false)
+        #expect(model.syncFlowModels[id] !== stale)
+        #expect(model.previewSeamId == id)
+        #expect(!model.showsLiveSheet)
+    }
+
+    @Test("A result seen in the preview is gone once the preview closes; other finished syncs stay")
+    @MainActor
+    func closingSeenResultDropsIt() {
+        let model = shellModel()
+        let seen = UUID(), other = UUID()
+        model.makeSyncFlow(seamId: other).debugFinish(SyncResult(pairId: other, status: .success, tracksAdded: 2))
+        model.openSyncFlow(seamId: seen)
+        model.syncFlowModels[seen]?.debugFinish(SyncResult(pairId: seen, status: .success, tracksAdded: 1))
+
+        model.closePreview()   // Close, or a swipe (which clears previewSeamId first)
+
+        #expect(model.syncFlowModels[seen] == nil, "Sync now on another seam can't show it later")
+        #expect(model.syncFlowModels[other] != nil)
+    }
+
+    @Test("Swiping the glass sheet away on a result drops that result; running syncs stay")
+    @MainActor
+    func hidingSeenResultDropsIt() {
+        let model = shellModel()
+        let done = UUID(), running = UUID()
+        model.makeSyncFlow(seamId: done).debugFinish(SyncResult(pairId: done, status: .success, tracksAdded: 1))
+        model.reopenRunningSyncs(ids: [running], focus: done)
+
+        model.hideLiveSheet()
+
+        #expect(model.syncFlowModels[done] == nil)
+        #expect(model.syncFlowModels[running] != nil)
+        #expect(model.liveSeamIds == [running])
+    }
+
+    @Test("New seam: closing it drops every flow it showed except running syncs")
+    @MainActor
+    func newSeamFlowsAreReleased() {
+        let model = shellModel()
+        let first = UUID(), second = UUID(), hidden = UUID(), abandoned = UUID()
+        // Two seams in a row: the first one's result, then Next.
+        model.makeNewSeamSyncFlow(seamId: first).debugFinish(SyncResult(pairId: first, status: .success, tracksAdded: 3))
+        model.makeNewSeamSyncFlow(seamId: second).debugFinish(SyncResult(pairId: second, status: .success, tracksAdded: 1))
+        model.makeNewSeamSyncFlow(seamId: hidden).debugStart()
+        model.makeNewSeamSyncFlow(seamId: abandoned)
+        model.makeSyncFlow(seamId: UUID()).debugFinish(SyncResult(pairId: UUID(), status: .success))  // not the wizard's
+
+        model.closeNewSeam()
+
+        #expect(model.syncFlowModels[first] == nil, "seen before Next: Sync now on the second seam can't show it")
+        #expect(model.syncFlowModels[second] == nil, "its result was on screen when the sheet closed")
+        #expect(model.syncFlowModels[abandoned] == nil)
+        #expect(model.syncFlowModels[hidden] != nil, "still syncing: the bar shows it")
+        #expect(model.syncFlowModels.count == 2)
+    }
+
     @Test("A sync the shell doesn't know yet (started in the background) is followed, not previewed")
     @MainActor
     func reopenFollowsUnknownIds() {

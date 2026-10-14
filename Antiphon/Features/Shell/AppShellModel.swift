@@ -200,15 +200,42 @@ final class AppShellModel {
         return model
     }
 
+    /// The New seam flow's own flows, released when it closes.
+    @ObservationIgnored private var newSeamFlowIds: Set<UUID> = []
+    /// The seam the preview sheet shows: a swipe clears `previewSeamId`
+    /// before `closePreview` runs.
+    @ObservationIgnored private var previewedSeamId: UUID?
+
+    /// A flow shown inline in the New seam flow.
+    @discardableResult
+    func makeNewSeamSyncFlow(seamId: UUID) -> SyncFlowModel {
+        newSeamFlowIds.insert(seamId)
+        return makeSyncFlow(seamId: seamId)
+    }
+
+    /// The New seam flow closed: everything it showed is done with, except
+    /// a sync still running (hidden), which the bar keeps.
+    func closeNewSeam() {
+        for id in newSeamFlowIds where syncFlowModels[id]?.isSyncing != true {
+            syncFlowModels[id] = nil
+        }
+        newSeamFlowIds = []
+    }
+
     /// "Sync now": the preview for this seam, from wherever the person is
     /// (never a tab or path change). A seam that's syncing shows its glass
-    /// sheet instead of restarting; a finished one gets a fresh preview.
-    func openSyncFlow(seamId: UUID) {
-        if syncFlowModels[seamId]?.isSyncing == true {
+    /// sheet instead of restarting; otherwise a fresh preview, never an older
+    /// flow. `isRunning` is the coordinator's word, since a flow no one watched
+    /// can still say it's syncing; `nil` trusts the flow.
+    func openSyncFlow(seamId: UUID, isRunning: Bool? = nil) {
+        let flow = syncFlowModels[seamId]
+        if isRunning ?? (flow?.isSyncing == true) {
+            if flow?.isSyncing != true { makeSyncFlow(seamId: seamId).followRunningSync() }
             reopenRunningSyncs(ids: [], focus: seamId)
             return
         }
         makeSyncFlow(seamId: seamId)
+        previewedSeamId = seamId
         previewSeamId = seamId
     }
 
@@ -254,17 +281,28 @@ final class AppShellModel {
     }
 
     /// Closes the preview (Close, a swipe, or Hide on its glass sheet). A
-    /// preview that never started is dropped; a running sync stays for the bar.
+    /// preview that never started is dropped, and so is a result it showed;
+    /// a running sync stays for the bar.
     func closePreview() {
         previewSeamId = nil
-        // By flow, not by seam: a swipe clears `previewSeamId` before this runs.
+        if let id = previewedSeamId, syncFlowModels[id]?.isSyncing != true {
+            syncFlowModels[id] = nil
+        }
+        previewedSeamId = nil
         for (id, flow) in syncFlowModels where !flow.keepsStateWhileHidden {
             syncFlowModels[id] = nil
         }
     }
 
-    /// Hide on the glass sheet: every sync keeps running and stays for the bar.
+    /// Hide on the glass sheet, or it was swiped away: every sync keeps
+    /// running for the bar; a result it was showing has been seen.
     func hideLiveSheet() {
+        let ids = liveSeamIds
+        if let shown = focusedLiveSeamId.flatMap({ ids.contains($0) ? $0 : nil }) ?? ids.first,
+           case .done = syncFlowModels[shown]?.phase {
+            syncFlowModels[shown] = nil
+        }
+        focusedLiveSeamId = nil
         showsLiveSheet = false
     }
 

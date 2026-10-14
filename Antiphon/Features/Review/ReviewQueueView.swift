@@ -63,6 +63,7 @@ struct ReviewQueueView: View {
                         },
                         onClose: { detailItem = nil }
                     )
+                    .id(item.id)
                 }
             }
         }

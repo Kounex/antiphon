@@ -33,7 +33,7 @@ struct ActivityRoot: View {
                 }
                 .navigationDestination(for: ActivityRoute.self) { route in
                     switch route {
-                    case .run(let id): RunDetailView(model: shell.makeRunDetail(id)) { shell.openSeamDetail($0) }
+                    case .run(let id): RunDetailView(model: shell.makeRunDetail(id)) { shell.openSeamDetail($0) }.id(id)
                     }
                 }
         }

@@ -695,3 +695,17 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **A picked version kept the old cover in the list.** The seam's track list showed the song's own cover even after a pick. It now shows the picked release's cover, read from the saved pick (`PinnedMatch`'s track, so no new storage). The preview's Every track and the glass sheet's rows show the cover of the version that will be written (`SeamPresentation.cover(of:writing:)`), falling back to the song's own when that one is library-only `musicKit://` art.
 - **The glass sheet cut off its note, sometimes its buttons.** `SyncingView` was a scroll view at half height. It no longer scrolls: the buttons and "You can leave…" are pinned at the bottom, and the rows take the height that's left, as many as fit, centered on the track being added (`SyncingView.window`). The collapsed height is now `SyncingView.collapsed` (62% of the screen, two rows on an iPhone 17 Pro), and expanding shows eight.
 - **Verified:** 441 unit tests (new: the pick's cover in the seam list, the preview's cover choice, the row window). Simulator screenshots of `shell/syncing` collapsed (light) and expanded (dark, from a one-off build that opened it full height), and `shell/syncing-several` (dark). Not tested on the phone.
+
+### Stale data across seams (2026-10-14)
+
+- **Reported:** create a seam, preview and sync it, then do the same for the next one. Opening the second seam and pressing Sync now showed the first seam's information.
+- **Root cause:** screens that keep their model in `@State` keep it when SwiftUI reuses the view for another item. Review from a sync result, widgets, Library and Search open a seam by replacing the Syncs path in place (`[.seam(A)]` → `[.seam(B)]`). The seam screen stayed on A's `SeamDetailModel`, and its Sync now used `model.seamId`, so it previewed A. Reproduced with the new `shell/seam-swap` route: Late Night Drive still showed after the path changed to Run Club, and Run Club shows after the fix.
+- **Fixes:**
+  - Every destination and item sheet is keyed by its item with `.id`: seam, rules, playlist and run screens, the review queue, removal questions, the version pickers, and New seam's sync step.
+  - `SyncFlowView` takes the shell's cached flow as `let`, not `@State`.
+  - Flows are released once they've been seen:
+    - New seam drops every flow it showed when it closes (`closeNewSeam`), except a sync still running.
+    - Closing the preview drops the result it showed.
+    - Hiding or swiping away the glass sheet drops the result it was showing.
+  - Sync now asks the coordinator whether the seam is really syncing. A flow no one watched can still say "syncing" after its sync ended, and it now gets a fresh preview instead.
+- **Verified:** 445 unit tests (new: Sync now after an unwatched finish, closing a seen result in either sheet, New seam releasing its flows). `shell/seam-swap` was screenshotted before and after the fix. Not tested on the phone.

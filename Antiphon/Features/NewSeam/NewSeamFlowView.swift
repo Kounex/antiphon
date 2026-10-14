@@ -50,6 +50,8 @@ struct NewSeamFlowView: View {
                             onDone: { dismiss() },
                             onHide: { dismiss() }
                         )
+                        // The next seam in the queue is its own screen, never the last one's.
+                        .id(id)
                     }
                 }
             }

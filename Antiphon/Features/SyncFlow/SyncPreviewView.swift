@@ -217,6 +217,7 @@ private struct EveryTrackSheet: View {
                         },
                         onClose: { picking = nil }
                     )
+                    .id(target.id)
                 }
             }
         }

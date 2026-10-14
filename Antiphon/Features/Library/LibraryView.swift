@@ -24,6 +24,7 @@ struct LibraryRoot: View {
                     switch route {
                     case .playlist(let playlist):
                         PlaylistDetailView(model: shell.makePlaylistDetail(playlist)) { shell.startSeam(from: playlist) }
+                            .id(playlist.id)
                     }
                 }
         }

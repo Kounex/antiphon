@@ -3,7 +3,9 @@ import SwiftUI
 
 /// Preview, then the live sheet, then the result.
 struct SyncFlowView: View {
-    @State var model: SyncFlowModel
+    /// Owned by the shell's cache. Not `@State`: a reused view would keep
+    /// showing the first seam's flow.
+    let model: SyncFlowModel
     var nextName: String? = nil
     let onReview: (UUID) -> Void
     let onNext: () -> Void

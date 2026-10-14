@@ -36,7 +36,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
   - `shell/search-<query>`, `shell/activity`, `shell/activity-new`, `shell/activity-run`
   - `shell/detail`, `shell/rules`, `shell/review`, `shell/review-removal`, `shell/conflict`, `shell/problems`
   - The version picker: `shell/pick` (Antiphon's pick), `shell/pick-yours` (the person's pick), `shell/match` (a close match from a seam's track list)
-  - `shell/preview|syncing|synced`, `shell/syncing-hide` (presses Hide, then reopens from the accessory: only the glass sheet, no preview; screenshot it over time), `shell/syncing-several` (the accessory's glass sheet with several syncs), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>` (`sync` is the first preview inside the wizard)
+  - `shell/preview|syncing|synced`, `shell/syncing-hide` (presses Hide, then reopens from the accessory: only the glass sheet, no preview; screenshot it over time), `shell/syncing-several` (the accessory's glass sheet with several syncs), `shell/seam-swap` (a seam's screen, then the path replaced by another seam: the second must show), `shell/checking` (cards while opening the app checks), `shell/newseam/<step>` (`sync` is the first preview inside the wizard)
   - `shell/settings`, `shell/settings/<spotify|appleMusic|defaults|matching|monitoring|notifications|help>`
   - `shell/settings-flip-<from>-<to>`: switches the theme with the Settings sheet open.
   - `shell/store`: the App Store home (7 seams, nothing broken, Run Club syncing). `-AntiphonStoreData YES` gives any shell route that data.
@@ -126,6 +126,7 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
 - **SwiftUI:**
   - Never call anything that writes observed state from a view body, such as a factory that also caches (`AppShellModel.makeSyncFlow`). The write invalidates the body that just read it, so SwiftUI re-renders forever, the main thread spins, and iOS kills the app with `0x8BADF00D`. This was 1.4.0's New seam preview freeze; `shell/newseam/sync` reproduces that path.
   - A `navigationDestination` doesn't see later changes to the presenting view's `@State`. Read `@Observable` state there instead.
+  - A view that keeps its model in `@State` keeps it when SwiftUI reuses the view for another item: replacing a path in place (`[.seam(A)]` → `[.seam(B)]`) or changing a sheet's item while it's open. Give every destination and item sheet `.id(<its item>)`. A model the shell owns and caches is passed as `let`, not `@State`. `shell/seam-swap` shows the seam screen case.
   - For crashes on the person's phone, pull the reports with `xcrun devicectl device copy from --device <id> --domain-type systemCrashLogs --source / --destination <dir>` and symbolicate the app frames with `atos` against the archive's dSYM (`build/release/Antiphon.xcarchive/dSYMs`).
   - `lazy var` in an `@Observable` class needs `@ObservationIgnored`.
   - `preferredColorScheme` doesn't reach a sheet that's already open, so the theme is set on the windows instead (`AppearanceApplier`).
