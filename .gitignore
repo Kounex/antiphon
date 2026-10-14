@@ -2,3 +2,10 @@ build/
 .DS_Store
 *.xcuserstate
 xcuserdata/
+
+# Creative videos from store-shots (release media pull): large, re-pullable
+fastlane/assets/**/*.mp4
+fastlane/assets/**/*.mov
+# store-release build stamps
+build/
+fastlane/report.xml

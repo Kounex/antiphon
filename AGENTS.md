@@ -146,4 +146,4 @@ Composed in the store-shots repo (`github.com/Kounex/store-shots`, `projects/ant
 - `docs/SYNC_ENGINE.md`: Stage A/B engine internals.
 - `docs/ARCHITECTURE.md`: concurrency and SwiftData schema.
 - `DESIGN.md`: design system notes.
-- Release flow (version bump, archive, fastlane beta) is in the user's agent memory; TestFlight only when asked.
+- Releases run through store-release (`github.com/Kounex/store-release`, clone at `~/development/tools/store-release`) from `release.yaml`: `release bump` (+ commit and push), `release build ios`, `release beta ios --yes`. Store media: `release media pull` (screenshots committed, videos gitignored), then `release assets ios`, `release submit ios`. Every store write is a dry run without `--yes`. TestFlight only when asked; the new testflight notes section goes on top of `fastlane/testflight_notes.txt` first.

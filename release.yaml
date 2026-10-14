@@ -1,0 +1,45 @@
+# Store releases through store-release (github.com/Kounex/store-release):
+#   release status | preflight | bump [--version x.y.z] | build ios | beta ios [--yes] | ...
+# Writes to App Store Connect are dry runs until --yes. Credentials are env var
+# names only; values never go in this file.
+app:
+  name: Antiphon
+  bundleId: com.kounex.antiphon
+
+version:
+  source: xcodegen
+  file: project.yml
+  build: increment
+
+credentials:
+  appStore:
+    keyId: ANTIPHON_ASC_KEY_ID
+    issuerId: ANTIPHON_ASC_ISSUER_ID
+    keyPath: ANTIPHON_ASC_KEY_PATH
+    fallbackPrefix: OBS_BLADE_ASC      # same Apple team
+
+appStore:
+  appId: "6820627271"
+  devices: [iphone, ipad]
+  build:
+    - [xcodegen, generate]
+    - [xcodebuild, archive, -project, Antiphon.xcodeproj, -scheme, "Antiphon (Release)",
+       -destination, generic/platform=iOS, -archivePath, build/release/Antiphon.xcarchive,
+       -allowProvisioningUpdates, DEVELOPMENT_TEAM=2CCV4GWY52]
+    - [xcodebuild, -exportArchive, -archivePath, build/release/Antiphon.xcarchive,
+       -exportPath, build/release/export, -exportOptionsPlist, fastlane/ExportOptions.plist,
+       -allowProvisioningUpdates]
+  artifact: build/release/export/Antiphon.ipa
+  betaNotes: fastlane/testflight_notes.txt
+  screenshots: fastlane/screenshots/ios
+  assets: fastlane/assets/ios
+
+media:
+  storeShots: { host: nas, project: agent/store-shots/projects/antiphon }
+  map:
+    apple-iphone-6.9: { to: fastlane/screenshots/ios/en-US, prefix: iphone_ }
+    apple-ipad-13: { to: fastlane/screenshots/ios/en-US, prefix: ipad_ }
+    video/appstore-header/appstore-header.mp4: fastlane/assets/ios/header.mp4
+    video/appstore-search/appstore-search.mp4: fastlane/assets/ios/search.mp4
+
+binaryIgnore: [docs/**, "**/*.md", fastlane/**, scripts/**, release.yaml, Tests/**]
