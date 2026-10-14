@@ -9,3 +9,6 @@ fastlane/assets/**/*.mov
 # store-release build stamps
 build/
 fastlane/report.xml
+
+# App Review contact + demo account: personal data, stays on the machine that submits
+fastlane/metadata/ios/review_information/

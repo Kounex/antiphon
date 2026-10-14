@@ -31,6 +31,7 @@ appStore:
        -allowProvisioningUpdates]
   artifact: build/release/export/Antiphon.ipa
   betaNotes: fastlane/testflight_notes.txt
+  metadata: fastlane/metadata/ios
   screenshots: fastlane/screenshots/ios
   assets: fastlane/assets/ios
 
