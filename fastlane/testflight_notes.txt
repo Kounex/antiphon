@@ -1,3 +1,16 @@
+What's new in 1.4.1:
+
+• Choose the version: tap any song in a seam, in Activity › New tracks, in a preview's track list or in Review, and pick exactly which version goes into the other playlist. The sheet says which seam it's for, the search starts with the song's artist and title, and your pick is kept. A synced song gets your pick in place of Antiphon's (in Apple Music playlists you made, Antiphon adds yours and tells you to delete the old one in Music). Undo puts the old version back.
+• Album matching: "Same as source" now finds the same album even when Spotify and Apple Music name it differently ("Word Up! (The Remixes)" is "Word Up!: The Remixes - EP"), and "Original" no longer picks a later compilation.
+• Fixed: previewing right after creating a new seam froze the app until iOS closed it.
+• Fixed: hiding a running sync and reopening it from the bar above the tabs now shows the same tracklist and progress.
+• Rows with a choice (and song rows) take a tap anywhere on the row.
+
+Focus for testers:
+• Create a new seam and preview it right away: it should load, not freeze.
+• Start a sync, tap Hide, tap the bar above the tabs: same tracklist as before hiding.
+• Pick another version for a synced song in one of your own Apple Music playlists: you should be told to delete the old one in Music.
+
 What's new in 1.4.0:
 
 • The sync sheet remembers what it was showing: hide it and reopen it (from the accessory, from anywhere in the app) and it picks up right where it left off, same tracklist and progress, without jumping you to a different screen.
