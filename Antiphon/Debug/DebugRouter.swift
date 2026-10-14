@@ -165,6 +165,13 @@ struct DebugRouteView: View {
         case "match":
             model.syncsPath = [.seam(PreviewFixtures.lateNightDrive.id),
                                .match(seamId: PreviewFixtures.lateNightDrive.id, rowId: PreviewFixtures.reviewItems[0].id)]
+        case "pick", "pick-yours":
+            // Midnight City synced as Antiphon's remaster, or already the person's pick.
+            let item = PreviewFixtures.reviewItems[0]
+            let current = item.candidates[0].track
+            model.picking = PickTarget(seam: PreviewFixtures.lateNightDrive, source: item.source,
+                                       current: option == "pick" ? .antiphonsPick(current) : .yourPick(current),
+                                       candidates: item.candidates)
         case "conflict":
             model.openConflict = .init(item: PreviewFixtures.conflicts[0], others: [PreviewFixtures.conflicts[1]])
         case "problems": model.syncsPath = [.problems]

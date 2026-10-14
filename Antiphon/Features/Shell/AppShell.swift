@@ -76,6 +76,16 @@ struct AppShell: View {
                 model.openConflict = nil
             }
         }
+        .sheet(item: $model.picking, onDismiss: { Task { await model.refresh() } }) { target in
+            VersionPickerView(
+                model: model.makeVersionPicker(target),
+                onUse: { candidate in
+                    try await model.sync.choose(candidate, for: target.key, seamId: target.seam.id).guided
+                },
+                onForget: { try await model.sync.forgetPick(for: target.key, seamId: target.seam.id) },
+                onClose: { model.picking = nil }
+            )
+        }
         .sheet(isPresented: $model.showsSettings, onDismiss: { Task { await model.refresh() } }) {
             SettingsView(model: model.makeSettings())
         }

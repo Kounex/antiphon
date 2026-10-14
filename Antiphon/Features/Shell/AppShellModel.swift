@@ -116,6 +116,8 @@ final class AppShellModel {
     var reviewTarget: ReviewTarget?
     /// The open two-way removal question.
     var openConflict: ConflictPresentation?
+    /// The song whose version picker is open (seam track list, New tracks).
+    var picking: PickTarget?
     /// A seam whose removal questions open once the sync sheet has closed.
     var pendingConflictSeam: UUID?
     private(set) var problemCount = 0
@@ -151,6 +153,10 @@ final class AppShellModel {
 
     func makeReviewQueue(_ target: ReviewTarget) -> ReviewQueueModel {
         ReviewQueueModel(seamId: target.seamId, reviews: reviews, sync: sync)
+    }
+
+    func makeVersionPicker(_ target: PickTarget) -> VersionPickerModel {
+        VersionPickerModel(target: target, search: catalogSearch, preferences: AppPreferences.shared.versionPreferences)
     }
 
     func makeMatchDetail(_ item: ReviewItem) -> MatchDetailModel {
