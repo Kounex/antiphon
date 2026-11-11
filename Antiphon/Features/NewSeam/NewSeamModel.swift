@@ -160,10 +160,26 @@ final class NewSeamModel {
         await refreshLinked()
         // A playlist already in a seam can't be another one's twin: two seams
         // would write into it.
-        let others = (try? await library.playlists(on: source.platform.other))?
-            .filter { $0.isEditable && $0.blockedReason == nil && !linkedPlaylistIds.contains($0.id) } ?? []
+        let all = (try? await library.playlists(on: source.platform.other))?
+            .filter { ($0.isEditable || $0.needsAccessCheck) && $0.blockedReason == nil && !linkedPlaylistIds.contains($0.id) } ?? []
         // Fetch tracks only for the closest names, to keep requests bounded.
-        let closest = others.sorted { TwinRanker.nameSimilarity(source.name, $0.name) > TwinRanker.nameSimilarity(source.name, $1.name) }.prefix(6)
+        let byName = all.sorted { TwinRanker.nameSimilarity(source.name, $0.name) > TwinRanker.nameSimilarity(source.name, $1.name) }
+        // Someone else's playlist (a friend's the person collaborates on) is
+        // a twin only if Spotify gives its tracks. That is asked for the
+        // closest names; the rest aren't offered, to keep requests bounded.
+        var others: [LibraryPlaylist] = []
+        for (rank, playlist) in byName.enumerated() {
+            guard playlist.needsAccessCheck else { others.append(playlist); continue }
+            guard rank < 6, !refusedPlaylistIds.contains(playlist.id) else { continue }
+            if checkedPlaylistIds.contains(playlist.id) { others.append(playlist); continue }
+            if await library.canRead(playlist) {
+                checkedPlaylistIds.insert(playlist.id)
+                others.append(playlist)
+            } else {
+                refusedPlaylistIds.insert(playlist.id)
+            }
+        }
+        let closest = others.prefix(6)
         let sourceTracks = await tracks(of: source)
         var candidates: [TwinRanker.Candidate] = []
         for playlist in others {

@@ -61,3 +61,27 @@ struct TwinSuggesterTests {
         #expect(TwinSuggester.removalPolicy(for: .mirror) == .mirror)
     }
 }
+
+@Suite("Twins found: a friend's playlist")
+@MainActor
+struct FriendsTwinTests {
+    private func scan(refused: Bool) async throws -> [String] {
+        let apple = LibraryPlaylist(platform: .appleMusic, id: "am", name: "selected#WubWub", trackCount: nil, artworkURL: nil,
+                                    detail: "", isEditable: true, blockedReason: nil)
+        let friends = LibraryPlaylist(platform: .spotify, id: "sp", name: "selected#WubWub", trackCount: 59, artworkURL: nil,
+                                      detail: "", isEditable: false, blockedReason: nil, isOwn: false, needsAccessCheck: true)
+        var library = FakeLibrary(playlists: [.appleMusic: [apple], .spotify: [friends]], tracks: [:])
+        if refused { library.refused = ["sp"] }
+        let model = OnboardingModel(library: library,
+                                    seams: SwiftDataSeamRepository(modelContainer: try SharedModelContainer.make(inMemory: true)),
+                                    appleMusic: PreviewAppleMusicAccountReader(), requestAppleMusic: {})
+        await model.scan()
+        return model.suggestions.map(\.title)
+    }
+
+    @Test("A friend's playlist Antiphon can read is suggested as a twin; one Spotify refuses isn't")
+    func friendsPlaylist() async throws {
+        #expect(try await scan(refused: false) == ["selected#WubWub"])
+        #expect(try await scan(refused: true).isEmpty)
+    }
+}

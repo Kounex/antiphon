@@ -261,6 +261,41 @@ struct NewSeamModelTests {
         #expect(model.unavailableReason(for: shared) == nil)
     }
 
+    private func friendsTwin(refused: Bool) async throws -> [String] {
+        let apple = LibraryPlaylist(platform: .appleMusic, id: "Apple Music-WubWub", name: "selected#WubWub", trackCount: nil,
+                                    artworkURL: nil, detail: "", isEditable: true, blockedReason: nil)
+        let friends = LibraryPlaylist(platform: .spotify, id: "Spotify-WubWub", name: "selected#WubWub", trackCount: 59,
+                                      artworkURL: nil, detail: "", isEditable: false, blockedReason: nil, isOwn: false,
+                                      needsAccessCheck: true)
+        // Another friend's playlist with an unrelated name: never asked about, never offered.
+        let far = LibraryPlaylist(platform: .spotify, id: "Spotify-Far", name: "Zzz", trackCount: 5, artworkURL: nil, detail: "",
+                                  isEditable: false, blockedReason: nil, isOwn: false, needsAccessCheck: true)
+        var names = (1...6).map { "Mix \($0)" }.map {
+            LibraryPlaylist(platform: .spotify, id: "Spotify-\($0)", name: $0, trackCount: 1, artworkURL: nil, detail: "",
+                            isEditable: true, blockedReason: nil)
+        }
+        names.append(contentsOf: [friends, far])
+        var library = FakeLibrary(playlists: [.appleMusic: [apple], .spotify: names], tracks: [:])
+        if refused { library.refused = [friends.id] }
+        let model = NewSeamModel(library: library, seams: SwiftDataSeamRepository(modelContainer: try SharedModelContainer.make(inMemory: true)),
+                                 preferences: AppPreferences(defaults: UserDefaults(suiteName: "nsm-\(UUID().uuidString)")!))
+        model.preselect(apple)
+        await model.loadTwins()
+        return model.suggestions.map(\.playlist.name)
+    }
+
+    @Test("Starting from Apple Music, a friend's Spotify playlist Antiphon can read is offered as the twin")
+    func friendsPlaylistAsTwin() async throws {
+        let offered = try await friendsTwin(refused: false)
+        #expect(offered.contains("selected#WubWub"))
+        #expect(!offered.contains("Zzz"), "one that isn't among the closest names isn't asked about, so it isn't offered")
+    }
+
+    @Test("One Spotify refuses isn't offered as a twin")
+    func refusedPlaylistIsNoTwin() async throws {
+        #expect(!(try await friendsTwin(refused: true)).contains("selected#WubWub"))
+    }
+
     @Test("One Spotify refuses is said so, with the reason, and isn't picked")
     func friendsPlaylistRefused() async throws {
         var library = FakeLibrary(playlists: [:], tracks: [:])
