@@ -10,6 +10,7 @@ struct SeamDetailView: View {
     let onSyncNow: (UUID) -> Void
     var onReview: () -> Void = {}
     var onOpenTrack: (SeamTrack) -> Void = { _ in }
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -70,6 +71,15 @@ struct SeamDetailView: View {
                     .tint(.ink)
                 Menu("More", systemImage: "ellipsis") {
                     Button("Rules", systemImage: "slider.horizontal.3") { path.append(.rules(model.seamId)) }
+                    if let seam = model.detail?.summary {
+                        Section {
+                            ForEach([seam.source, seam.source.other], id: \.self) { platform in
+                                if let url = SeamLinks.playlistURL(seam.side(platform)) {
+                                    Button("Open in \(platform.rawValue)", systemImage: "arrow.up.right") { openURL(url) }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             // One thread per screen: the gold belongs to the primary action.
@@ -122,7 +132,10 @@ struct SeamDetailView: View {
 
     /// The cover's colors bleed under the toolbar and fade into the ground.
     private var heroBackground: some View {
-        CoverPlaceholder(seed: model.detail?.summary.name ?? "")
+        let seam = model.detail?.summary
+        return CoverWash(url: CoverWash.loadable([seam.map { $0.side($0.source).artworkURL } ?? nil,
+                                                 seam.map { $0.side($0.source.other).artworkURL } ?? nil]),
+                         seed: seam?.name ?? "")
             .frame(height: 420)
             .backgroundExtensionEffect()
             .mask(LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom))

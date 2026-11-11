@@ -262,7 +262,7 @@ struct PlaylistDetailView: View {
 
     /// The cover's colors bleed under the toolbar and fade into the ground.
     private var heroBackground: some View {
-        CoverPlaceholder(seed: model.playlist.name)
+        CoverWash(url: model.playlist.artworkURL, seed: model.playlist.name)
             .frame(height: 420)
             .backgroundExtensionEffect()
             .mask(LinearGradient(colors: [.black.opacity(0.75), .clear], startPoint: .top, endPoint: .bottom))

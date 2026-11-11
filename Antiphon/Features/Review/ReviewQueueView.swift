@@ -44,12 +44,9 @@ struct ReviewQueueView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    // Closing decides nothing: what's left keeps waiting.
                     Button("Close", systemImage: "xmark", action: onClose).tint(.ink)
-                }
-                if !model.isFinished {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Later", action: onClose).tint(.ink)
-                    }
+                        .accessibilityLabel(model.isFinished ? "Close" : "Close, decide later")
                 }
             }
             .sheet(item: $detailItem) { item in
@@ -77,12 +74,22 @@ struct ReviewQueueView: View {
     private var background: some View {
         ZStack {
             Color.canvas
-            CoverPlaceholder(seed: backgroundSeed)
+            CoverWash(url: backgroundArt, seed: backgroundSeed)
                 .opacity(0.5)
                 .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)
+    }
+
+    /// The cover of the song in question.
+    private var backgroundArt: URL? {
+        switch model.currentEntry {
+        case .match(let item):
+            CoverWash.loadable([item.source.artworkURL.flatMap(URL.init(string:)), item.best?.track.artworkURL.flatMap(URL.init(string:))])
+        case .conflict(let item): item.conflict.track.artworkURL.flatMap(URL.init(string:))
+        case nil: nil
+        }
     }
 
     private var backgroundSeed: String {
@@ -143,26 +150,38 @@ struct ReviewQueueView: View {
 
     private func controls(_ item: ReviewItem) -> some View {
         GlassEffectContainer(spacing: Space.s6) {
-            HStack(spacing: Space.s6) {
-                roundButton("xmark", label: "Skip this track", tint: .statusFailed, prominent: false) { Task { await model.skip() } }
-                roundButton("list.bullet", label: "Pick another version", tint: .ink, prominent: false) { detailItem = item }
-                roundButton("checkmark", label: "Same track, add it", tint: .onThread, prominent: true) { Task { await model.accept() } }
+            HStack(alignment: .top, spacing: Space.s6) {
+                roundButton("xmark", caption: "Skip", label: "Skip this track", tint: .statusFailed, prominent: false) { Task { await model.skip() } }
+                roundButton("list.bullet", caption: "Other versions", label: "Pick another version", tint: .ink, prominent: false) { detailItem = item }
+                roundButton("checkmark", caption: "Same track", label: "Same track, add it", tint: .onThread, prominent: true) { Task { await model.accept() } }
             }
         }
+        // A decision is felt: added lands, skipped taps.
+        .sensoryFeedback(.success, trigger: model.added)
+        .sensoryFeedback(.impact(weight: .light), trigger: model.skipped)
     }
 
-    private func roundButton(_ symbol: String, label: String, tint: Color, prominent: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.title2.weight(.bold))
-                .frame(width: 44, height: 44)
+    /// Each decision says what it is: three unlabelled circles made people guess.
+    private func roundButton(_ symbol: String, caption: String, label: String, tint: Color, prominent: Bool,
+                             action: @escaping () -> Void) -> some View {
+        VStack(spacing: Space.s1) {
+            Button(action: action) {
+                Image(systemName: symbol)
+                    .font(.title2.weight(.bold))
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(prominent ? AnyPrimitiveButtonStyle(.glassProminent) : AnyPrimitiveButtonStyle(.glass))
+            .buttonBorderShape(.circle)
+            .controlSize(.extraLarge)
+            .tint(prominent ? .thread : nil)
+            .foregroundStyle(tint)
+            .accessibilityLabel(label)
+            // Capped: at the largest sizes three captions would crowd out the card.
+            Text(caption).font(.caption).foregroundStyle(Color.inkMuted)
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .multilineTextAlignment(.center)
+                .accessibilityHidden(true)
         }
-        .buttonStyle(prominent ? AnyPrimitiveButtonStyle(.glassProminent) : AnyPrimitiveButtonStyle(.glass))
-        .buttonBorderShape(.circle)
-        .controlSize(.extraLarge)
-        .tint(prominent ? .thread : nil)
-        .foregroundStyle(tint)
-        .accessibilityLabel(label)
     }
 
     private var finished: some View {
@@ -235,11 +254,15 @@ struct ReviewCard: View {
             Text(track.title).font(.headline).foregroundStyle(Color.ink)
             Text([track.artist, track.releaseYear.map(String.init)].compactMap { $0 }.joined(separator: " · "))
                 .font(.footnote).foregroundStyle(Color.inkMuted)
+            // The album is often the whole difference between two versions.
+            if let album = track.album, !album.isEmpty {
+                Text(album).font(.footnote).foregroundStyle(Color.inkMuted).lineLimit(2)
+            }
             Text(MatchComparison.length(track.durationMs)).font(.metricSmall).foregroundStyle(Color.inkMuted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("On \(track.platform.rawValue): \(track.title), \(track.artist), \(MatchComparison.length(track.durationMs))")
+        .accessibilityLabel("On \(track.platform.rawValue): \(track.title), \(track.artist), \(track.album.map { "\($0), " } ?? "")\(MatchComparison.length(track.durationMs))")
     }
 
     @ViewBuilder

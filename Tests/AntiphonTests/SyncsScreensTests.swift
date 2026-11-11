@@ -316,3 +316,16 @@ actor StubDetailRepository: SeamRepository {
     func pickTarget(seamId: UUID, rowId: UUID) async throws -> PickTarget? { nil }
     func pickTarget(seamId: UUID, added: TrackKey, isrc: String?) async throws -> PickTarget? { nil }
 }
+
+@Suite("Seam links")
+struct SeamLinksTests {
+    @Test("A seam's playlists open in their own apps; one not created yet has no link")
+    func links() {
+        let spotify = SeamSide(platform: .spotify, playlistId: "37abc", name: "Late Night Drive", artworkURL: nil)
+        let apple = SeamSide(platform: .appleMusic, playlistId: "p.XYZ", name: "Late Night Drive", artworkURL: nil)
+        let pending = SeamSide(platform: .appleMusic, playlistId: "pending-creation-1", name: "New", artworkURL: nil)
+        #expect(SeamLinks.playlistURL(spotify)?.absoluteString == "https://open.spotify.com/playlist/37abc")
+        #expect(SeamLinks.playlistURL(apple)?.absoluteString == "https://music.apple.com/library/playlist/p.XYZ")
+        #expect(SeamLinks.playlistURL(pending) == nil)
+    }
+}

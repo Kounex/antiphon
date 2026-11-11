@@ -3,6 +3,7 @@ import SwiftUI
 
 /// The outcome in numbers, then the follow-ups in priority order.
 struct SyncedView: View {
+    @State private var didAppear = false
     let model: SyncFlowModel
     let result: SyncResult
     /// The next queued playlist, when several were picked.
@@ -54,13 +55,17 @@ struct SyncedView: View {
             .padding(.top, Space.s6)
         }
         .background(alignment: .top) {
-            CoverPlaceholder(seed: model.seam?.name ?? "")
+            CoverWash(url: CoverWash.loadable([model.seam?.spotify.artworkURL, model.seam?.appleMusic.artworkURL]),
+                      seed: model.seam?.name ?? "")
                 .frame(height: 360).opacity(0.45)
                 .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
                 .ignoresSafeArea(edges: .top)
                 .accessibilityHidden(true)
         }
         .background(Color.canvas)
+        // The result is felt as it lands: done, or something went wrong.
+        .sensoryFeedback(trigger: didAppear) { _, _ in result.status == .failed ? .error : .success }
+        .onAppear { didAppear = true }
         .safeAreaInset(edge: .bottom) {
             GlassEffectContainer(spacing: Space.s2) {
                 VStack(spacing: Space.s2) {

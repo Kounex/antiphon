@@ -175,6 +175,7 @@
 		E50F6D7BBD538C2654D978D8 /* SyncSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02047F91614635F76CB6DE6 /* SyncSheets.swift */; };
 		E555E2FD0A0FFF4FD912F4CD /* AntiphonDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 864C80CC877858BE79EE6B5D /* AntiphonDesign */; };
 		E5F6AEB807218CECD02D544D /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D70BADB8E6EE6E25C849F1D /* SyncService.swift */; };
+		E6C427E10B7A98C7E71BC3EE /* SeamLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71A642D36CDE889BD2BC619 /* SeamLinks.swift */; };
 		E72C9DC668436CE5C6E99C52 /* ReleaseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D02F72E52AAEA70781AD605 /* ReleaseResolver.swift */; };
 		E934FC4482BC728ED0359411 /* QuestionNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC838BC8149311FA1528D59 /* QuestionNotifications.swift */; };
 		EA5A21703A9874B277A9C746 /* ProblemsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A119350F389951E8FECC5131 /* ProblemsTests.swift */; };
@@ -370,6 +371,7 @@
 		A16BA64C76EAD99624915995 /* AccountsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsService.swift; sourceTree = "<group>"; };
 		A4774516C15ECC4AEAB6B1E2 /* VersionPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionPickerTests.swift; sourceTree = "<group>"; };
 		A670DE1D846C51AAD238CC3F /* SyncActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncActivity.swift; sourceTree = "<group>"; };
+		A71A642D36CDE889BD2BC619 /* SeamLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeamLinks.swift; sourceTree = "<group>"; };
 		A75E5474B99BB82ACA895667 /* MatchComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchComparison.swift; sourceTree = "<group>"; };
 		A7925ECBBDE51DEC2FEAE4E6 /* NewSeamFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewSeamFlowView.swift; sourceTree = "<group>"; };
 		A9C3B5C822E9E1C79DBF8DDE /* SeamCountsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeamCountsTests.swift; sourceTree = "<group>"; };
@@ -697,6 +699,7 @@
 				42F95E6D658D51F4DECAFB85 /* RulesView.swift */,
 				B5725CD430FE78E7560E53DD /* SeamDetailModel.swift */,
 				C6C7FCDDBA06A5410AAAE30B /* SeamDetailView.swift */,
+				A71A642D36CDE889BD2BC619 /* SeamLinks.swift */,
 				E1509544D2B1A5B1777C147E /* SeamPresentation.swift */,
 				90C2A5592001819FACCE5550 /* SyncsHomeModel.swift */,
 				57908CB3D0A95E792C5F0FD9 /* SyncsHomeView.swift */,
@@ -1052,7 +1055,7 @@
 					EA8C6988C8C873B417A7B008 = {
 						DevelopmentTeam = 2CCV4GWY52;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.BackgroundModes\": [\"enabled\": true], \"com.apple.developer.musickit\": [\"enabled\": true]]";
+						SystemCapabilities = "[\"com.apple.developer.musickit\": [\"enabled\": true], \"com.apple.BackgroundModes\": [\"enabled\": true]]";
 					};
 				};
 			};
@@ -1241,6 +1244,7 @@
 				D0A479BC546D616ADB137846 /* RulesView.swift in Sources */,
 				A1473E5AA6704F3C6F017C77 /* SeamDetailModel.swift in Sources */,
 				8E186166845694FD6E1499BC /* SeamDetailView.swift in Sources */,
+				E6C427E10B7A98C7E71BC3EE /* SeamLinks.swift in Sources */,
 				3F790A5FEF5DA537CB6DD81E /* SeamPresentation.swift in Sources */,
 				CD7B725994820A4E9693211E /* SeamRepository.swift in Sources */,
 				F2B525910EEF5DCFEFD3735F /* SeamValues.swift in Sources */,

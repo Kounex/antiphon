@@ -65,3 +65,35 @@ public struct CoverPlaceholder: View {
         return (fields[first], fields[(first + offset) % fields.count])
     }
 }
+
+/// A cover's colors as a soft wash, for the ground behind a hero: the
+/// artwork itself, blurred until only its colors are left. Without loadable
+/// artwork (none, or Apple Music library art), the seed's two fields.
+public struct CoverWash: View {
+    public let url: URL?
+    public let seed: String
+
+    public init(url: URL?, seed: String) {
+        self.url = url
+        self.seed = seed
+    }
+
+    /// The first cover that can be loaded from the web, if any.
+    public static func loadable(_ urls: [URL?]) -> URL? {
+        urls.compactMap { $0 }.first { ["http", "https", "file"].contains($0.scheme?.lowercased() ?? "") }
+    }
+
+    public var body: some View {
+        if let url = Self.loadable([url]) {
+            AsyncImage(url: url) { image in
+                // Blurred well past recognition; `opaque` keeps the edges filled.
+                image.resizable().scaledToFill().blur(radius: 60, opaque: true).saturation(1.15)
+            } placeholder: {
+                CoverPlaceholder(seed: seed)
+            }
+            .clipped()
+        } else {
+            CoverPlaceholder(seed: seed)
+        }
+    }
+}
