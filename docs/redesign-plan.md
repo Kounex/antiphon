@@ -835,3 +835,9 @@ An audit of the whole app (docs, about a third of the code closely, 41 simulator
 - `scripts/build-dev.sh` is now `scripts/build-device.sh`: the Debug build keeps the normal bundle ID and installs over Antiphon on the phone. `scripts/selftest.sh` launches `com.kounex.antiphon`.
 - A debug route no longer resets the stored theme on a phone (simulator only): there it runs inside the person's own app.
 - **Verified on the phone, inside the normal app:** the read-only self-test, 18 of 18 (`album` 12 of 12 after today's matching changes; `library` 6 of 6 without any test playlist).
+
+### 1.5.0 (15) on TestFlight (2026-11-11)
+
+- Everything from the audit pass and the entries after it. `release bump --version 1.5.0`, `release build ios`, `release beta ios --yes`: archived, exported, processed and distributed to internal testers.
+- The TestFlight notes ask testers to check the one direction nobody has tested: tracks going into a friend's Spotify playlist.
+- Before a store release: the privacy policy on the website should mention that Antiphon keeps the times iOS ran it in the background on the device. No new party receives data.
