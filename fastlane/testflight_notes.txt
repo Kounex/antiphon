@@ -1,3 +1,23 @@
+What's new in 1.5.0:
+
+• Playlists you share with a friend can be stitched, also when Spotify doesn't mark them as collaborative. Playlists you only follow can't: Spotify doesn't give apps their tracks, and Antiphon says so when you pick one.
+• Getting started: the first screen says what you need (Spotify Premium, an Apple Music subscription, two minutes for a Spotify key). Apple Music connects first. The client ID guide needs one trip to Spotify: "Open the dashboard" copies the redirect address for you.
+• Settings › Spotify › Share this client ID sends a link that fills in your client ID on someone else's iPhone. Add their Spotify email under Users Management first; Spotify allows 5 people per client ID.
+• Review: the three buttons say what they do (Skip, Other versions, Same track) and each card shows the album. A track you skip now shows as skipped in its seam, not as in sync.
+• Matching: spelling the two catalogs disagree on (accents, "&" and "and", "Pt." and "Part") no longer makes a track "not found". A version by an artist whose name only contains the original's is asked about, never added on its own.
+• Notifications name the new tracks instead of counting them.
+• Settings › Monitoring shows how often iOS really ran Antiphon in the background, and how a Shortcuts automation can sync right after you close Spotify or Music.
+• Problems: a playlist that was deleted can be made again from the other side. A playlist Spotify refuses is no longer reported as "Spotify signed you out".
+• Fixed: picking another version of a song could take the song out of an Apple Music playlist when Apple Music was slow to show the new version.
+• A seam's screen takes its colours from the cover. "Show who added each track" is gone: Spotify no longer tells apps who a collaborator is.
+
+Focus for testers:
+• Stitch a playlist a friend shares with you (New seam, Spotify side) and sync it. If tracks should go into the friend's playlist too, check that they arrive there: that direction is untested.
+• Review a close match and tap Skip: the seam should list it under Skipped, and tapping it should let you choose a version after all.
+• Pick another version of a synced song: the new one should take the old one's place, and the song should never be missing.
+• A day after installing, look at Settings › Monitoring: it should say how often iOS ran Antiphon in the background.
+• Rules of a one-way seam into an Apple Music playlist you made yourself: Track order should be a sentence, not three choices.
+
 What's new in 1.4.5:
 
 • Seam cards show what's happening. While a seam is checked, a gold ring spins round the eye between its covers; while it syncs, the arrows there turn. The card's border marks special states: gold with a light running round it while syncing or checking, red when something failed, violet when tracks wait for review. Cards that are all good look as before.
