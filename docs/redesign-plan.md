@@ -810,3 +810,10 @@ An audit of the whole app (docs, about a third of the code closely, 41 simulator
 **Proposed and not built.**
 - Liked Songs as a one-way source. `GET /me/tracks` is still available and the scope is granted, but it changes the seam model, and a real test would copy the whole Liked Songs list into Apple Music.
 - Store screenshots with real-looking covers, localization, a Control Center control.
+
+### Tests stop writing to playlists (2026-11-11)
+
+- **Decision (the person):** syncing with real Spotify and Apple Music playlists is tested enough. Tests no longer create or change playlists, and the "Antiphon…" test playlists on both services are deleted.
+- `scripts/selftest.sh` with no scenario now runs only `album` and `library`, both read only. `library` no longer needs the test playlists: it checks that every Spotify playlist is either usable or blocked with a reason, availability on the person's smallest own Spotify playlist, the twin scan and the search index.
+- The ten scenarios that write (`twoway`, `sameorder`, `undo`, `recheck`, `monitor`, `opencheck`, `pick`, `ownam`, `recreate`, `ask`) are refused by the app (`REFUSED: …`, exit 1) unless launched with `-AntiphonSelfTestWrites YES` (`WRITES=1`). Their code stays as the record of what was verified.
+- **Verified:** 494 unit tests; on the phone, `monitor` is refused and exits 1. The read-only run stopped at `notAuthorized`: Apple Music access was off for the dev app at that moment, so the reworked `library` checks haven't run on the phone yet.

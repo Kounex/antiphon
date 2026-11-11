@@ -2,9 +2,13 @@
 # On-device self-test against the real Spotify and Apple Music accounts.
 # Builds the dev app, waits for an unlocked phone, installs, runs, and prints
 # the [SELFTEST] lines. Full device log: build/logs/selftest.log.
-# usage: scripts/selftest.sh [scenario]   (no scenario = all default scenarios)
-# Scenarios: twoway sameorder album library undo recheck monitor opencheck pick
-#            (only by name: ownam realpreview icon matchprobe). See SelfTestRunner.swift.
+# usage: scripts/selftest.sh [scenario]   (no scenario = album and library, both read only)
+# Read only:  album library matchprobe (and realpreview icon live, by name).
+# Retired:    twoway sameorder undo recheck monitor opencheck pick ownam recreate ask.
+#             They create and change playlists on the real accounts, which the
+#             person no longer wants (2026-11-11). The app refuses them unless
+#             WRITES=1 is set, and that is only for when the person asks.
+# See SelfTestRunner.swift.
 cd "$(dirname "$0")/.."
 DEV=${DEVICE_ID:-E027CD50-71A3-550D-B5FA-24BA79C6EA30}
 APP=build/dev/Build/Products/Debug-iphoneos/Antiphon.app
@@ -23,6 +27,7 @@ ROUTE=selftest${1:+/$1}
 # matchprobe: PROBE="Title|Artist" picks the song (default Word Up by Korn).
 extra=()
 [[ -n $PROBE ]] && extra=(-AntiphonProbe "$PROBE")
+[[ "$WRITES" == 1 ]] && extra+=(-AntiphonSelfTestWrites YES)
 # A locked phone refuses the launch: wait for it to be unlocked.
 for i in {1..60}; do
   xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \

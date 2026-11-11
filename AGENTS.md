@@ -23,7 +23,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 | Simulator build and install | `scripts/screenshot.sh --install` |
 | Screenshot a debug route | `scripts/screenshot.sh shell/library light library` (`WAIT=6` for slow screens) |
 | Dev build for the phone | `scripts/build-dev.sh` (bundle `com.kounex.antiphon.dev`, installed next to the real app) |
-| On-device self-test, real accounts | `scripts/selftest.sh [scenario]` |
+| On-device self-test, real accounts, read only | `scripts/selftest.sh [album\|library\|matchprobe]` |
 | App Store screenshot captures (preview data, both Store simulators) | `scripts/store_screenshots.sh [phone\|tablet\|all] [slot …]` → `build/store_screenshots/` |
 
 - The scheme is **"Antiphon (Debug)"**, not "Antiphon".
@@ -47,18 +47,18 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 
 ### Self-test on real accounts (`Antiphon/Debug/SelfTest/SelfTestRunner.swift`)
 
-- **Scenarios:**
-  - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly), `opencheck` (what opening the app checks), `pick` (swap a synced song for another version, keep it through a sync, undo it).
-  - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app), `matchprobe` (read only: every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`), `recreate` (a seam whose Apple Music playlist is gone gets a new one; leaves an "Antiphon Self-Test (restored)" playlist behind each run).
-  - The dev app has its own Spotify sign-in. If a run prints `Stopped: notAuthenticated`, connect Spotify in the dev app's Settings first.
-- Last full run: **145 passed, 7 failed** (2026-11-11). Three failures were a real bug in version picks, fixed and rerun (`pick` 12 of 12); two were Apple Music not listing an add within 3 minutes; two were missing test playlists. Still failing in `library`: the person's own "Antiphon Test" playlist is gone from Apple Music. Before that: 135 of 135 (2026-10-14).
-- **Rules from the user:**
-  - Only touch playlists whose names start with "Antiphon". "Antiphon Test" (made by the user, used by their real two-way seam) and "Antiphon Test 2" (Antiphon-made) may be used.
-  - The phone must be unlocked and the dev app on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
+- **Tests no longer create or change playlists (the user, 2026-11-11).** Syncing with real Spotify and Apple Music playlists counts as tested; the user deleted the "Antiphon…" test playlists on both services. Don't create new ones.
+- **Read only, the only scenarios to run:**
+  - `scripts/selftest.sh` with no scenario runs `album` (what the matcher picks on the real catalogs) and `library` (both libraries, blocked playlists, availability of the person's smallest own Spotify playlist, the onboarding twin scan, the search index).
+  - By name: `matchprobe` (every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`), `realpreview` (dry run of a seam named "Antiphon Test", if the person has one), `icon` (switches the Home Screen icon), `live` (shows a Live Activity).
+- **Retired, refused by the app:** `twoway`, `sameorder`, `undo`, `recheck`, `monitor`, `opencheck`, `pick`, `ownam`, `recreate`, `ask`. They create, fill, empty and reorder playlists. The code stays as a record of what was verified; it only runs with `WRITES=1 scripts/selftest.sh <scenario>`, and only when the user asks for that themselves.
+- The dev app has its own sign-ins. `Stopped: notAuthenticated` means Spotify isn't connected in the dev app; `Stopped: notAuthorized` means Apple Music access is off for it (iOS Settings › Apps › the dev Antiphon › Media & Apple Music).
+- Last full run with the writing scenarios: **145 passed, 7 failed** (2026-11-11). Three failures were a real bug in version picks, fixed and rerun (`pick` 12 of 12); two were Apple Music not listing an add within 3 minutes; two were missing test playlists. Before that: 135 of 135 (2026-10-14).
+- The phone must be unlocked and the dev app on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
 
 ## How the user wants work done
 
-- **Verify sync and playlist-write changes on the real services before presenting** (self-test or a new scenario). Fakes only encode assumptions; a fake that assumed Apple Music returns catalog IDs once hid a real bug.
+- **Sync and playlist-write changes are verified with unit tests and the read-only self-test, then by the user by hand.** Since 2026-11-11 tests don't write to real playlists (see Self-test). Say plainly which part of a change that leaves untested. Fakes only encode assumptions (a fake that assumed Apple Music returns catalog IDs once hid a real bug), so model them on behaviour recorded here and in `docs/redesign-plan.md`, not on guesses.
 - **Write the test first:** watch it fail, then implement. Keep pure logic (planning, copy, policy) in testable enums or structs; views stay thin.
 - **Every milestone:** build, unit tests, simulator screenshots compared with the board (light, dark, AX5 where relevant), docs updated in `docs/redesign-plan.md`, then commit and push to `main`.
 - **Commits** end with `Assisted-by: Claude Code` and a `Co-Authored-By: Claude …` line. Push after every finished unit of work.

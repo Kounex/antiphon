@@ -49,6 +49,13 @@ final class SelfTestRunner {
     /// One way into Antiphon's Apple Music playlist, for picking a version.
     static let pickName = "Antiphon Self-Test (pick)"
 
+    /// Scenarios that create or change playlists on the real accounts.
+    static let writingScenarios: Set<String> = ["twoway", "sameorder", "undo", "recheck", "monitor", "opencheck", "pick",
+                                                "ownam", "recreate", "ask"]
+    /// `-AntiphonSelfTestWrites YES`: only when the person asks for a
+    /// playlist-writing scenario themselves.
+    static var allowsWrites: Bool { UserDefaults.standard.bool(forKey: "AntiphonSelfTestWrites") }
+
     // MARK: - Run
 
     func run() async {
@@ -57,29 +64,43 @@ final class SelfTestRunner {
         defer { isRunning = false }
         log("Start \(Date().formatted(date: .omitted, time: .standard)), scenario: \(scenario ?? "all")")
         do {
-            if scenario == nil || scenario == "twoway" { try await twoWayOnOwnedPlaylists() }
-            if scenario == nil || scenario == "sameorder" { try await sameOrderOneWay() }
+            // Read only: catalog lookups and reads of both libraries. A
+            // run without a scenario does these and nothing else.
             if scenario == nil || scenario == "album" { try await originalAlbum() }
             if scenario == nil || scenario == "library" { try await libraryReadOnly() }
-            if scenario == nil || scenario == "undo" { try await undoTwoWay() }
-            if scenario == nil || scenario == "recheck" { try await recheckUnavailable() }
-            if scenario == nil || scenario == "monitor" { try await monitorRun() }
-            if scenario == nil || scenario == "opencheck" { try await openCheck() }
-            if scenario == nil || scenario == "pick" { try await pickVersion() }
-            // Writes into the person's own playlist, which their real seams
-            // may use too: only when asked for by name.
-            if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
-            if scenario == "realpreview" { try await previewPersonsSeam() }
             if scenario == "matchprobe" { try await matchProbe() }
-            // Leaves a new "Antiphon Self-Test (restored)" playlist in Apple
-            // Music on every run (apps can't delete playlists): only by name.
-            if scenario == "recreate" { try await recreateDeleted() }
-            // Changes the Home Screen icon (iOS shows a notice): only by name.
+            // Reads the person's seam named "Antiphon Test", if there is one.
+            if scenario == "realpreview" { try await previewPersonsSeam() }
+            // No playlists involved; each changes something the person sees.
             if scenario == "icon" { try await iconFollowsTheme() }
-            // Needs the person to tap a notification button: only by name.
-            if scenario == "ask" { try await askOnLockScreen() }
-            // Shows a Live Activity for the person to look at: only by name.
             if scenario == "live" { try await liveActivity() }
+
+            // Everything below creates, fills, empties or reorders playlists
+            // on the real accounts. Since 2026-11-11 the person doesn't want
+            // tests to do that any more (the playlists were deleted), so
+            // these only run when the launch says so explicitly.
+            if let scenario, Self.writingScenarios.contains(scenario) {
+                guard Self.allowsWrites else {
+                    failed += 1
+                    fail("REFUSED: \(scenario) writes to playlists on the real accounts. Playlist tests are retired; "
+                         + "the read-only ones are album, library and matchprobe.")
+                    log("DONE passed=\(passed) failed=\(failed)")
+                    return
+                }
+                switch scenario {
+                case "twoway": try await twoWayOnOwnedPlaylists()
+                case "sameorder": try await sameOrderOneWay()
+                case "undo": try await undoTwoWay()
+                case "recheck": try await recheckUnavailable()
+                case "monitor": try await monitorRun()
+                case "opencheck": try await openCheck()
+                case "pick": try await pickVersion()
+                case "ownam": try await oneWayOnPersonsPlaylist()
+                case "recreate": try await recreateDeleted()
+                case "ask": try await askOnLockScreen()
+                default: break
+                }
+            }
         } catch {
             // A run that stopped before its checks didn't pass.
             failed += 1
@@ -997,9 +1018,9 @@ final class SelfTestRunner {
         log("Spotify: \(spotify.count) playlists, \(spotify.filter(\.isOwn).count) own, \(spotify.filter(\.isCollaborative).count) collaborative, \(spotify.filter { $0.blockedReason != nil }.count) blocked")
         log("Apple Music: \(apple.count) playlists, \(apple.filter(\.isOwn).count) own; not own: \(apple.filter { !$0.isOwn }.prefix(5).map { "\($0.name) (\($0.detail))" })")
         expect(!spotify.isEmpty && !apple.isEmpty, "both libraries load")
-        let ownApple = Set(apple.filter(\.isOwn).map(\.name))
-        expect([Self.ownedName, Self.userOwnedAppleName].allSatisfy(ownApple.contains),
-               "Apple Music playlists the person or Antiphon made count as their own")
+        // Followed playlists are blocked with a reason, own ones aren't.
+        expect(spotify.allSatisfy { $0.isEditable == ($0.blockedReason == nil) },
+               "every Spotify playlist is either usable or blocked with a reason")
 
         let repository = SwiftDataSeamRepository(modelContainer: SharedModelContainer.container)
         let seams = try await repository.seams()
@@ -1008,15 +1029,18 @@ final class SelfTestRunner {
         log("grid: no twin \(counts[.noTwin] ?? 0), in a seam \(counts[.inSeam] ?? 0), made by me \(counts[.madeByMe] ?? 0); seams \(seams.count)")
         expect(seams.isEmpty || (counts[.inSeam] ?? 0) > 0, "seamed playlists are recognized in the grid")
 
+        // Availability, on the smallest playlist the person made on Spotify
+        // (read only; its name stays out of the log).
         let availability = LiveAvailabilityService()
-        for (platform, list) in [(Platform.spotify, spotify), (.appleMusic, apple)] {
-            guard let playlist = list.first(where: { $0.name == Self.ownedName }) else { continue }
+        if let playlist = spotify.filter({ $0.isOwn && $0.blockedReason == nil && ($0.trackCount ?? 0) > 0 })
+            .min(by: { ($0.trackCount ?? 0) < ($1.trackCount ?? 0) }) {
             let entries = try await library.entries(of: playlist)
             let start = Date()
-            let report = try await availability.check(entries.map(\.track), on: platform.other) { _ in }
-            log("\(platform.rawValue) \(Self.ownedName) → \(platform.other.rawValue): \(PlaylistCopy.availability(report, on: platform.other)) (\(String(format: "%.1f", Date().timeIntervalSince(start))) s)")
-            expect(report.isComplete && report.available.count == entries.count,
-                   "every track of the \(platform.rawValue) self-test playlist is found on \(platform.other.rawValue)")
+            let report = try await availability.check(entries.map(\.track), on: .appleMusic) { _ in }
+            log("a Spotify playlist of \(entries.count) → Apple Music: \(report.available.count) available, \(report.close.count) close, \(report.missing.count) missing (\(String(format: "%.1f", Date().timeIntervalSince(start))) s)")
+            expect(report.isComplete && report.total == entries.count, "the availability check covers every track")
+        } else {
+            log("no own Spotify playlist with tracks to check availability on")
         }
 
         // Collaborator names: counts only, no names in the log.
@@ -1041,9 +1065,7 @@ final class SelfTestRunner {
         for suggestion in onboarding.suggestions.prefix(8) {
             log("  \(suggestion.title): \(suggestion.detail)\(onboarding.checked.contains(suggestion.id) ? " ✓" : "")")
         }
-        let selfTestTwin = onboarding.suggestions.first { $0.title == Self.undoName }
-        expect(selfTestTwin != nil && onboarding.checked.contains(selfTestTwin!.id),
-               "the self-test playlists (same name, same tracks) are found as twins and checked")
+        expect(!onboarding.isScanning, "the twin scan finishes")
 
         let index = try await repository.indexedTracks()
         log("search index: \(index.count) tracks in \(Set(index.map(\.seam.id)).count) seams")
