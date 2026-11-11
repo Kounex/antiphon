@@ -161,3 +161,15 @@ final class OnboardingModel {
         preferences.hasCompletedOnboarding = true
     }
 }
+
+/// Words for the first screens.
+enum OnboardingCopy {
+    /// What it takes, before the first tap. Spotify sets the first and the
+    /// last: apps like this run only for Premium accounts, on a key each
+    /// person (or a friend) creates.
+    static let needs = [
+        "Spotify Premium",
+        "An Apple Music subscription",
+        "Two minutes for a free Spotify key. Antiphon shows you how."
+    ]
+}

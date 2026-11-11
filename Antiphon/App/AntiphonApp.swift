@@ -156,6 +156,11 @@ struct AntiphonApp: App {
         }
         .onOpenURL { url in
             if let link = WidgetLink(url: url) { shellModel.open(link) }
+            // An invite link only fills in the client ID field. Someone
+            // already connected keeps their own: replacing it would sign them out.
+            if let clientId = SpotifyInvite.clientId(from: url), !spotifyAuth.isAuthenticated {
+                AppPreferences.shared.offeredSpotifyClientId = clientId
+            }
         }
         .environment(spotifyAuth)
         .environment(syncCoordinator)

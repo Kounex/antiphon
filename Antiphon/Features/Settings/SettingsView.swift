@@ -211,6 +211,16 @@ struct SpotifyAccountView: View {
             }
             .listRowBackground(Color.canvasRaised)
 
+            if spotifyAuth.isAuthenticated, let clientId = spotifyAuth.clientId, let message = SpotifyInvite.message(clientId: clientId) {
+                Section {
+                    ShareLink(item: message) { Label("Share this client ID", systemImage: "person.2") }
+                        .tint(.ink)
+                } footer: {
+                    Text(SpotifyInvite.sharingNote)
+                }
+                .listRowBackground(Color.canvasRaised)
+            }
+
             if spotifyAuth.isAuthenticated {
                 Section {
                     Button("Disconnect Spotify", role: .destructive) { confirmsDisconnect = true }

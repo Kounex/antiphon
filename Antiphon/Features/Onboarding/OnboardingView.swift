@@ -64,6 +64,21 @@ private struct WelcomeStep: View {
                     .font(.body).foregroundStyle(Color.inkMuted).multilineTextAlignment(.center)
             }
             .padding(.horizontal, Space.s6)
+            // Said before anyone invests a minute: the wall is Spotify's, not ours.
+            VStack(alignment: .leading, spacing: Space.s2) {
+                Text("What you need".uppercased())
+                    .font(.statusLabel).tracking(TypeMetrics.statusLabelTracking).foregroundStyle(Color.inkMuted)
+                ForEach(OnboardingCopy.needs, id: \.self) { need in
+                    Label { Text(need).foregroundStyle(Color.ink) } icon: {
+                        Image(systemName: "checkmark").foregroundStyle(Color.thread)
+                    }
+                    .font(.subheadline)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Space.s4)
+            .background(Color.canvasRaised, in: .rect(cornerRadius: Radius.card))
+            .padding(.horizontal, Space.s5)
             Spacer()
             Button("Get started", action: onStart)
                 .buttonSizing(.flexible)
@@ -102,11 +117,7 @@ private struct ConnectStep: View {
                 StepHeader(step: model.stepNumber, title: "Connect both sides",
                            detail: "Antiphon only reads and edits playlists. It never posts, follows or plays anything.")
 
-                serviceCard(.spotify, connected: spotifyAuth.isAuthenticated,
-                            summary: model.spotifySummary(name: spotifyAuth.userProfile?.displayName)) {
-                    SpotifyConnectForm(auth: spotifyAuth)
-                }
-
+                // The one-tap side first: a quick success before the client ID.
                 serviceCard(.appleMusic, connected: model.appleMusic.access == .allowed, summary: model.appleSummary) {
                     VStack(alignment: .leading, spacing: Space.s3) {
                         Text(model.appleMusic.access == .denied
@@ -121,6 +132,11 @@ private struct ConnectStep: View {
                             .glassButton(.secondary)
                         }
                     }
+                }
+
+                serviceCard(.spotify, connected: spotifyAuth.isAuthenticated,
+                            summary: model.spotifySummary(name: spotifyAuth.userProfile?.displayName)) {
+                    SpotifyConnectForm(auth: spotifyAuth)
                 }
 
                 Text("Your sign-ins stay in the iOS Keychain. Disconnect any time in Settings.")

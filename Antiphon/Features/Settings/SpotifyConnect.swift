@@ -12,6 +12,8 @@ struct SpotifyConnectForm: View {
     @State private var isConnecting = false
     @State private var showsGuide = false
     @FocusState private var isFocused: Bool
+    /// A client ID from an invite link (`SpotifyInvite`), until it's used.
+    @AppStorage(AppPreferences.offeredSpotifyClientIdKey) private var offeredClientId: String?
 
     private var check: SpotifyClientID.Check { SpotifyClientID.check(clientId) }
 
@@ -48,8 +50,10 @@ struct SpotifyConnectForm: View {
                     .font(.footnote).foregroundStyle(Color.statusFailed)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Whoever creates the Spotify app needs Premium. Using someone else's client ID? They have to add your Spotify account under Users Management first. Your client ID stays in this iPhone's Keychain.")
-                .font(.footnote).foregroundStyle(Color.inkMuted)
+            Text(isInvited
+                 ? SpotifyInvite.invitedNote
+                 : "Whoever creates the Spotify app needs Premium. Using someone else's client ID? They have to add your Spotify account under Users Management first. Your client ID stays in this iPhone's Keychain.")
+                .font(.footnote).foregroundStyle(isInvited ? Color.ink : Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
                 save()
@@ -64,8 +68,24 @@ struct SpotifyConnectForm: View {
                 Text(error).font(.footnote).foregroundStyle(Color.statusFailed)
             }
         }
-        .onAppear { clientId = auth.clientId ?? "" }
+        .onAppear {
+            clientId = auth.clientId ?? ""
+            takeOffer()
+        }
+        .onChange(of: offeredClientId) { takeOffer() }
         .sheet(isPresented: $showsGuide) { SpotifyKeyGuide() }
+    }
+
+    /// The field holds the invite's client ID.
+    private var isInvited: Bool {
+        guard let offeredClientId, case .valid(let id) = check else { return false }
+        return id == offeredClientId
+    }
+
+    /// An invite link fills the field in; the person still taps Connect.
+    private func takeOffer() {
+        guard let offeredClientId, clientId.isEmpty || clientId == auth.clientId else { return }
+        clientId = offeredClientId
     }
 
     private var isValid: Bool {
@@ -91,6 +111,7 @@ struct SpotifyConnectForm: View {
         do {
             try await auth.startLogin(presentingFrom: window)
             preferences.spotifySignedInAt = Date()
+            offeredClientId = nil
         } catch {
             SpotifyDebugLog.line("connect failed: \(error)")
             auth.authError = SpotifyAccessCopy.message(for: error)
@@ -102,6 +123,7 @@ struct SpotifyConnectForm: View {
 /// Spotify's "Create app" form; every value to type has a Copy button.
 struct SpotifyKeyGuide: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -122,16 +144,24 @@ struct SpotifyKeyGuide: View {
                 Section {
                     step(1, "Open the Spotify developer dashboard",
                          "Sign in with your Spotify account. Accept the developer terms if Spotify asks.") {
-                        Link(destination: URL(string: "https://developer.spotify.com/dashboard")!) {
+                        // One trip out, one back: the only value that has to
+                        // be exact is already on the clipboard when they arrive.
+                        Button {
+                            UIPasteboard.general.string = AppConstants.Spotify.redirectURI
+                            openURL(URL(string: "https://developer.spotify.com/dashboard")!)
+                        } label: {
                             Label("Open the dashboard", systemImage: "arrow.up.forward.app")
                         }
+                        .buttonStyle(.borderless)
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Color.thread)
+                        Text("This also copies the redirect address for step 2.")
+                            .font(.footnote).foregroundStyle(Color.inkMuted)
                     }
                     step(2, "Tap Create app and fill in the form",
-                         "Copy each value into its field. Leave Website empty.") {
-                        CopyRow(label: "App name", value: "Antiphon")
-                        CopyRow(label: "App description", value: "Playlist sync")
-                        CopyRow(label: "Redirect URI, then tap Add", value: AppConstants.Spotify.redirectURI)
+                         "Name and description can be anything, for example “Antiphon” and “Playlist sync”. Leave Website empty.") {
+                        Text("Paste into **Redirect URIs**, then tap **Add**:")
+                            .font(.subheadline).foregroundStyle(Color.ink)
+                        CopyRow(label: "Redirect URI", value: AppConstants.Spotify.redirectURI)
                         Text("Tick **Web API**, accept the terms and tap **Save**.")
                             .font(.subheadline).foregroundStyle(Color.ink)
                     }
@@ -186,7 +216,9 @@ private struct CopyRow: View {
                 : AnyLayout(HStackLayout(spacing: Space.s2))
             layout {
                 Text(value).font(.callout.monospaced()).foregroundStyle(Color.ink)
-                    .lineLimit(2).textSelection(.enabled)
+                    // the whole value has to be readable: shrink before cutting it off
+                    .lineLimit(2).minimumScaleFactor(0.7).fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button {
                     UIPasteboard.general.string = value

@@ -28,6 +28,7 @@ final class AppPreferences: @unchecked Sendable {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let recentSearches = "recentSearches"
         static let showsCollaboratorNames = "showsCollaboratorNames"
+        static let offeredSpotifyClientId = "offeredSpotifyClientId"
         static let explicitPreference = "explicitPreference"
         static let allowLive = "allowLive"
         static let allowRadioEdits = "allowRadioEdits"
@@ -210,6 +211,14 @@ final class AppPreferences: @unchecked Sendable {
     var showsCollaboratorNames: Bool {
         get { defaults.bool(forKey: Key.showsCollaboratorNames) }
         set { defaults.set(newValue, forKey: Key.showsCollaboratorNames) }
+    }
+
+    /// A client ID that arrived by invite link, waiting to be used
+    /// (`SpotifyInvite`). Not a secret, so it isn't in the Keychain.
+    static let offeredSpotifyClientIdKey = Key.offeredSpotifyClientId
+    var offeredSpotifyClientId: String? {
+        get { defaults.string(forKey: Key.offeredSpotifyClientId) }
+        set { defaults.set(newValue, forKey: Key.offeredSpotifyClientId) }
     }
 
     // MARK: - Appearance
