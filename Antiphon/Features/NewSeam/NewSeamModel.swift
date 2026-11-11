@@ -70,6 +70,7 @@ final class NewSeamModel {
             playlists[side] = try await library.playlists(on: side)
             loadError = nil
         } catch {
+            SpotifyDebugLog.line("New seam: \(side.rawValue) playlists failed: \(error)")
             loadError = side == .spotify
                 ? SpotifyAccessCopy.message(for: error)
                 : "Antiphon couldn't load your \(side.rawValue) playlists. Check that you're signed in."

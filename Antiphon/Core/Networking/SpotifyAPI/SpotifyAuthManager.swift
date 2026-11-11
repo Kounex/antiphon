@@ -63,6 +63,7 @@ final class SpotifyAuthManager: NSObject {
         
         defer { isAuthenticating = false }
         
+        SpotifyDebugLog.line("sign-in starts, client …\(clientId.suffix(4))")
         let verifier = generateCodeVerifier()
         let challenge = generateCodeChallenge(from: verifier)
         self.codeVerifier = verifier
@@ -109,6 +110,7 @@ final class SpotifyAuthManager: NSObject {
             }
         }
         
+        SpotifyDebugLog.line("sign-in came back: \(Self.callbackSummary(callbackURL))")
         guard let callbackItems = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
             .queryItems,
               let code = callbackItems.first(where: { $0.name == "code" })?.value else {
@@ -124,12 +126,14 @@ final class SpotifyAuthManager: NSObject {
         do {
             try await fetchUserProfile(accessToken: accessToken)
         } catch where SpotifyAccessCopy.isRefused(error) {
+            SpotifyDebugLog.line("/me refused after sign-in, signing out again")
             // Sign-in works for any account, but a development-mode app
             // refuses every API call for accounts its owner hasn't added.
             // Don't show that as connected.
             logout()
             throw error
         } catch {
+            SpotifyDebugLog.line("/me after sign-in failed: \(error)")
             accessProblem = SpotifyAccessCopy.message(for: error)
         }
     }
@@ -144,6 +148,7 @@ final class SpotifyAuthManager: NSObject {
             accessProblem = nil
         } catch is CancellationError {
         } catch {
+            SpotifyDebugLog.line("profile load failed: \(error)")
             accessProblem = SpotifyAccessCopy.message(for: error)
             refreshAuthStatus()
         }
@@ -166,6 +171,14 @@ final class SpotifyAuthManager: NSObject {
         isAuthenticated = KeychainManager.load(.spotifyRefreshToken) != nil
     }
     
+    /// The callback without its one-time code: just which keys came back,
+    /// and Spotify's `error` if it sent one.
+    private static func callbackSummary(_ url: URL) -> String {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let error = items.first { $0.name == "error" }?.value
+        return items.map(\.name).joined(separator: ",") + (error.map { " error=\($0)" } ?? "")
+    }
+
     // MARK: - PKCE Helpers
     
     private func generateCodeVerifier() -> String {
@@ -214,10 +227,12 @@ final class SpotifyAuthManager: NSObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
+            SpotifyDebugLog.line("token exchange failed: \((response as? HTTPURLResponse)?.statusCode ?? 0) \(SpotifyDebugLog.body(data))")
             throw SpotifyAuthError.tokenExchangeFailed
         }
         
         let tokenResponse = try JSONDecoder().decode(SpotifyTokenResponse.self, from: data)
+        SpotifyDebugLog.line("token exchange ok, scopes: \(tokenResponse.scope ?? "none")")
         
         try KeychainManager.save(tokenResponse.accessToken, for: .spotifyAccessToken)
         if let newRefresh = tokenResponse.refreshToken {
@@ -240,9 +255,11 @@ final class SpotifyAuthManager: NSObject {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw SpotifyAPIError.invalidResponse }
         guard (200...299).contains(status) else {
+            SpotifyDebugLog.line("/me after sign-in: \(status) \(SpotifyDebugLog.body(data))")
             throw SpotifyAPIError.httpError(statusCode: status, body: String(data: data, encoding: .utf8))
         }
         userProfile = try JSONDecoder().decode(SpotifyUserProfile.self, from: data)
+        SpotifyDebugLog.line("/me ok: \(userProfile?.displayName ?? "no name"), product \(userProfile?.product ?? "not returned")")
         accessProblem = nil
     }
 }

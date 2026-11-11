@@ -130,6 +130,7 @@ actor SpotifyTokenProvider {
             // Only a 400 (invalid_grant / revoked authorization) justifies
             // clearing credentials; transient server errors must not force a re-login.
             let status = (response as? HTTPURLResponse)?.statusCode
+            SpotifyDebugLog.line("token refresh failed: \(status.map(String.init) ?? "no response") \(SpotifyDebugLog.body(data)) client …\(clientId.suffix(4))")
             if status == 400 {
                 KeychainManager.delete(.spotifyAccessToken)
                 KeychainManager.delete(.spotifyRefreshToken)

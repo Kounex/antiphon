@@ -160,6 +160,7 @@
 		D0A479BC546D616ADB137846 /* RulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F95E6D658D51F4DECAFB85 /* RulesView.swift */; };
 		D39F4A6C402FF6C751720021 /* SyncPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461C0753DAE985F5A01BAA86 /* SyncPlanner.swift */; };
 		D5BED70AA85F2997B78D8516 /* CacheAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */; };
+		D784C05F0116EA61E850F28B /* SpotifyDebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8C337AD29697AD6CC62C7E9 /* SpotifyDebugLog.swift */; };
 		D78A1F182316CFE52A2F6D88 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */; };
 		D9C5DA01E91C6022C3E77C08 /* SyncAllRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579C12E5119BDF088AD69850 /* SyncAllRunner.swift */; };
 		DA5C09288CC930214AACD42C /* MatchFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF989E9D0834914D57852A23 /* MatchFinder.swift */; };
@@ -389,6 +390,7 @@
 		B581B0A0088325B387F43EEC /* LibraryIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryIndex.swift; sourceTree = "<group>"; };
 		B7308244F79C3986C69C48A5 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
 		B8179D0F4C44585EC041B8F8 /* TrackMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMatcher.swift; sourceTree = "<group>"; };
+		B8C337AD29697AD6CC62C7E9 /* SpotifyDebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyDebugLog.swift; sourceTree = "<group>"; };
 		BA39821B4B424788A1DAC8CD /* ProblemsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemsModel.swift; sourceTree = "<group>"; };
 		BD6C90F3BFC08DF43DBC0D5E /* RateLimitPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimitPolicyTests.swift; sourceTree = "<group>"; };
 		BF536925D05D8A83BF622EFF /* DebugRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRouter.swift; sourceTree = "<group>"; };
@@ -766,6 +768,7 @@
 				F2EC606DF4B050B3D90EA300 /* SpotifyAccessCopy.swift */,
 				9A234BBA93ADF4EF16D3C4DC /* SpotifyAPIClient.swift */,
 				644381EEF9EFD7CB8D69202E /* SpotifyAuthManager.swift */,
+				B8C337AD29697AD6CC62C7E9 /* SpotifyDebugLog.swift */,
 				1BCF65DC7128B120C0C19F62 /* SpotifyEndpoints.swift */,
 				1F9E5378BE7D55B1A4A7FAF0 /* SpotifyModels.swift */,
 				7E563142628174F1A6C834CF /* SpotifyTokenProvider.swift */,
@@ -1255,6 +1258,7 @@
 				BA74C2BAB518A2D47AC3542E /* SpotifyAuthManager.swift in Sources */,
 				3FAF7F190AAEDCF628D1513B /* SpotifyClientID.swift in Sources */,
 				AA45DEB260B6E8D5B9740D76 /* SpotifyConnect.swift in Sources */,
+				D784C05F0116EA61E850F28B /* SpotifyDebugLog.swift in Sources */,
 				6B4012B49A6E898DC7167FD3 /* SpotifyEndpoints.swift in Sources */,
 				A1C6BC95091097CB5D23A324 /* SpotifyModels.swift in Sources */,
 				8B15F21895B495C9BCE5711A /* SpotifyTokenProvider.swift in Sources */,

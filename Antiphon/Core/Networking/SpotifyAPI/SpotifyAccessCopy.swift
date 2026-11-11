@@ -38,16 +38,20 @@ enum SpotifyAccessCopy {
         return false
     }
 
-    /// `error.message` from Spotify's JSON error body.
+    /// Spotify's own words: `error.message` from a JSON error body, or a
+    /// short plain-text body (what a development-mode 403 sends). HTML and
+    /// long bodies are left out.
     static func spotifyMessage(fromBody body: String?) -> String? {
         struct Envelope: Decodable {
             struct Inner: Decodable { let message: String? }
             let error: Inner
         }
-        guard let data = body?.data(using: .utf8),
-              let message = try? JSONDecoder().decode(Envelope.self, from: data).error.message,
-              !message.isEmpty else { return nil }
-        return message
+        guard let text = body?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        if let message = try? JSONDecoder().decode(Envelope.self, from: Data(text.utf8)).error.message {
+            return message.isEmpty ? nil : message
+        }
+        guard !text.hasPrefix("<"), !text.hasPrefix("{"), text.count <= 300 else { return nil }
+        return text
     }
 
     private static func quoted(_ text: String, _ spotify: String?) -> String {

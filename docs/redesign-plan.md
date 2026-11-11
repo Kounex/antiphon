@@ -738,4 +738,6 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
   - The Spotify settings page loads the profile (who is connected) and shows a banner when Spotify won't answer.
   - New seam's banner shows the reason.
   - The connect form's footnote now covers a shared client ID.
-- **Verified:** 465 unit tests (new: `SpotifyAccessCopyTests`, `NewSeamLoadErrorTests`), simulator screenshot of `shell/settings/spotify`. Installed the dev build on the phone; not yet run against the friend's app.
+- **DEBUG log of Spotify failures** (`SpotifyDebugLog` → `Documents/sync-diagnostics.log`): sign-in steps, granted scopes, every failed call's path, status and body, unreadable replies, refresh failures. No tokens; the client ID only as its last 4 characters. Pull with `xcrun devicectl device copy from … --domain-type appDataContainer --domain-identifier com.kounex.antiphon.dev --source Documents`.
+- **What the phone showed** (friend's client ID, after the friend added the user): sign-in and token exchange fine, then `GET /v1/me → 403 The user is not registered for this application.` Spotify sends that as plain text, not JSON, so `spotifyMessage` now also quotes short plain-text bodies.
+- **Verified:** 466 unit tests (new: `SpotifyAccessCopyTests`, `NewSeamLoadErrorTests`), simulator screenshot of `shell/settings/spotify`, and the dev build on the phone against the friend's app (refusal shown and logged, sign-in not kept).

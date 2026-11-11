@@ -13,6 +13,15 @@ struct SpotifyAccessCopyTests {
         #expect(SpotifyAccessCopy.spotifyMessage(fromBody: "<html>Bad gateway</html>") == nil)
     }
 
+    /// What Spotify actually sent for an account missing from Users
+    /// Management (dev app on the phone, 2026-11-11): plain text, not JSON.
+    @Test func readsAPlainTextBodyToo() {
+        let body = "The user is not registered for this application. Please check your settings on https://developer.spotify.com/dashboard."
+        #expect(SpotifyAccessCopy.spotifyMessage(fromBody: body) == body)
+        #expect(SpotifyAccessCopy.spotifyMessage(fromBody: "  \n") == nil)
+        #expect(SpotifyAccessCopy.spotifyMessage(fromBody: String(repeating: "x", count: 500)) == nil)
+    }
+
     @Test func refusedAccountSaysWhoHasToFixWhatAndQuotesSpotify() {
         let message = SpotifyAccessCopy.message(for: SpotifyAPIError.httpError(statusCode: 403, body: refusedBody))
         #expect(message.contains("Premium"))

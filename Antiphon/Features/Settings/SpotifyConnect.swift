@@ -92,6 +92,7 @@ struct SpotifyConnectForm: View {
             try await auth.startLogin(presentingFrom: window)
             preferences.spotifySignedInAt = Date()
         } catch {
+            SpotifyDebugLog.line("connect failed: \(error)")
             auth.authError = SpotifyAccessCopy.message(for: error)
         }
     }

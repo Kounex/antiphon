@@ -256,10 +256,16 @@ actor SpotifyAPIClient {
         }
         
         guard (200...299).contains(httpResponse.statusCode) else {
+            SpotifyDebugLog.failed(request, status: httpResponse.statusCode, data: data)
             throw SpotifyAPIError.httpError(statusCode: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
         }
         
-        return try decoder.decode(T.self, from: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            SpotifyDebugLog.unreadable(request, error: error)
+            throw error
+        }
     }
 
     /// Same retry pipeline as `executeWithRetry` for requests with no decodable body.
@@ -282,6 +288,7 @@ actor SpotifyAPIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            SpotifyDebugLog.failed(request, status: httpResponse.statusCode, data: data)
             throw SpotifyAPIError.httpError(statusCode: httpResponse.statusCode, body: String(data: data, encoding: .utf8))
         }
     }
