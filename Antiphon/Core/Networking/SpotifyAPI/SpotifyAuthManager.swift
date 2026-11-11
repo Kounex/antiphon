@@ -19,7 +19,10 @@ final class SpotifyAuthManager: NSObject {
     var userProfile: SpotifyUserProfile?
     var isAuthenticating: Bool = false
     var authError: String?
-    
+    /// Signed in, but Spotify won't answer for this account (refused,
+    /// signed out, unreadable reply). Shown on the Spotify settings page.
+    var accessProblem: String?
+
     /// The user-provided Spotify Client ID (BYOK model)
     var clientId: String? {
         get { KeychainManager.load(.spotifyClientId) }
@@ -118,7 +121,32 @@ final class SpotifyAuthManager: NSObject {
         expectedState = nil
         
         let accessToken = try await exchangeCodeForTokens(code: code, verifier: verifier)
-        await fetchUserProfile(accessToken: accessToken)
+        do {
+            try await fetchUserProfile(accessToken: accessToken)
+        } catch where SpotifyAccessCopy.isRefused(error) {
+            // Sign-in works for any account, but a development-mode app
+            // refuses every API call for accounts its owner hasn't added.
+            // Don't show that as connected.
+            logout()
+            throw error
+        } catch {
+            accessProblem = SpotifyAccessCopy.message(for: error)
+        }
+    }
+
+    /// Reads the signed-in account (name, plan) so Settings shows who is
+    /// connected, or why Spotify won't answer.
+    func loadProfile(using client: SpotifyAPIClient = SpotifyAPIClient()) async {
+        // Only a real sign-in (debug routes fake one with no tokens).
+        guard isAuthenticated, KeychainManager.load(.spotifyRefreshToken) != nil else { return }
+        do {
+            userProfile = try await client.getCurrentUser()
+            accessProblem = nil
+        } catch is CancellationError {
+        } catch {
+            accessProblem = SpotifyAccessCopy.message(for: error)
+            refreshAuthStatus()
+        }
     }
     
     /// Logs out and clears all stored tokens.
@@ -129,6 +157,7 @@ final class SpotifyAuthManager: NSObject {
         isAuthenticated = false
         userProfile = nil
         authError = nil
+        accessProblem = nil
     }
     
     /// Re-checks Keychain for auth state. Call after a background token refresh
@@ -202,18 +231,19 @@ final class SpotifyAuthManager: NSObject {
     
     // MARK: - User Profile
     
-    private func fetchUserProfile(accessToken token: String) async {
-        do {
-            guard let url = SpotifyEndpoint.me.url() else { return }
-            
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
-            let (data, _) = try await URLSession.shared.data(for: request)
-            userProfile = try JSONDecoder().decode(SpotifyUserProfile.self, from: data)
-        } catch {
-            print("Failed to fetch Spotify profile: \(error)")
+    /// The first API call after sign-in: proves Spotify answers for this
+    /// account, not just that the browser sign-in went through.
+    private func fetchUserProfile(accessToken token: String) async throws {
+        guard let url = SpotifyEndpoint.me.url() else { throw SpotifyAPIError.invalidURL }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let status = (response as? HTTPURLResponse)?.statusCode else { throw SpotifyAPIError.invalidResponse }
+        guard (200...299).contains(status) else {
+            throw SpotifyAPIError.httpError(statusCode: status, body: String(data: data, encoding: .utf8))
         }
+        userProfile = try JSONDecoder().decode(SpotifyUserProfile.self, from: data)
+        accessProblem = nil
     }
 }
 

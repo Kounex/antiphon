@@ -727,3 +727,15 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
   - All good and paused: no border.
   - Changes between states cross-fade. Reduce Motion keeps a still border and still knots.
 - **Verified:** 455 unit tests (new: border tone and priority, knot). Screenshots: `shell/checking` (dark), `shell/store` (light, review border), `catalog/SyncCard` (dark, every state; a syncing sample was added). Two frames 0.7 s apart differ, so the animations run. Not tested on the phone.
+
+### Spotify says why it refuses an account (2026-11-11)
+
+- **Reported:** after switching to a friend's client ID (the friend owns the app and has Premium; the user doesn't) and being added under Users Management, Settings showed Spotify as connected but New seam said "Couldn't load playlists". Investigated: nothing reuses the old sign-in. Disconnect deletes all three tokens, and every refresh reads the current client ID from the Keychain. But "connected" only meant "a refresh token exists", the profile fetch after sign-in swallowed its error, and New seam replaced Spotify's answer with generic copy, so a 403 from a development-mode app was invisible.
+- **Spotify's rules** (quota modes doc): the owner needs Premium; sign-in works for any account, but API calls for accounts not added under Users Management get 403. Whether added accounts also need Premium isn't stated.
+- **Changed:**
+  - `SpotifyAccessCopy` (pure) turns Spotify errors into plain words and quotes Spotify's own `error.message`. 403 says the app's owner needs Premium and has to add you under Users Management. A reply that doesn't decode names the field.
+  - Sign-in now checks `/me`. On a 403 it signs out again and shows why, instead of "connected".
+  - The Spotify settings page loads the profile (who is connected) and shows a banner when Spotify won't answer.
+  - New seam's banner shows the reason.
+  - The connect form's footnote now covers a shared client ID.
+- **Verified:** 465 unit tests (new: `SpotifyAccessCopyTests`, `NewSeamLoadErrorTests`), simulator screenshot of `shell/settings/spotify`. Installed the dev build on the phone; not yet run against the friend's app.

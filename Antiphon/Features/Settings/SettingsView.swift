@@ -183,6 +183,12 @@ struct SpotifyAccountView: View {
             .frame(maxWidth: .infinity)
             .plainRow()
 
+            if spotifyAuth.isAuthenticated, let problem = spotifyAuth.accessProblem {
+                Banner(tone: .failed, symbol: "exclamationmark.triangle.fill",
+                       title: "Spotify isn't answering for this account", message: problem)
+                    .plainRow()
+            }
+
             if !spotifyAuth.isAuthenticated {
                 SpotifyConnectForm(auth: spotifyAuth)
                     .padding(Space.s4)
@@ -219,6 +225,7 @@ struct SpotifyAccountView: View {
         .background(Color.canvas)
         .navigationTitle("Spotify")
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: spotifyAuth.isAuthenticated) { await spotifyAuth.loadProfile() }
         .confirmationDialog("Disconnect Spotify?", isPresented: $confirmsDisconnect, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) {
                 spotifyAuth.logout()

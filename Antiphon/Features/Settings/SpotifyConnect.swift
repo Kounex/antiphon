@@ -48,7 +48,7 @@ struct SpotifyConnectForm: View {
                     .font(.footnote).foregroundStyle(Color.statusFailed)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Needs Spotify Premium: Spotify only runs the apps you create for Premium accounts. Your client ID stays in this iPhone's Keychain.")
+            Text("Whoever creates the Spotify app needs Premium. Using someone else's client ID? They have to add your Spotify account under Users Management first. Your client ID stays in this iPhone's Keychain.")
                 .font(.footnote).foregroundStyle(Color.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
@@ -92,7 +92,7 @@ struct SpotifyConnectForm: View {
             try await auth.startLogin(presentingFrom: window)
             preferences.spotifySignedInAt = Date()
         } catch {
-            auth.authError = error.localizedDescription
+            auth.authError = SpotifyAccessCopy.message(for: error)
         }
     }
 }
