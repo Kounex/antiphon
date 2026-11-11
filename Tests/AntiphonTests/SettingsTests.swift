@@ -37,6 +37,45 @@ struct MonitoringTests {
         #expect(MonitorSchedule.nextBegin([], defaultMinutes: 15, now: now) == nil)
     }
 
+    @Test("A wake-up that would fall in quiet hours is asked for when they end")
+    func nextSkipsQuietHours() {
+        // 23:30, quiet 23:00–07:00, a seam due in 15 minutes: nothing to do before 07:00.
+        let lateNight = Self.calendar.date(bySettingHour: 23, minute: 30, second: 0, of: now)!
+        let quiet = MonitorGates.QuietHours(startMinute: 23 * 60, endMinute: 7 * 60)
+        let soon = MonitorSchedule.Seam(id: UUID(), intervalMinutes: 15, lastSyncedAt: lateNight)
+        let begin = MonitorSchedule.nextBegin([soon], defaultMinutes: 15, now: lateNight, quietHours: quiet, calendar: Self.calendar)
+        let sevenNextDay = Self.calendar.date(bySettingHour: 7, minute: 0, second: 0,
+                                              of: Self.calendar.date(byAdding: .day, value: 1, to: lateNight)!)!
+        #expect(begin == sevenNextDay)
+        // Outside quiet hours nothing changes.
+        let noon = Self.calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now)!
+        let seam = MonitorSchedule.Seam(id: UUID(), intervalMinutes: 15, lastSyncedAt: noon)
+        #expect(MonitorSchedule.nextBegin([seam], defaultMinutes: 15, now: noon, quietHours: quiet, calendar: Self.calendar)
+                == noon.addingTimeInterval(15 * 60))
+        // Quiet hours within one day (13:00–15:00), asked at 13:10.
+        let midday = MonitorGates.QuietHours(startMinute: 13 * 60, endMinute: 15 * 60)
+        let tenPast = Self.calendar.date(bySettingHour: 13, minute: 10, second: 0, of: now)!
+        let dueSeam = MonitorSchedule.Seam(id: UUID(), intervalMinutes: 15, lastSyncedAt: tenPast)
+        #expect(MonitorSchedule.nextBegin([dueSeam], defaultMinutes: 15, now: tenPast, quietHours: midday, calendar: Self.calendar)
+                == Self.calendar.date(bySettingHour: 15, minute: 0, second: 0, of: now)!)
+    }
+
+    @Test("How often iOS really ran Antiphon, from the runs it recorded")
+    func cadence() {
+        let hours = { (h: Double) in now.addingTimeInterval(-h * 3600) }
+        #expect(MonitorCadence.summary(runs: [hours(30), hours(20), hours(9), hours(2)], now: now)
+                == "iOS ran Antiphon in the background 3 times in the last 24 hours, last 2 h ago.")
+        #expect(MonitorCadence.summary(runs: [hours(0.2)], now: now)
+                == "iOS ran Antiphon in the background once in the last 24 hours, 12 min ago.")
+        #expect(MonitorCadence.summary(runs: [hours(40)], now: now)
+                == "iOS hasn't run Antiphon in the background in the last 24 hours. It decides by how often you open the app.")
+        #expect(MonitorCadence.summary(runs: [], now: now) == nil, "nothing recorded yet: say nothing")
+        // The record is capped and keeps the newest.
+        let many = (0..<400).map { now.addingTimeInterval(Double(-$0) * 600) }
+        #expect(MonitorCadence.recording(now, in: many).count == MonitorCadence.keep)
+        #expect(MonitorCadence.recording(now, in: many).last == now)
+    }
+
     @Test("Gates: Wi-Fi only, Low Power Mode, quiet hours across midnight")
     func gates() {
         var settings = MonitorGates.Settings(wifiOnly: true, pauseInLowPower: true, quietHours: nil)
@@ -72,6 +111,26 @@ struct MonitorNotificationTests {
 
         prefs = MonitorNotifications.Preferences(decide: false, breaks: false, newTracks: .dailySummary)
         #expect(MonitorNotifications.messages([outcome(added: 4, review: 2)], prefs).isEmpty)
+    }
+
+    @Test("New tracks are named, not only counted")
+    func namesTracks() {
+        let prefs = MonitorNotifications.Preferences(decide: false, breaks: false, newTracks: .eachSync)
+        func body(_ titles: [String]) -> String? {
+            let outcome = MonitorNotifications.SeamOutcome(seamId: drive, seamName: "Late Night Drive", added: titles.count,
+                                                           newQuestions: 0, failure: nil, addedTitles: titles)
+            return MonitorNotifications.messages([outcome], prefs).last?.body
+        }
+        #expect(body(["Nightcall"]) == "Nightcall is new in Late Night Drive.")
+        #expect(body(["Nightcall", "A Real Hero"]) == "Nightcall and A Real Hero are new in Late Night Drive.")
+        #expect(body(["Nightcall", "A Real Hero", "Tick of the Clock", "Under Your Spell"])
+                == "Nightcall, A Real Hero and 2 more are new in Late Night Drive.")
+        // Several seams at once stay a count.
+        let other = MonitorNotifications.SeamOutcome(seamId: UUID(), seamName: "Run Club", added: 1, newQuestions: 0,
+                                                     failure: nil, addedTitles: ["Stronger"])
+        let first = MonitorNotifications.SeamOutcome(seamId: drive, seamName: "Late Night Drive", added: 2, newQuestions: 0,
+                                                     failure: nil, addedTitles: ["Nightcall", "A Real Hero"])
+        #expect(MonitorNotifications.messages([first, other], prefs).last?.body == "3 new tracks in 2 seams.")
     }
 
     @Test("The daily summary counts today's tracks; nothing new, no summary")

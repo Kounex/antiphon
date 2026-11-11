@@ -46,8 +46,12 @@ actor SyncEngine {
     /// `only`: the seams a background run found due; `nil` syncs every monitored seam.
     /// `everySeam`: Sync all from the widget also syncs seams set to "Only
     /// when I ask" (tapping it is asking) and skips the cooldown.
+    /// `cheapLook`: a scheduled background run may settle an unchanged seam
+    /// with one look (`UnchangedCheck`). Runs a person asks for (opening the
+    /// app, Sync all, Shortcuts) always read everything: right after a
+    /// change, Spotify can still report the old snapshot (seen on the phone).
     func syncAllMonitored(only: Set<UUID>? = nil, trigger: SyncTrigger = .monitor,
-                          preferences: AppPreferences = .shared, everySeam: Bool = false,
+                          preferences: AppPreferences = .shared, everySeam: Bool = false, cheapLook: Bool = false,
                           progress: (@Sendable (UUID, SyncProgress) async -> Void)? = nil) async -> [SyncResult] {
         let context = ModelContext(modelContainer)
         
@@ -90,7 +94,7 @@ actor SyncEngine {
                 callback = { value in await progress(pairId, value) }
             }
             let result = await monitorSync(pair, context: context, trigger: trigger, preferences: preferences,
-                                           progressCallback: callback)
+                                           cheapLook: cheapLook, progressCallback: callback)
             results.append(result)
         }
         
@@ -104,19 +108,36 @@ actor SyncEngine {
     /// Review, removals follow the seam's policy (Mirror removes unless
     /// "Removals in the background" is off, Ask asks).
     private func monitorSync(_ pair: SyncPair, context: ModelContext, trigger: SyncTrigger,
-                             preferences: AppPreferences, progressCallback: SyncProgressCallback? = nil) async -> SyncResult {
+                             preferences: AppPreferences, cheapLook: Bool = false,
+                             progressCallback: SyncProgressCallback? = nil) async -> SyncResult {
         // A sync already running for this seam (started by the person) wins;
         // don't plan against playlists it is changing.
         let pairId = pair.id
         guard !inProgressSyncPairs.withLock({ $0.contains(pairId) }) else {
             return SyncResult(pairId: pair.id, status: .partial, message: SyncError.syncAlreadyInProgress.localizedDescription)
         }
+        let startedAt = Date()
+        // One cheap look first (`UnchangedCheck`): Spotify's snapshot ID and
+        // the Apple Music track IDs from the library. Read before anything
+        // else, so a change that lands meanwhile can only make the token
+        // older, never newer, than what the run saw.
+        let rules = unchangedRules(pair, preferences)
+        let spotifySnapshot = try? await spotifyClient.playlistSnapshot(playlistId: pair.spotifyPlaylistId)
+        if cheapLook, let spotifySnapshot, pair.unchangedToken != nil,
+           let appleIds = try? await appleMusicManager.playlistTrackIDs(playlistId: pair.appleMusicPlaylistId),
+           UnchangedCheck.canSkip(
+               stored: pair.unchangedToken,
+               live: UnchangedCheck.token(spotifySnapshot: spotifySnapshot, appleMusicIds: appleIds, rules: rules),
+               rows: pair.cachedTracks.map(UnchangedCheck.Row.init), liveAppleIds: Set(appleIds),
+               recheck: preferences.recheckCadence, now: startedAt) {
+            return unchangedRun(pair, context: context, trigger: trigger, startedAt: startedAt)
+        }
+
         let planner = SyncPlanner(
             modelContainer: modelContainer, spotifyClient: spotifyClient, appleMusicManager: appleMusicManager,
             confidence: preferences.confidencePolicy, versionPreferences: preferences.versionPreferences,
             recheck: preferences.recheckCadence
         )
-        let startedAt = Date()
         let planned: PlannedSync
         do {
             planned = try await planner.plan(pairId: pair.id, action: .monitorSync, unattended: .init(
@@ -131,8 +152,48 @@ actor SyncEngine {
         }
         // If a playlist changes between planning and applying, nothing is
         // written (`isStale`) and the next run plans again.
-        return await syncSinglePair(pair, context: context, action: .monitorSync,
-                                    run: RunContext(trigger: trigger, planned: planned), progressCallback: progressCallback)
+        let result = await syncSinglePair(pair, context: context, action: .monitorSync,
+                                          run: RunContext(trigger: trigger, planned: planned), progressCallback: progressCallback)
+        // Ended with nothing written: both playlists are as the plan read
+        // them, so the next look can compare against that. After a run that
+        // wrote, the playlists moved on; the next check reads them in full
+        // and leaves the token.
+        if result.settledChanges == 0, let spotifySnapshot {
+            pair.unchangedToken = UnchangedCheck.token(spotifySnapshot: spotifySnapshot,
+                                                       appleMusicIds: planned.fingerprint.appleMusicIds, rules: rules)
+        } else {
+            pair.unchangedToken = nil
+        }
+        return result
+    }
+
+    /// Everything besides the two playlists that decides what a run does.
+    /// A change to any of it makes the next check a full one.
+    private func unchangedRules(_ pair: SyncPair, _ preferences: AppPreferences) -> String {
+        [pair.syncDirection.rawValue, pair.effectiveRemovalPolicy.rawValue, pair.effectivePlacement.rawValue,
+         "\(preferences.removeInBackground)", "\(preferences.confidencePolicy.autoAddThreshold)",
+         "\(preferences.versionPreferences)", preferences.recheckCadence.rawValue,
+         "\(pair.pinnedTracks.count)"].joined(separator: ",")
+    }
+
+    /// A check that found both playlists exactly as the last run left them.
+    /// It counts as a check (History, "checked just now") like any other
+    /// run that changed nothing.
+    private func unchangedRun(_ pair: SyncPair, context: ModelContext, trigger: SyncTrigger, startedAt: Date) -> SyncResult {
+        let tracks = pair.cachedTracks
+        let flagged = tracks.filter { $0.removalFlag != nil }.count
+        let unmatched = tracks.filter { $0.unmatchedPlatform != nil || $0.effectiveSyncState == .failed }.count
+        let status = pair.lastSyncResult ?? SyncResultStatus.after(tracks)
+        pair.lastSyncedAt = Date()
+        pair.lastInterruptedAt = nil
+        writeLog(pair: pair, context: context, action: .monitorSync, trigger: trigger, startedAt: startedAt, changes: [],
+                 result: status, tracksAdded: 0, tracksRemoved: 0, tracksFailed: unmatched,
+                 tracksMatched: tracks.count - flagged - unmatched, details: pair.lastSyncMessage)
+        print("[SyncEngine] \(pair.spotifyPlaylistName): unchanged since the last run, nothing read in full")
+        var result = SyncResult(pairId: pair.id, status: status, message: pair.lastSyncMessage)
+        result.settledChanges = 0
+        result.skippedUnchanged = true
+        return result
     }
 
     /// Records a run that stopped on `error`: the seam's state, a problem
@@ -477,6 +538,10 @@ actor SyncEngine {
                 total: totalMatched
             )
             
+            // Read before the log takes the changes: notifications name them.
+            let addedTitles = run.changes.filter { $0.kind == .add }.map(\.title)
+            let settledChanges = run.changes.count
+
             pair.lastSyncedAt = Date()
             pair.needsRebuild = false
             ProblemStore.resolveAll(for: pair, in: context)
@@ -493,7 +558,7 @@ actor SyncEngine {
                 details: message
             )
             
-            return SyncResult(
+            var result = SyncResult(
                 pairId: pair.id,
                 status: resultStatus,
                 message: message,
@@ -501,6 +566,9 @@ actor SyncEngine {
                 tracksFlagged: totalRemovalFlags,
                 tracksFailed: tracksFailed
             )
+            result.addedTitles = addedTitles
+            result.settledChanges = settledChanges
+            return result
             
         } catch is CancellationError {
             // User cancellation (or task teardown) arriving mid-write must resume

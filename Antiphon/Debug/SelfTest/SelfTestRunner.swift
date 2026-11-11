@@ -71,6 +71,9 @@ final class SelfTestRunner {
             if scenario == "ownam" { try await oneWayOnPersonsPlaylist() }
             if scenario == "realpreview" { try await previewPersonsSeam() }
             if scenario == "matchprobe" { try await matchProbe() }
+            // Leaves a new "Antiphon Self-Test (restored)" playlist in Apple
+            // Music on every run (apps can't delete playlists): only by name.
+            if scenario == "recreate" { try await recreateDeleted() }
             // Changes the Home Screen icon (iOS shows a notice): only by name.
             if scenario == "icon" { try await iconFollowsTheme() }
             // Needs the person to tap a notification button: only by name.
@@ -433,6 +436,65 @@ final class SelfTestRunner {
         expect(forgotten?.isPicked == false, "and forgets the pick")
     }
 
+    // MARK: - Scenario: a deleted playlist is made again from the other side (by name)
+
+    private func recreateDeleted() async throws {
+        log("== A deleted Apple Music playlist is recreated from Spotify")
+        let seeds = try await spotifySeeds()
+        let spotifyId = try await spotifyPlaylist(named: Self.sameOrderName)
+        let appleId = try await applePlaylist(named: Self.sameOrderName, createIfMissing: true)
+        try await resetSpotify(spotifyId, to: [seeds.wordUp, seeds.faint])
+        try await resetApple(appleId)
+        let env = try Env(spotifyId: spotifyId, appleId: appleId, direction: .spotifyToApple, appleOwned: true)
+        try await env.apply(try await env.preview(first: true), trigger: .firstSync)
+        _ = try await waitForApple(env, titles: ["Word Up", "Faint"])
+
+        // As if the Apple Music playlist had been deleted: the seam points at one that isn't there.
+        let context = ModelContext(env.container)
+        guard let pair = try context.fetch(FetchDescriptor<SyncPair>()).first(where: { $0.id == env.pairId }) else {
+            throw SelfTestError("no seam")
+        }
+        pair.appleMusicPlaylistId = "p.antiphon-selftest-deleted"
+        pair.appleMusicPlaylistName = "Antiphon Self-Test (restored)"
+        try context.save()
+        do {
+            _ = try await env.preview()
+            expect(false, "a preview of a seam whose playlist is gone fails")
+        } catch {
+            let problem = ProblemClassifier.problem(for: (error as? PlanningStopped)?.underlying ?? error, seamName: "self-test")
+            expect(problem?.kind == .playlistDeleted && problem?.platform == .appleMusic, "and it is recognised as a deleted playlist (\(error))")
+            if let problem { ProblemStore.record(problem, for: pair, in: context) }
+            try context.save()
+        }
+        let open = try await env.repository.problems()
+        expect(open.first?.canRecreate == true, "Problems offers to recreate it")
+        guard let record = open.first else { return }
+        _ = try await env.repository.recreatePlaylist(for: record.id)
+        expect(try await env.repository.problems().isEmpty, "the problem is settled")
+
+        let planned = try await env.preview(first: true)
+        log("preview after recreate: \(PlanCopy.headline(for: planned.plan))")
+        expect(planned.plan.side(.appleMusic).automaticAdds.count == 2 && planned.plan.side(.spotify).automaticAdds.isEmpty,
+               "the preview adds both songs to a new Apple Music playlist, nothing to Spotify")
+        try await env.apply(planned, trigger: .firstSync)
+        let after = ModelContext(env.container)
+        guard let restored = try after.fetch(FetchDescriptor<SyncPair>()).first(where: { $0.id == env.pairId }) else {
+            throw SelfTestError("no seam")
+        }
+        expect(!restored.appleMusicPlaylistId.hasPrefix("pending-creation-") && restored.appleMusicPlaylistId != appleId
+               && restored.appleMusicCreatedByAntiphon, "a new playlist was created, and it is Antiphon's")
+        var titles: [String] = []
+        for _ in 0..<10 {
+            titles = try await env.editor.tracks(in: restored.appleMusicPlaylistId, on: .appleMusic).map(\.title)
+            if titles.count >= 2 { break }
+            try await Task.sleep(for: .seconds(2))
+        }
+        expect(titles.contains { $0.localizedCaseInsensitiveContains("Word Up") } && titles.contains { $0.localizedCaseInsensitiveContains("Faint") },
+               "and it holds both songs (\(titles))")
+        let spotifyAfter = try await env.editor.tracks(in: spotifyId, on: .spotify)
+        expect(spotifyAfter.count == 2, "Spotify's playlist is untouched")
+    }
+
     // MARK: - Scenario: match probe (read only, by name)
 
     /// Every candidate the matcher sees for one song, both ways, under each
@@ -632,7 +694,8 @@ final class SelfTestRunner {
         expect(report.due == [env.pairId], "due after its hour")
         expect(report.results.first?.status == .success && report.results.first?.tracksAdded == 1,
                "the run adds the new track (\(report.results.map { "\($0.status) +\($0.tracksAdded)" }))")
-        expect(report.messages.contains { $0.kind == .newTracks && $0.body == "1 new track in self-test." }, "and says so")
+        expect(report.messages.contains { $0.kind == .newTracks && $0.body.hasSuffix("is new in self-test.") },
+               "and says so, by name (\(report.messages.filter { $0.kind == .newTracks }.map(\.body)))")
         let apple = try await waitForApple(env, titles: ["Midnight City"])
         expect(apple.contains { $0.title.localizedCaseInsensitiveContains("Midnight City") }, "Midnight City is on Apple Music")
         let runs = try await env.repository.runs()
@@ -709,6 +772,47 @@ final class SelfTestRunner {
         let afterSyncAll = try await waitForApple(env, titles: ["Pump It"])
         expect(afterSyncAll.contains { $0.title.localizedCaseInsensitiveContains("Pump It") }, "and Pump It reaches Apple Music")
         expect(try await env.repository.runs().first?.trigger == .widget, "History shows it as started from the widget")
+
+        // Nothing changed since a run that wrote nothing: a scheduled run takes
+        // one cheap look (Spotify's snapshot ID, the Apple Music IDs) instead
+        // of reading both playlists. A run the person asks for never does.
+        log("== A scheduled check of unchanged playlists stops after one look")
+        func scheduledRun() async throws -> SyncResult? {
+            try env.setMonitored(lastSynced: Date().addingTimeInterval(-61 * 60))
+            return await MonitorRun.perform(modelContainer: env.container, preferences: preferences, onWiFi: true, lowPower: false, post: false).results.first
+        }
+        let fullStart = Date()
+        let settle = try await scheduledRun()
+        let fullTime = Date().timeIntervalSince(fullStart)
+        expect(settle?.skippedUnchanged == false && settle?.tracksAdded == 0,
+               "after a run that wrote, the next one reads everything and writes nothing (\(settle.map { "\($0.status) +\($0.tracksAdded) skipped \($0.skippedUnchanged)" } ?? "no run"))")
+        let runsBefore = try await env.repository.runs().count
+        let cheapStart = Date()
+        let cheap = try await scheduledRun()
+        log("full check \(String(format: "%.2f", fullTime)) s, unchanged check \(String(format: "%.2f", Date().timeIntervalSince(cheapStart))) s")
+        expect(cheap?.skippedUnchanged == true, "then an unchanged seam is settled by one look")
+        expect(try await env.repository.runs().count == runsBefore + 1, "and still shows in History as a check")
+        let asked = await SyncAllRunner.run(modelContainer: env.container, preferences: preferences)
+        expect(asked.first?.skippedUnchanged == false, "a run the person asks for (Sync all) reads everything")
+
+        // How long Spotify takes to show a change in the snapshot ID.
+        let client = SpotifyAPIClient()
+        let before = try await client.playlistSnapshot(playlistId: spotifyId)
+        let stronger = try await spotifyTrack("track:Stronger artist:Kanye West", album: "Graduation")
+        _ = try await env.editor.add([stronger], to: spotifyId, on: .spotify)
+        let addedAt = Date()
+        var lag: TimeInterval?
+        for _ in 0..<45 {
+            if try await client.playlistSnapshot(playlistId: spotifyId) != before { lag = Date().timeIntervalSince(addedAt); break }
+            try await Task.sleep(for: .seconds(2))
+        }
+        let itemsNow = try await client.getPlaylistTracks(playlistId: spotifyId).contains { $0.track?.uri == stronger.id }
+        log("Spotify snapshot changed \(lag.map { String(format: "%.1f s", $0) } ?? "not within 90 s") after the add; the track list shows it: \(itemsNow)")
+        expect(lag != nil, "Spotify's snapshot ID changes after a track is added")
+        let afterChange = try await scheduledRun()
+        expect(afterChange?.skippedUnchanged == false && afterChange?.tracksAdded == 1,
+               "the scheduled run sees the change and adds the track (\(afterChange.map { "\($0.status) +\($0.tracksAdded) skipped \($0.skippedUnchanged)" } ?? "no run"))")
+        try env.setUnmonitored()
 
         // Two-way Mirror: a removal on Spotify is carried out on Apple Music
         // in the background, unless "Removals in the background" is off.

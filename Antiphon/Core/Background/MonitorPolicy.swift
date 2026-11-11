@@ -21,14 +21,22 @@ enum MonitorSchedule {
         }.map(\.id)
     }
 
-    /// When the soonest seam is due, but not sooner than 15 minutes.
-    static func nextBegin(_ seams: [Seam], defaultMinutes: Int, now: Date) -> Date? {
+    /// When the soonest seam is due, but not sooner than 15 minutes, and not
+    /// inside quiet hours: a run then checks nothing, and each wasted
+    /// wake-up counts against what iOS lets Antiphon do in the background.
+    static func nextBegin(_ seams: [Seam], defaultMinutes: Int, now: Date,
+                          quietHours: MonitorGates.QuietHours? = nil, calendar: Calendar = .current) -> Date? {
         let waits = seams.compactMap { seam -> TimeInterval? in
             guard let last = seam.lastSyncedAt else { return nil }
             return last.addingTimeInterval(Double(interval(seam, defaultMinutes)) * 60).timeIntervalSince(now)
         }
         guard let soonest = waits.min() else { return nil }
-        return now.addingTimeInterval(max(soonest, Double(minimumMinutes) * 60))
+        let begin = now.addingTimeInterval(max(soonest, Double(minimumMinutes) * 60))
+        guard let quietHours, quietHours.startMinute != quietHours.endMinute else { return begin }
+        let parts = calendar.dateComponents([.hour, .minute], from: begin)
+        guard quietHours.contains((parts.hour ?? 0) * 60 + (parts.minute ?? 0)) else { return begin }
+        let end = DateComponents(hour: quietHours.endMinute / 60, minute: quietHours.endMinute % 60, second: 0)
+        return calendar.nextDate(after: begin, matching: end, matchingPolicy: .nextTime) ?? begin
     }
 
     private static func interval(_ seam: Seam, _ defaultMinutes: Int) -> Int {
@@ -93,6 +101,20 @@ enum MonitorNotifications {
         let newQuestions: Int
         /// Set when the seam's sync failed, in words.
         let failure: String?
+        /// Their titles, in the order they landed. Empty if not known.
+        var addedTitles: [String] = []
+    }
+
+    /// "Nightcall, A Real Hero and 2 more are new in Late Night Drive."
+    /// A name says more than a count: it's the friend's song that arrived.
+    static func newTracksLine(_ outcome: SeamOutcome) -> String {
+        let titles = outcome.addedTitles
+        switch titles.count {
+        case 0: return "\(PlanCopy.count(outcome.added, "new track")) in \(outcome.seamName)."
+        case 1: return "\(titles[0]) is new in \(outcome.seamName)."
+        case 2: return "\(titles[0]) and \(titles[1]) are new in \(outcome.seamName)."
+        default: return "\(titles[0]), \(titles[1]) and \(titles.count - 2) more are new in \(outcome.seamName)."
+        }
     }
 
     enum Kind: String, Sendable {
@@ -126,7 +148,7 @@ enum MonitorNotifications {
         if prefs.newTracks == .eachSync, !adding.isEmpty {
             let total = adding.reduce(0) { $0 + $1.added }
             let body = adding.count == 1
-                ? "\(PlanCopy.count(total, "new track")) in \(adding[0].seamName)."
+                ? newTracksLine(adding[0])
                 : "\(PlanCopy.count(total, "new track")) in \(adding.count) seams."
             messages.append(Message(kind: .newTracks, title: "New tracks", body: body))
         }
@@ -177,5 +199,30 @@ enum AvailabilityRecheck {
         guard let days = cadence.days else { return false }
         guard let lastAttempt else { return true }
         return now.timeIntervalSince(lastAttempt) >= Double(days) * 86_400
+    }
+}
+
+/// How often iOS really woke Antiphon in the background. The interval a
+/// person picks is only a request; this is what happened.
+enum MonitorCadence {
+    /// Runs kept: a few weeks at the busiest.
+    static let keep = 200
+
+    static func recording(_ date: Date, in runs: [Date]) -> [Date] {
+        Array((runs + [date]).suffix(keep))
+    }
+
+    /// `nil` until a background run has ever been recorded.
+    static func summary(runs: [Date], now: Date) -> String? {
+        guard !runs.isEmpty else { return nil }
+        let recent = runs.filter { now.timeIntervalSince($0) >= 0 && now.timeIntervalSince($0) < 86_400 }
+        guard let last = recent.max() else {
+            return "iOS hasn't run Antiphon in the background in the last 24 hours. It decides by how often you open the app."
+        }
+        let minutes = Int(now.timeIntervalSince(last) / 60)
+        let ago = minutes < 1 ? "just now" : minutes < 60 ? "\(minutes) min ago" : "\(Int((Double(minutes) / 60).rounded())) h ago"
+        return recent.count == 1
+            ? "iOS ran Antiphon in the background once in the last 24 hours, \(ago)."
+            : "iOS ran Antiphon in the background \(recent.count) times in the last 24 hours, last \(ago)."
     }
 }

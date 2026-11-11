@@ -5,6 +5,8 @@ enum SpotifyEndpoint {
     case user(id: String)
     case myPlaylists(limit: Int, offset: Int)
     case playlistTracks(playlistId: String, limit: Int, offset: Int, market: String?)
+    /// Only the playlist's snapshot ID, which changes whenever its contents do.
+    case playlistSnapshot(playlistId: String)
     case addTracks(playlistId: String)
     case removeTracks(playlistId: String)
     case reorderTracks(playlistId: String)
@@ -22,6 +24,8 @@ enum SpotifyEndpoint {
             return "/me/playlists"
         case .playlistTracks(let playlistId, _, _, _):
             return "/playlists/\(playlistId)/items"
+        case .playlistSnapshot(let playlistId):
+            return "/playlists/\(playlistId)"
         case .addTracks(let playlistId):
             return "/playlists/\(playlistId)/items"
         case .removeTracks(let playlistId), .reorderTracks(let playlistId):
@@ -51,6 +55,8 @@ enum SpotifyEndpoint {
             ]
             if let market { items.append(URLQueryItem(name: "market", value: market)) }
             return items
+        case .playlistSnapshot:
+            return [URLQueryItem(name: "fields", value: "snapshot_id")]
         case .addTracks, .removeTracks, .reorderTracks, .createPlaylist, .uploadPlaylistImage:
             return []
         case .searchByQuery(let query, let type, let market, let limit):
@@ -66,7 +72,7 @@ enum SpotifyEndpoint {
     
     var httpMethod: String {
         switch self {
-        case .me, .user, .myPlaylists, .playlistTracks, .searchByQuery:
+        case .me, .user, .myPlaylists, .playlistTracks, .playlistSnapshot, .searchByQuery:
             return "GET"
         case .addTracks, .createPlaylist:
             return "POST"

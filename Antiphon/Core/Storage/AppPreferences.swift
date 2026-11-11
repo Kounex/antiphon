@@ -29,6 +29,7 @@ final class AppPreferences: @unchecked Sendable {
         static let recentSearches = "recentSearches"
         static let showsCollaboratorNames = "showsCollaboratorNames"
         static let offeredSpotifyClientId = "offeredSpotifyClientId"
+        static let backgroundRuns = "monitorBackgroundRuns"
         static let explicitPreference = "explicitPreference"
         static let allowLive = "allowLive"
         static let allowRadioEdits = "allowRadioEdits"
@@ -219,6 +220,16 @@ final class AppPreferences: @unchecked Sendable {
     var offeredSpotifyClientId: String? {
         get { defaults.string(forKey: Key.offeredSpotifyClientId) }
         set { defaults.set(newValue, forKey: Key.offeredSpotifyClientId) }
+    }
+
+    /// When iOS woke Antiphon for a background refresh (`MonitorCadence`).
+    var backgroundRuns: [Date] {
+        get { (defaults.array(forKey: Key.backgroundRuns) as? [Double] ?? []).map(Date.init(timeIntervalSince1970:)) }
+        set { defaults.set(newValue.map(\.timeIntervalSince1970), forKey: Key.backgroundRuns) }
+    }
+
+    func recordBackgroundRun(at date: Date = Date()) {
+        backgroundRuns = MonitorCadence.recording(date, in: backgroundRuns)
     }
 
     // MARK: - Appearance

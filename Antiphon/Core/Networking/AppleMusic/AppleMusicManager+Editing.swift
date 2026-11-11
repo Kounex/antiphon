@@ -39,6 +39,13 @@ extension AppleMusicManager {
     /// Every track in `playlist`, following further batches if MusicKit
     /// returns the relationship in pages. `nil` when it has no tracks
     /// relationship.
+    /// The playlist's track IDs in order, read from the library on the
+    /// device: no catalog lookups. `nil` if the playlist isn't there.
+    func playlistTrackIDs(playlistId: String) async throws -> [String]? {
+        guard let playlist = try await fetchUserPlaylists().first(where: { $0.id.rawValue == playlistId }) else { return nil }
+        return try await allTracks(of: playlist)?.map(\.id.rawValue) ?? []
+    }
+
     func allTracks(of playlist: Playlist) async throws -> [Track]? {
         guard var batch = try await playlist.with([.tracks]).tracks else { return nil }
         var all = Array(batch)

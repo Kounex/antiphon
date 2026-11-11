@@ -92,6 +92,13 @@ actor SpotifyAPIClient {
         return allItems
     }
     
+    /// The playlist's snapshot ID in one small request. It changes whenever
+    /// the playlist's contents or order do (`UnchangedCheck`).
+    func playlistSnapshot(playlistId: String) async throws -> String {
+        let response: SpotifySnapshotResponse = try await request(endpoint: .playlistSnapshot(playlistId: playlistId))
+        return response.snapshotId
+    }
+
     /// Creates a new playlist for the current user.
     func createPlaylist(
         name: String,

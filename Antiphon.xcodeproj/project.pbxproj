@@ -146,6 +146,7 @@
 		BA821C95D26FC93FA1C96B49 /* ReviewModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C1A8BD522EC707271FB3A7 /* ReviewModelsTests.swift */; };
 		BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */; };
 		C0007CBF151857D339B96504 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD1045462565A26B21DDBAA /* RelativeTime.swift */; };
+		C20EFB66D6B99555073F25B0 /* UnchangedCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24F3623BDE5AEC79DD157C0 /* UnchangedCheck.swift */; };
 		C2956E553373532F18F95AE3 /* DeltaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE8BF3A56CD4D8EFAE44AF3 /* DeltaEngine.swift */; };
 		C31A98A110E03ECCFA8BF3DA /* DebugRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF536925D05D8A83BF622EFF /* DebugRouter.swift */; };
 		C35CC31596929309F31499CD /* ActivityRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB51D3B9022BA7F5C8DE9454 /* ActivityRepository.swift */; };
@@ -187,6 +188,7 @@
 		EE779C15AEDC76206A684C7B /* ConfidenceScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B495F84950C27CF54C99A324 /* ConfidenceScorerTests.swift */; };
 		EF141DE15FACF954A51F505B /* OpenCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB11AF38340224DD89FD05E /* OpenCheckTests.swift */; };
 		EFA9D203DD27EEB15EBF1C07 /* CatalogFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8FC625E91CA6E20F5E5F82C /* CatalogFailureTests.swift */; };
+		EFED1B32C9C105D2C5D487BD /* UnchangedCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DE30152B9B62F71E92E99A5 /* UnchangedCheckTests.swift */; };
 		F0692438A398E325BD055C80 /* LibraryLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EAC66980FE8B70AFE9AA432 /* LibraryLogic.swift */; };
 		F1DF5D40667D38CDBA41F626 /* SyncActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABA2676DA25B378D6ED942A /* SyncActivityTests.swift */; };
 		F2361B643C3170927A65B14B /* PreviewServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B33A71F53544E17783660BC /* PreviewServices.swift */; };
@@ -304,6 +306,7 @@
 		4ADF706408289732E86FD8C3 /* SelfTestStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfTestStore.swift; sourceTree = "<group>"; };
 		4B33A71F53544E17783660BC /* PreviewServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewServices.swift; sourceTree = "<group>"; };
 		4D1ED676D16EA46389677027 /* ReviewRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewRepository.swift; sourceTree = "<group>"; };
+		4DE30152B9B62F71E92E99A5 /* UnchangedCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnchangedCheckTests.swift; sourceTree = "<group>"; };
 		517F015EA8FEE4AD56748E3F /* PickTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickTargetTests.swift; sourceTree = "<group>"; };
 		53FC25BE39A53A258D51EC28 /* SyncResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncResult.swift; sourceTree = "<group>"; };
 		540F3CFF3F24653EEDADEAF7 /* OnboardingModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingModel.swift; sourceTree = "<group>"; };
@@ -428,6 +431,7 @@
 		EA3CE0DEBC4B4233DA45FF01 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EB3684F43351350DA5DFA22B /* SyncFlowModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFlowModelTests.swift; sourceTree = "<group>"; };
 		F14CA0BA9F3DDD804DD5896D /* AudioPreviewPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPreviewPlayer.swift; sourceTree = "<group>"; };
+		F24F3623BDE5AEC79DD157C0 /* UnchangedCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnchangedCheck.swift; sourceTree = "<group>"; };
 		F2EC606DF4B050B3D90EA300 /* SpotifyAccessCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyAccessCopy.swift; sourceTree = "<group>"; };
 		F355E49299CC28CD1A183F1E /* ConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolver.swift; sourceTree = "<group>"; };
 		F3BFA5EB59C6BCF4AEF6F44F /* CacheAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheAligner.swift; sourceTree = "<group>"; };
@@ -605,6 +609,7 @@
 				EB3684F43351350DA5DFA22B /* SyncFlowModelTests.swift */,
 				839CAB12C7238823EEA3F68A /* SyncsScreensTests.swift */,
 				174F8BA60C8DDF5820F55BA1 /* TrackOrderTests.swift */,
+				4DE30152B9B62F71E92E99A5 /* UnchangedCheckTests.swift */,
 				77ABCC6BA44575E71BD7D959 /* UndoPlannerTests.swift */,
 				A4774516C15ECC4AEAB6B1E2 /* VersionPickerTests.swift */,
 				006B0451A9774141C73C2102 /* VersionTagTests.swift */,
@@ -797,6 +802,7 @@
 				6DB4636F17C8E297190183D4 /* SyncRecovery.swift */,
 				53FC25BE39A53A258D51EC28 /* SyncResult.swift */,
 				B8179D0F4C44585EC041B8F8 /* TrackMatcher.swift */,
+				F24F3623BDE5AEC79DD157C0 /* UnchangedCheck.swift */,
 				B5E3541E0E5A667781EE8A1E /* Live */,
 				630D2B4DBEE0123F41237D5A /* Planning */,
 			);
@@ -1147,6 +1153,7 @@
 				4882C4D0A2E21A0259A94334 /* SyncFlowModelTests.swift in Sources */,
 				2BDF1AE6094A76FC41645069 /* SyncsScreensTests.swift in Sources */,
 				3901E403AFD0306BDFAD6C0D /* TrackOrderTests.swift in Sources */,
+				EFED1B32C9C105D2C5D487BD /* UnchangedCheckTests.swift in Sources */,
 				BDD9ACCAE72B3B82DB53C53D /* UndoPlannerTests.swift in Sources */,
 				930B4D671F25FAC50D47281C /* VersionPickerTests.swift in Sources */,
 				9550FBD2792E4960322E4278 /* VersionTagTests.swift in Sources */,
@@ -1306,6 +1313,7 @@
 				016AE988C2EA08BB5841B16D /* TrackMatcher.swift in Sources */,
 				59BA7DFAE25A70E7609D595B /* TrackOrder.swift in Sources */,
 				FA771915EBE80700E807997D /* TwinSuggester.swift in Sources */,
+				C20EFB66D6B99555073F25B0 /* UnchangedCheck.swift in Sources */,
 				862913287B2AE875B2287F54 /* UndoPlanner.swift in Sources */,
 				62C146C699B654212F26DDF7 /* VersionPickerModel.swift in Sources */,
 				4A58C7FAC39235D7E498FDC0 /* VersionPickerView.swift in Sources */,

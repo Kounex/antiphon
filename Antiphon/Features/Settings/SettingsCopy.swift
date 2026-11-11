@@ -18,6 +18,10 @@ enum SettingsCopy {
         isOn ? RulesCopy.intervalLabel(minutes) : "Off"
     }
 
+    /// The one trigger iOS runs on time: a personal automation.
+    static let shortcutsTip = "In Shortcuts, an automation can run “Sync Playlists” whenever you close Spotify or Music "
+        + "(Automation › App › Is Closed). That syncs watched seams right after you change a playlist, instead of when iOS next lets Antiphon run."
+
     static func backgroundRemovals(_ isOn: Bool) -> String {
         isOn
             ? "When a seam is set to remove a track on the other side too, background checks and Sync all do it without a preview. Each removal is in History and can be undone. Apple Music playlists you made yourself are the exception: apps can't remove from them."

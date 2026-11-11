@@ -58,6 +58,10 @@ final class SyncPair {
     /// The direction changed: the next sync realigns from scratch (like a
     /// first sync) instead of reading the old cache as removals.
     var needsRebuild: Bool = false
+    /// What both playlists and the rules looked like when the last
+    /// unattended run ended with nothing written and nothing waiting
+    /// (`UnchangedCheck`). `nil`: the next check reads everything.
+    var unchangedToken: String?
 
     // MARK: - Relationships
 

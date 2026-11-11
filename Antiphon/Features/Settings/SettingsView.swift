@@ -450,6 +450,7 @@ struct MatchingSettingsView: View {
 
 struct MonitoringSettingsView: View {
     @Bindable var model: SettingsModel
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         List {
@@ -459,8 +460,26 @@ struct MonitoringSettingsView: View {
             } header: {
                 Text("Check playlists")
             } footer: {
-                Text("For seams that don't set their own. iOS decides the exact moment; Antiphon asks to check about every \(RulesCopy.intervalPhrase(model.interval)). Opening Antiphon checks every seam too.")
+                VStack(alignment: .leading, spacing: Space.s2) {
+                    Text("For seams that don't set their own. iOS decides the exact moment; Antiphon asks to check about every \(RulesCopy.intervalPhrase(model.interval)). Opening Antiphon checks every seam too.")
+                    // What was asked for, then what happened.
+                    if let cadence = MonitorCadence.summary(runs: model.preferences.backgroundRuns, now: Date()) {
+                        Text(cadence).foregroundStyle(Color.ink)
+                    }
+                }
             }
+
+            Section {
+                Button { openURL(URL(string: "shortcuts://")!) } label: {
+                    Label("Open Shortcuts", systemImage: "arrow.up.forward.app")
+                }
+                .tint(.ink)
+            } header: {
+                Text("Sync right away")
+            } footer: {
+                Text(SettingsCopy.shortcutsTip)
+            }
+            .listRowBackground(Color.canvasRaised)
 
             Section {
                 Toggle("Removals in the background", isOn: $model.removeInBackground)

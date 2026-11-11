@@ -33,7 +33,8 @@ enum BackgroundTaskManager {
     static func scheduleBackgroundRefresh(modelContainer: ModelContainer = SharedModelContainer.container) {
         let preferences = AppPreferences.shared
         let seams = monitoredSeams(in: modelContainer)
-        guard let begin = MonitorSchedule.nextBegin(seams, defaultMinutes: preferences.monitorIntervalMinutes, now: Date()) else {
+        guard let begin = MonitorSchedule.nextBegin(seams, defaultMinutes: preferences.monitorIntervalMinutes, now: Date(),
+                                                    quietHours: preferences.quietHours) else {
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: AppConstants.BackgroundTasks.playlistRefreshIdentifier)
             print("[BackgroundTaskManager] Nothing monitored; no refresh scheduled")
             return
@@ -60,6 +61,8 @@ enum BackgroundTaskManager {
 
     private static func handleAppRefresh(task: BGAppRefreshTask, modelContainer: ModelContainer) {
         print("[BackgroundTaskManager] Background refresh triggered")
+        // What iOS really granted, shown in Settings › Monitoring.
+        AppPreferences.shared.recordBackgroundRun()
         let expired = OSAllocatedUnfairLock(initialState: false)
 
         let syncTask = Task { @Sendable in
@@ -117,7 +120,8 @@ enum MonitorRun {
         let reviewBefore = Set(((try? await repository.reviewItems(seamId: nil)) ?? []).map(\.id))
         let conflictsBefore = Set(((try? await repository.conflicts(seamId: nil)) ?? []).map(QuestionNotifications.identity))
         let engine = SyncEngine(modelContainer: modelContainer, spotifyClient: SpotifyAPIClient(), appleMusicManager: AppleMusicManager())
-        report.results = await engine.syncAllMonitored(only: Set(report.due), preferences: preferences)
+        // Scheduled, nobody waiting: an unchanged seam needs only one look.
+        report.results = await engine.syncAllMonitored(only: Set(report.due), preferences: preferences, cheapLook: true)
         let after = (try? await repository.seams()) ?? []
 
         report.expired = isExpired()
@@ -169,7 +173,8 @@ enum MonitorRun {
             return MonitorNotifications.SeamOutcome(
                 seamId: seam.id, seamName: seam.name, added: result.tracksAdded,
                 newQuestions: max(0, questionsAfter - questionsBefore),
-                failure: result.status == .failed ? (result.message ?? "Open Antiphon to see what went wrong.") : nil
+                failure: result.status == .failed ? (result.message ?? "Open Antiphon to see what went wrong.") : nil,
+                addedTitles: result.addedTitles
             )
         }
     }
