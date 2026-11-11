@@ -99,6 +99,20 @@ actor SpotifyAPIClient {
         return response.snapshotId
     }
 
+    /// Whether Spotify gives this app the playlist's tracks: asked, not
+    /// inferred. Spotify only does for playlists the person owns or
+    /// collaborates on, and the `collaborative` flag doesn't cover every
+    /// way of collaborating. `false` only for a refusal (403).
+    func canReadItems(playlistId: String) async throws -> Bool {
+        do {
+            let _: SpotifyPagingObject<SpotifyPlaylistItem> = try await request(
+                endpoint: .playlistTracks(playlistId: playlistId, limit: 1, offset: 0, market: nil))
+            return true
+        } catch SpotifyAPIError.httpError(403, _) {
+            return false
+        }
+    }
+
     /// Creates a new playlist for the current user.
     func createPlaylist(
         name: String,

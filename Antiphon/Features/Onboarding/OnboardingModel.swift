@@ -106,7 +106,9 @@ final class OnboardingModel {
         let apple = (try? await library.playlists(on: .appleMusic)) ?? applePlaylists ?? []
         let existing = (try? await seams.seams()) ?? []
         let linked = Set(existing.flatMap { [$0.spotify.playlistId, $0.appleMusic.playlistId] })
-        let pairs = TwinSuggester.candidates(spotify: spotify, appleMusic: apple, linked: linked)
+        // Someone else's playlists aren't suggested: whether Spotify gives
+        // their tracks is only known once asked. New seam asks.
+        let pairs = TwinSuggester.candidates(spotify: spotify.filter { !$0.needsAccessCheck }, appleMusic: apple, linked: linked)
 
         var found: [TwinSuggester.Suggestion] = []
         for (index, pair) in pairs.enumerated() {

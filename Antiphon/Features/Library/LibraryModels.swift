@@ -82,6 +82,8 @@ final class PlaylistDetailModel {
     private(set) var entries: [LibraryEntry] = []
     private(set) var isLoading = true
     private(set) var loadError: String?
+    /// Spotify refused this playlist's tracks (`LibraryPlaylist.followedReason`).
+    private(set) var refusedReason: String?
     private(set) var report: AvailabilityReport?
     private(set) var isChecking = false
     /// Collaborators' names, by Spotify user ID, once looked up.
@@ -155,6 +157,9 @@ final class PlaylistDetailModel {
             entries = try await library.entries(of: playlist)
             loadError = nil
         } catch {
+            // Someone else's playlist that Spotify won't hand over: not an
+            // error to retry, a playlist Antiphon can't use.
+            if SpotifyAccessCopy.isRefused(error), playlist.needsAccessCheck { refusedReason = LibraryPlaylist.followedReason }
             loadError = "Antiphon couldn't read this playlist."
             return
         }

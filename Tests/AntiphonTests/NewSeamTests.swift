@@ -166,6 +166,10 @@ struct SyncETATests {
 struct FakeLibrary: LibraryService {
     var playlists: [Platform: [LibraryPlaylist]]
     var tracks: [String: [CatalogTrack]]
+    /// Playlists Spotify won't hand over.
+    var refused: Set<String> = []
+
+    func canRead(_ playlist: LibraryPlaylist) async -> Bool { !refused.contains(playlist.id) }
 
     func playlists(on platform: Platform) async throws -> [LibraryPlaylist] { playlists[platform] ?? [] }
     func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack] { tracks[playlist.id] ?? [] }
@@ -227,15 +231,47 @@ struct NewSeamModelTests {
         #expect(model.suggestions.map(\.playlist.name).contains("Workout"))
     }
 
-    @Test("A Spotify playlist the person only follows is blocked, with the reason")
-    func followedIsBlocked() {
-        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "someone", isEditable: false)
-                == "You follow this one. Spotify only lets apps read playlists you made or collaborate on.")
-        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "spotify", isEditable: false)
+    @Test("Only Spotify's own playlists are ruled out up front; someone else's is asked about when it's picked")
+    func whatIsBlockedUpFront() {
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "spotify")
                 == "Made by Spotify. Spotify doesn't let apps read these.")
-        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "me", isEditable: true) == nil)
-        // A collaborative playlist someone else owns can be read.
-        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "someone", isEditable: true) == nil)
+        // A friend's playlist may be one the person collaborates on, even
+        // when Spotify's `collaborative` flag doesn't say so.
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "someone") == nil)
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "me") == nil)
+    }
+
+    private func friends(_ library: inout FakeLibrary) -> LibraryPlaylist {
+        let shared = LibraryPlaylist(platform: .spotify, id: "Spotify-Shared", name: "Shared with Tom", trackCount: 40,
+                                     artworkURL: nil, detail: "", isEditable: false, blockedReason: nil, isOwn: false,
+                                     needsAccessCheck: true)
+        library.playlists[.spotify, default: []].append(shared)
+        return shared
+    }
+
+    @Test("A friend's playlist Spotify lets Antiphon read can be picked")
+    func friendsPlaylistReadable() async throws {
+        var library = FakeLibrary(playlists: [:], tracks: [:])
+        let shared = friends(&library)
+        let model = NewSeamModel(library: library, seams: SwiftDataSeamRepository(modelContainer: try SharedModelContainer.make(inMemory: true)),
+                                 preferences: AppPreferences(defaults: UserDefaults(suiteName: "nsm-\(UUID().uuidString)")!))
+        await model.loadPlaylists()
+        await model.pick(shared)
+        #expect(model.isSelected(shared))
+        #expect(model.unavailableReason(for: shared) == nil)
+    }
+
+    @Test("One Spotify refuses is said so, with the reason, and isn't picked")
+    func friendsPlaylistRefused() async throws {
+        var library = FakeLibrary(playlists: [:], tracks: [:])
+        let shared = friends(&library)
+        library.refused = [shared.id]
+        let model = NewSeamModel(library: library, seams: SwiftDataSeamRepository(modelContainer: try SharedModelContainer.make(inMemory: true)),
+                                 preferences: AppPreferences(defaults: UserDefaults(suiteName: "nsm-\(UUID().uuidString)")!))
+        await model.loadPlaylists()
+        await model.pick(shared)
+        #expect(!model.isSelected(shared))
+        #expect(model.unavailableReason(for: shared) == LibraryPlaylist.followedReason)
     }
 
     @Test("Playlists already in a seam, or blocked by Spotify, can't be picked")

@@ -45,6 +45,11 @@ final class NewSeamModel {
     /// Playlists already in a seam, read from the store (never a snapshot
     /// from elsewhere, which goes stale when a seam is unlinked).
     private var linkedPlaylistIds: Set<String> = []
+    /// Someone else's playlists Spotify has refused, or allowed, this session.
+    private var refusedPlaylistIds: Set<String> = []
+    private var checkedPlaylistIds: Set<String> = []
+    /// The playlist being asked about right now.
+    private(set) var isCheckingAccess: String?
     private var trackCache: [String: [CatalogTrack]] = [:]
 
     init(library: LibraryService, seams: SeamRepository, preferences: AppPreferences) {
@@ -85,7 +90,25 @@ final class NewSeamModel {
 
     func unavailableReason(for playlist: LibraryPlaylist) -> String? {
         if linkedPlaylistIds.contains(playlist.id) { return "Already in a seam" }
+        if refusedPlaylistIds.contains(playlist.id) { return LibraryPlaylist.followedReason }
         return playlist.blockedReason
+    }
+
+    /// Picking a playlist. Someone else's Spotify playlist is asked about
+    /// first: Spotify gives its tracks only if the person collaborates on
+    /// it, which the list doesn't say.
+    func pick(_ playlist: LibraryPlaylist) async {
+        if playlist.needsAccessCheck, !isSelected(playlist), !checkedPlaylistIds.contains(playlist.id) {
+            isCheckingAccess = playlist.id
+            defer { isCheckingAccess = nil }
+            if await library.canRead(playlist) {
+                checkedPlaylistIds.insert(playlist.id)
+            } else {
+                refusedPlaylistIds.insert(playlist.id)
+                return
+            }
+        }
+        toggle(playlist)
     }
 
     func isSelected(_ playlist: LibraryPlaylist) -> Bool { selected.contains { $0.id == playlist.id } }

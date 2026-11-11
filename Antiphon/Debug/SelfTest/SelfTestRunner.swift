@@ -69,6 +69,7 @@ final class SelfTestRunner {
             if scenario == nil || scenario == "album" { try await originalAlbum() }
             if scenario == nil || scenario == "library" { try await libraryReadOnly() }
             if scenario == "matchprobe" { try await matchProbe() }
+            if scenario == "spotifyaccess" { try await spotifyAccess() }
             // Reads the person's seam named "Antiphon Test", if there is one.
             if scenario == "realpreview" { try await previewPersonsSeam() }
             // No playlists involved; each changes something the person sees.
@@ -514,6 +515,35 @@ final class SelfTestRunner {
                "and it holds both songs (\(titles))")
         let spotifyAfter = try await env.editor.tracks(in: spotifyId, on: .spotify)
         expect(spotifyAfter.count == 2, "Spotify's playlist is untouched")
+    }
+
+    // MARK: - Scenario: which playlists Spotify lets the app read (read only, by name)
+
+    /// For every playlist the person doesn't own: does Spotify give its
+    /// tracks, and does the `collaborative` flag predict that? One request
+    /// per playlist, one track each.
+    private func spotifyAccess() async throws {
+        log("== Which playlists Spotify lets Antiphon read (read only)")
+        let client = SpotifyAPIClient()
+        let me = try await client.getCurrentUser().id
+        let all = try await client.getAllPlaylists()
+        let others = all.filter { $0.owner.id != me }
+        log("\(all.count) playlists, \(others.count) owned by someone else (\(others.filter(\.collaborative).count) flagged collaborative)")
+        var readable: [SpotifyPlaylist] = [], refused = 0, failed = 0
+        for playlist in others {
+            do {
+                if try await client.canReadItems(playlistId: playlist.id) { readable.append(playlist) } else { refused += 1 }
+            } catch { failed += 1 }
+            try await Task.sleep(for: .milliseconds(150))
+        }
+        let flagged = readable.filter(\.collaborative).count
+        log("readable \(readable.count) (\(flagged) flagged collaborative, \(readable.count - flagged) not flagged), refused \(refused), other errors \(failed)")
+        for playlist in readable where !playlist.collaborative {
+            log("readable without the flag: \(playlist.name) (owner \(playlist.owner.id == "spotify" ? "Spotify" : "someone else"), \(playlist.tracks.total) tracks)")
+        }
+        let collaborativeRefused = others.filter(\.collaborative).count - flagged
+        log("flagged collaborative but refused: \(collaborativeRefused)")
+        expect(failed == 0, "every playlist answered yes or no")
     }
 
     // MARK: - Scenario: match probe (read only, by name)
@@ -1018,9 +1048,11 @@ final class SelfTestRunner {
         log("Spotify: \(spotify.count) playlists, \(spotify.filter(\.isOwn).count) own, \(spotify.filter(\.isCollaborative).count) collaborative, \(spotify.filter { $0.blockedReason != nil }.count) blocked")
         log("Apple Music: \(apple.count) playlists, \(apple.filter(\.isOwn).count) own; not own: \(apple.filter { !$0.isOwn }.prefix(5).map { "\($0.name) (\($0.detail))" })")
         expect(!spotify.isEmpty && !apple.isEmpty, "both libraries load")
-        // Followed playlists are blocked with a reason, own ones aren't.
-        expect(spotify.allSatisfy { $0.isEditable == ($0.blockedReason == nil) },
-               "every Spotify playlist is either usable or blocked with a reason")
+        // Own and collaborative playlists are usable, Spotify's own are blocked
+        // with a reason, someone else's are asked about when picked.
+        log("Spotify: \(spotify.filter(\.needsAccessCheck).count) by someone else, asked about when picked")
+        expect(spotify.allSatisfy { $0.isEditable || $0.blockedReason != nil || $0.needsAccessCheck },
+               "every Spotify playlist is usable, blocked with a reason, or asked about")
 
         let repository = SwiftDataSeamRepository(modelContainer: SharedModelContainer.container)
         let seams = try await repository.seams()

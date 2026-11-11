@@ -110,7 +110,7 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
   - Since February 2026 the API uses `/items` (it accepts both `item` and `track` keys).
   - Development-mode apps get at most 10 search results and can't read Spotify-made playlists.
   - Local files have `album.id == null`.
-  - Playlist items are only given for playlists the person owns or collaborates on. A followed playlist lists, but reading it answers 403 "Forbidden" (`LibraryPlaylist.spotifyBlockedReason`, `ProblemKind.writeRefused`).
+  - Playlist items are only given for playlists the person owns or collaborates on. A followed playlist lists, but reading it answers 403 "Forbidden". Whether the person collaborates isn't known from the list (the `collaborative` flag misses invited collaborators: on the phone 4 of the 8 readable playlists owned by someone else didn't carry it), so someone else's playlist is asked about when picked (`LibraryPlaylist.needsAccessCheck`, `LibraryService.canRead`) and only refused once Spotify refuses (`LibraryPlaylist.followedReason`, `ProblemKind.writeRefused`). `scripts/selftest.sh spotifyaccess` (read only) counts which of the person's playlists Spotify hands over.
   - `GET /users/{id}` is gone for development-mode apps (403), so collaborators can't be named.
   - The snapshot ID (`GET /playlists/{id}?fields=snapshot_id`) lags a change by about a minute (59.5 s measured), while `/items` shows it at once. Only scheduled background runs rely on it (`UnchangedCheck`).
 - **Background execution** (what works, verified on device 2026-10-12: two syncs of 19 and 25 tracks at once finished while the person used other apps and with the phone locked):

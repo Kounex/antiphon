@@ -166,7 +166,7 @@ struct PlaylistDetailView: View {
         List {
             header.plainRow()
             availability.plainRow()
-            if let reason = model.playlist.blockedReason {
+            if let reason = model.playlist.blockedReason ?? model.refusedReason {
                 Banner(tone: .neutral, symbol: "lock.fill", title: "Antiphon can't use this playlist", message: reason).plainRow()
             } else {
                 Button("Stitch to \(model.other.rawValue)", systemImage: "link", action: onStitch)
@@ -176,7 +176,7 @@ struct PlaylistDetailView: View {
             }
             if model.isLoading {
                 ProgressView().frame(maxWidth: .infinity).plainRow()
-            } else if let error = model.loadError {
+            } else if let error = model.loadError, model.refusedReason == nil {
                 Banner(tone: .failed, symbol: "exclamationmark.triangle.fill", title: "Couldn't load tracks", message: error).plainRow()
             } else {
                 if model.offersNames {

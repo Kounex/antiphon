@@ -16,6 +16,10 @@ struct LibraryPlaylist: Identifiable, Hashable, Sendable {
     /// Made by the person (not followed, not editorial).
     var isOwn: Bool = true
     var isCollaborative: Bool = false
+    /// Someone else's Spotify playlist without the `collaborative` flag:
+    /// Spotify gives its tracks only if the person collaborates on it, and
+    /// the list doesn't say. Asked when it's picked or opened (`canRead`).
+    var needsAccessCheck = false
 }
 
 /// Who put a track in a collaborative playlist. Collaborators aren't named:
@@ -42,6 +46,9 @@ protocol LibraryService: Sendable {
     /// Spotify display names, one request per user. Users whose name
     /// couldn't be read are left out.
     func displayNames(for userIds: Set<String>) async -> [String: String]
+    /// Whether the platform gives Antiphon this playlist's tracks. Asked,
+    /// one small request, for playlists marked `needsAccessCheck`.
+    func canRead(_ playlist: LibraryPlaylist) async -> Bool
 }
 
 extension LibraryService {
@@ -50,6 +57,7 @@ extension LibraryService {
     }
 
     func displayNames(for userIds: Set<String>) async -> [String: String] { [:] }
+    func canRead(_ playlist: LibraryPlaylist) async -> Bool { true }
 }
 
 extension LibraryPlaylist {
@@ -57,11 +65,15 @@ extension LibraryPlaylist {
     /// February 2026 Spotify only gives apps the tracks of playlists the
     /// person owns or collaborates on; a playlist they follow lists, but
     /// reading it is refused (403).
-    static func spotifyBlockedReason(ownerId: String, isEditable: Bool) -> String? {
-        if ownerId == "spotify" { return "Made by Spotify. Spotify doesn't let apps read these." }
-        if !isEditable { return "You follow this one. Spotify only lets apps read playlists you made or collaborate on." }
-        return nil
+    /// Only Spotify's own playlists are ruled out without asking. Someone
+    /// else's playlist may be one the person collaborates on even when the
+    /// `collaborative` flag is off, so that is asked (`needsAccessCheck`).
+    static func spotifyBlockedReason(ownerId: String) -> String? {
+        ownerId == "spotify" ? "Made by Spotify. Spotify doesn't let apps read these." : nil
     }
+
+    /// Said once Spotify has refused a playlist's tracks.
+    static let followedReason = "Spotify won't give Antiphon this playlist's tracks. It only does for playlists you made or collaborate on."
 }
 
 /// `LibraryService` over the existing clients.
@@ -77,8 +89,7 @@ struct LiveLibraryService: LibraryService {
                 let isMine = playlist.owner.id == me.id
                 // Spotify blocks apps created after Nov 2024 from its own
                 // editorial and algorithmic playlists.
-                let blocked = LibraryPlaylist.spotifyBlockedReason(
-                    ownerId: playlist.owner.id, isEditable: playlist.isEditable(byUserId: me.id))
+                let blocked = LibraryPlaylist.spotifyBlockedReason(ownerId: playlist.owner.id)
                 var parts = ["\(playlist.tracks.total) tracks"]
                 if playlist.collaborative { parts.append("collaborative") }
                 else if isMine { parts.append("yours") }
@@ -88,7 +99,8 @@ struct LiveLibraryService: LibraryService {
                     artworkURL: playlist.images?.first.flatMap { URL(string: $0.url) },
                     detail: parts.joined(separator: " · "),
                     isEditable: playlist.isEditable(byUserId: me.id), blockedReason: blocked,
-                    isOwn: isMine, isCollaborative: playlist.collaborative
+                    isOwn: isMine, isCollaborative: playlist.collaborative,
+                    needsAccessCheck: blocked == nil && !playlist.isEditable(byUserId: me.id)
                 )
             }
         case .appleMusic:
@@ -114,6 +126,13 @@ struct LiveLibraryService: LibraryService {
             let addedBy: AddedBy? = me.flatMap { me in item.addedBy.map { $0.id == me ? .you : .collaborator } }
             return LibraryEntry(track: CatalogTrack(track), addedBy: addedBy, addedByUserId: item.addedBy?.id)
         }
+    }
+
+    /// Any trouble other than a refusal counts as readable here: the read
+    /// itself will report it.
+    func canRead(_ playlist: LibraryPlaylist) async -> Bool {
+        guard playlist.platform == .spotify else { return true }
+        return (try? await spotifyClient.canReadItems(playlistId: playlist.id)) ?? true
     }
 
     func displayNames(for userIds: Set<String>) async -> [String: String] {

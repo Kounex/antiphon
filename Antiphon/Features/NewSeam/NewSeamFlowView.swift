@@ -152,7 +152,7 @@ struct PickPlaylistsStep: View {
     private func row(_ playlist: LibraryPlaylist) -> some View {
         let reason = model.unavailableReason(for: playlist)
         let selected = model.isSelected(playlist)
-        return Button { model.toggle(playlist) } label: {
+        return Button { Task { await model.pick(playlist) } } label: {
             HStack(spacing: Space.s3) {
                 CoverArt(url: playlist.artworkURL, seed: playlist.name, size: 56)
                 VStack(alignment: .leading, spacing: 2) {
