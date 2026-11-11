@@ -111,6 +111,12 @@ struct RulesView: View {
 
     private func order(_ rules: SeamRules) -> some View {
         Section("Track order") {
+            if RulesCopy.orderIsFixed(direction: rules.direction, appleMusicCanReorder: rules.appleMusicCanReorder) {
+                // Three choices that all do the same would be a control that lies.
+                Text(RulesCopy.orderFixedNote)
+                    .font(.subheadline).foregroundStyle(Color.inkMuted)
+                    .listRowBackground(Color.canvasRaised)
+            } else {
             DirectionPicker(
                 "Where new tracks go",
                 options: RulesCopy.orderOptions(for: rules.direction),
@@ -119,6 +125,7 @@ struct RulesView: View {
             )
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: Space.s2, leading: 0, bottom: Space.s2, trailing: 0))
+            }
         }
     }
 

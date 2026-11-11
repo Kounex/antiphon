@@ -86,6 +86,21 @@ struct MatchFinderTests {
         #expect(catalog.recordedCalls == ["search:m83 midnight city"])
     }
 
+    @Test("Unrelated search results aren't offered as versions of the song")
+    func unrelatedResultsDropped() async throws {
+        // What Spotify returned on the phone for a song it doesn't carry.
+        let catalog = FakeCatalog(searchResults: [
+            CatalogTrack(platform: .appleMusic, id: "x", title: "21st Century Schizoid Man", artist: "King Crimson", durationMs: 442_000),
+            CatalogTrack(platform: .appleMusic, id: "y", title: "Another Song", artist: "M83", durationMs: 200_000),
+            CatalogTrack(platform: .appleMusic, id: "z", title: "Midnight City", artist: "Someone Else", durationMs: 243_000)
+        ])
+        var local = source
+        local.isrc = nil
+        let outcome = try await MatchFinder.find(local, in: catalog, targetPlaylist: [])
+        // Only the same title survives, as something to look at; nothing to add.
+        #expect(([outcome.best].compactMap { $0 } + outcome.alternatives).map(\.track.id) == ["z"])
+    }
+
     @Test("No results means no match")
     func nothingFound() async throws {
         let outcome = try await MatchFinder.find(source, in: FakeCatalog(), targetPlaylist: [])

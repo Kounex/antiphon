@@ -193,6 +193,8 @@ struct PlaylistDetailView: View {
                     } footer: {
                         Text(model.namesNote)
                     }
+                } else if let note = model.namesUnavailableNote {
+                    Text(note).font(.footnote).foregroundStyle(Color.inkMuted).plainRow()
                 }
                 Section {
                     ForEach(Array(model.entries.enumerated()), id: \.offset) { _, entry in

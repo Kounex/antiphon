@@ -114,10 +114,15 @@ enum NewSeamCopy {
 
     static func doneTitle(name: String) -> String { "\(name) is stitched" }
 
-    static func doneBody(added: Int, monitoring: Bool, interval: Int) -> String {
+    static func doneBody(added: Int, monitoring: Bool, interval: Int, direction: SyncDirection) -> String {
         let first = "\(PlanCopy.count(added, "track")) added."
         guard monitoring, interval > 0 else { return "\(first) Antiphon syncs this seam when you ask." }
-        return "\(first) Antiphon now watches both playlists, about every \(RulesCopy.intervalPhrase(interval))."
+        let every = "about every \(RulesCopy.intervalPhrase(interval))"
+        switch direction {
+        case .bidirectional: return "\(first) Antiphon now watches both playlists, \(every)."
+        case .spotifyToApple: return "\(first) Antiphon now watches Spotify for new tracks, \(every)."
+        case .appleToSpotify: return "\(first) Antiphon now watches Apple Music for new tracks, \(every)."
+        }
     }
 }
 

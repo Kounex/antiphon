@@ -28,26 +28,27 @@ struct LibraryGridTests {
         #expect(seamed == ["Spotify:Spotify-Late Night Drive", "Apple Music:Apple Music-Late Night Drive"])
     }
 
-    @Test("The default filter shows playlists with no twin, from both libraries")
+    @Test("The default filter shows playlists with no twin, from both libraries; ones Antiphon can't use come last")
     func noTwin() {
         let names = LibraryGrid.visible(items, scope: .both, filter: .noTwin, sort: .library).map(\.playlist.name)
-        #expect(names == ["Road Trip Lisbon", "Focus Flow", "Vinyl Rips"])
+        #expect(names == ["Road Trip Lisbon", "Vinyl Rips", "Focus Flow"])
     }
 
     @Test("Each filter counts within the chosen library")
     func counts() {
         let both = LibraryGrid.counts(items, scope: .both)
-        #expect(both[.noTwin] == 3 && both[.inSeam] == 2 && both[.madeByMe] == 3)
+        // "No twin yet" counts what can be stitched, not what Spotify blocks.
+        #expect(both[.noTwin] == 2 && both[.inSeam] == 2 && both[.madeByMe] == 3)
         let spotify = LibraryGrid.counts(items, scope: .spotify)
-        #expect(spotify[.noTwin] == 2 && spotify[.inSeam] == 1 && spotify[.madeByMe] == 1)
+        #expect(spotify[.noTwin] == 1 && spotify[.inSeam] == 1 && spotify[.madeByMe] == 1)
     }
 
     @Test("Sorting by name or by size")
     func sorting() {
         let byName = LibraryGrid.visible(items, scope: .both, filter: .noTwin, sort: .name).map(\.playlist.name)
-        #expect(byName == ["Focus Flow", "Road Trip Lisbon", "Vinyl Rips"])
+        #expect(byName == ["Road Trip Lisbon", "Vinyl Rips", "Focus Flow"])
         let bySize = LibraryGrid.visible(items, scope: .both, filter: .noTwin, sort: .size).map(\.playlist.name)
-        #expect(bySize == ["Road Trip Lisbon", "Focus Flow", "Vinyl Rips"])
+        #expect(bySize == ["Road Trip Lisbon", "Vinyl Rips", "Focus Flow"])
     }
 
     @Test("Each cover says where it stands")
@@ -180,6 +181,8 @@ struct LibrarySearchTests {
 /// Collaborative playlist with two collaborators; counts name lookups.
 final class NamesLibrary: LibraryService, @unchecked Sendable {
     private(set) var lookups: [Set<String>] = []
+    /// Spotify refuses the name lookup (development-mode apps, since 2026).
+    var refuses = false
     func playlists(on platform: Platform) async throws -> [LibraryPlaylist] { [] }
     func tracks(of playlist: LibraryPlaylist) async throws -> [CatalogTrack] { [] }
     func entries(of playlist: LibraryPlaylist) async throws -> [LibraryEntry] {
@@ -189,7 +192,7 @@ final class NamesLibrary: LibraryService, @unchecked Sendable {
     }
     func displayNames(for userIds: Set<String>) async -> [String: String] {
         lookups.append(userIds)
-        return ["joana": "Joana"].filter { userIds.contains($0.key) }
+        return refuses ? [:] : ["joana": "Joana"].filter { userIds.contains($0.key) }
     }
 }
 
@@ -227,6 +230,23 @@ struct CollaboratorNamesTests {
         // Spotify didn't give a name: still honest.
         #expect(m.detail(for: m.entries[2]) == "Artist · added by a collaborator")
         await m.setShowsNames(false)
+        await m.setShowsNames(true)
+        #expect(library.lookups.count == 1)
+    }
+
+    @Test("Spotify gives no names at all: the switch goes away, the choice is dropped, and the screen says why")
+    func refused() async {
+        let library = NamesLibrary()
+        library.refuses = true
+        let m = model(library, showsNames: false)
+        await m.load()
+        #expect(m.offersNames)
+        await m.setShowsNames(true)
+        #expect(!m.showsNames)
+        #expect(!m.offersNames, "no switch that does nothing")
+        #expect(m.namesUnavailableNote == "Spotify no longer tells apps who a collaborator is.")
+        #expect(m.detail(for: m.entries[0]) == "Artist · added by a collaborator")
+        // Not asked again on this screen.
         await m.setShowsNames(true)
         #expect(library.lookups.count == 1)
     }

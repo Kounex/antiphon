@@ -89,6 +89,9 @@ final class PlaylistDetailModel {
     private(set) var showsNames: Bool
     private(set) var isLoadingNames = false
     private var namesLookedUp = false
+    /// Spotify answered the lookup with no name at all. Since 2026 it
+    /// refuses `GET /users/{id}` for development-mode apps.
+    private(set) var namesUnavailable = false
 
     private let library: LibraryService
     private let availability: AvailabilityService
@@ -104,7 +107,14 @@ final class PlaylistDetailModel {
     }
 
     /// Only collaborative playlists have someone else to name.
-    var offersNames: Bool { playlist.isCollaborative && entries.contains { $0.addedBy == .collaborator } }
+    var offersNames: Bool {
+        !namesUnavailable && playlist.isCollaborative && entries.contains { $0.addedBy == .collaborator }
+    }
+
+    /// Shown in place of the switch once Spotify gave no names.
+    var namesUnavailableNote: String? {
+        namesUnavailable ? "Spotify no longer tells apps who a collaborator is." : nil
+    }
 
     var namesNote: String {
         "Antiphon asks Spotify for each collaborator's name: \(PlanCopy.count(collaboratorIds.count, "request"))."
@@ -124,6 +134,13 @@ final class PlaylistDetailModel {
         isLoadingNames = true
         defer { isLoadingNames = false }
         names = await library.displayNames(for: collaboratorIds)
+        // No name for anyone: the lookup is refused, not one shy collaborator.
+        // Don't keep a switch that does nothing, and don't try on every playlist.
+        if names.isEmpty {
+            namesUnavailable = true
+            showsNames = false
+            preferences.showsCollaboratorNames = false
+        }
     }
 
     var other: Platform { playlist.platform.other }

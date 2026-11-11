@@ -24,6 +24,9 @@ struct SeamSummary: Identifiable, Hashable, Sendable {
     let counts: SeamCounts
     /// The direction changed: the next sync rebuilds, after a preview.
     var needsRebuild = false
+    /// Where new tracks go, and whether Apple Music lets Antiphon place them (D1).
+    var placement: TrackPlacement = .sourceOrder
+    var appleMusicCanReorder = false
 
     /// The leading side: the source of a one-way seam, Spotify for two-way.
     var source: Platform { direction == .appleToSpotify ? .appleMusic : .spotify }
@@ -307,7 +310,10 @@ actor SwiftDataSeamRepository: SeamRepository {
             lastCheckedAt: pair.lastSyncedAt,
             lastResult: pair.lastSyncResult,
             counts: SeamCounts(tracks: pair.cachedTracks, direction: pair.syncDirection, policy: pair.effectiveRemovalPolicy),
-            needsRebuild: pair.needsRebuild
+            needsRebuild: pair.needsRebuild,
+            placement: pair.effectivePlacement,
+            // A playlist Antiphon is about to create counts as Antiphon's.
+            appleMusicCanReorder: pair.appleMusicCreatedByAntiphon || pair.appleMusicPlaylistId.hasPrefix("pending-creation-")
         )
     }
 }

@@ -93,7 +93,7 @@ struct SyncedView: View {
         }
         let seam = model.seam
         return NewSeamCopy.doneBody(added: result.tracksAdded, monitoring: seam?.isMonitored == true && seam?.isPaused == false,
-                                    interval: seam?.monitorIntervalMinutes ?? 0)
+                                    interval: seam?.monitorIntervalMinutes ?? 0, direction: seam?.direction ?? .bidirectional)
     }
 
     static func list(_ names: [String]) -> String {

@@ -76,9 +76,14 @@ struct NewSeamTests {
     @Test("The finish screen states the outcome")
     func doneCopy() {
         #expect(NewSeamCopy.doneTitle(name: "Workout Mix 2026") == "Workout Mix 2026 is stitched")
-        #expect(NewSeamCopy.doneBody(added: 35, monitoring: true, interval: 15)
+        #expect(NewSeamCopy.doneBody(added: 35, monitoring: true, interval: 15, direction: .bidirectional)
                 == "35 tracks added. Antiphon now watches both playlists, about every 15 min.")
-        #expect(NewSeamCopy.doneBody(added: 1, monitoring: false, interval: 15)
+        // One way: only the source is watched for new tracks.
+        #expect(NewSeamCopy.doneBody(added: 35, monitoring: true, interval: 15, direction: .spotifyToApple)
+                == "35 tracks added. Antiphon now watches Spotify for new tracks, about every 15 min.")
+        #expect(NewSeamCopy.doneBody(added: 35, monitoring: true, interval: 15, direction: .appleToSpotify)
+                == "35 tracks added. Antiphon now watches Apple Music for new tracks, about every 15 min.")
+        #expect(NewSeamCopy.doneBody(added: 1, monitoring: false, interval: 15, direction: .spotifyToApple)
                 == "1 track added. Antiphon syncs this seam when you ask.")
     }
 
@@ -202,6 +207,35 @@ struct NewSeamModelTests {
                                 syncDirection: .spotifyToApple))
         try context.save()
         return (NewSeamModel(library: library, seams: repository, preferences: AppPreferences(defaults: defaults)), container)
+    }
+
+    @Test("A playlist already in a seam isn't offered as another one's twin")
+    func linkedPlaylistIsNoTwin() async throws {
+        let (model, container) = try makeModel()
+        // Gym Rotation is the twin of some other Spotify playlist already.
+        let context = ModelContext(container)
+        context.insert(SyncPair(spotifyPlaylistId: "Spotify-Other", spotifyPlaylistName: "Other",
+                                appleMusicPlaylistId: "Apple Music-Gym Rotation", appleMusicPlaylistName: "Gym Rotation",
+                                syncDirection: .spotifyToApple))
+        try context.save()
+        await model.loadPlaylists()
+        let workout = try #require(model.visiblePlaylists.first { $0.name == "Workout Mix 2026" })
+        model.toggle(workout)
+        model.startQueue()
+        await model.loadTwins()
+        #expect(!model.suggestions.map(\.playlist.name).contains("Gym Rotation"))
+        #expect(model.suggestions.map(\.playlist.name).contains("Workout"))
+    }
+
+    @Test("A Spotify playlist the person only follows is blocked, with the reason")
+    func followedIsBlocked() {
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "someone", isEditable: false)
+                == "You follow this one. Spotify only lets apps read playlists you made or collaborate on.")
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "spotify", isEditable: false)
+                == "Made by Spotify. Spotify doesn't let apps read these.")
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "me", isEditable: true) == nil)
+        // A collaborative playlist someone else owns can be read.
+        #expect(LibraryPlaylist.spotifyBlockedReason(ownerId: "someone", isEditable: true) == nil)
     }
 
     @Test("Playlists already in a seam, or blocked by Spotify, can't be picked")

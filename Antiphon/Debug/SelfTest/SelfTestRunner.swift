@@ -78,6 +78,8 @@ final class SelfTestRunner {
             // Shows a Live Activity for the person to look at: only by name.
             if scenario == "live" { try await liveActivity() }
         } catch {
+            // A run that stopped before its checks didn't pass.
+            failed += 1
             fail("Stopped: \(error)")
         }
         // Scenarios write their throwaway stores into the App Group: put the

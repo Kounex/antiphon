@@ -46,7 +46,7 @@ enum ConfidenceScorer {
         let sourceTitle = VersionTag.parse(source.title)
         let candidateTitle = VersionTag.parse(candidate.title)
         let titleRelation = relation(sourceTitle.baseTitle, candidateTitle.baseTitle)
-        let artistRelation = relation(source.artist.normalizedForMatching, candidate.artist.normalizedForMatching)
+        let artistRelation = artistRelation(source.artist, candidate.artist)
 
         guard titleRelation != .none else {
             return MatchScore(confidence: artistRelation == .equal ? 20 : 0, reason: .titleOnly)
@@ -60,6 +60,9 @@ enum ConfidenceScorer {
 
         if titleRelation == .partial { confidence -= 20 }
         if artistRelation == .partial { confidence -= 10 }
+        // One name merely contains the other ("Beyoncé Tribute Band"): maybe
+        // the same act credited differently, maybe a cover. Always a question.
+        if artistRelation == .loose { confidence -= loosePenalty }
 
         if let a = source.durationMs, let b = candidate.durationMs {
             let diff = abs(a - b)
@@ -103,12 +106,42 @@ enum ConfidenceScorer {
     private static let durationToleranceMs = 2000
     private static let explicitPenalty = 12
 
-    private enum Relation { case equal, partial, none }
+    private static let loosePenalty = 25
+
+    enum Relation { case equal, partial, loose, none }
 
     private static func relation(_ a: String, _ b: String) -> Relation {
         if a == b { return a.isEmpty ? .none : .equal }
         guard !a.isEmpty, !b.isEmpty else { return .none }
         return a.contains(b) || b.contains(a) ? .partial : .none
+    }
+
+    /// How two artist credits relate.
+    /// - `equal`: the same names ("Simon & Garfunkel" / "Simon and Garfunkel").
+    /// - `partial`: one side credits more people ("Calvin Harris" / "Calvin
+    ///   Harris & Dua Lipa"). Spotify gives the first artist, Apple Music all.
+    /// - `loose`: one name only contains the other ("Jimi Hendrix" / "The Jimi
+    ///   Hendrix Experience", but also "Beyoncé" / "Beyoncé Tribute Band").
+    static func artistRelation(_ a: String, _ b: String) -> Relation {
+        let wholeA = a.normalizedForMatching, wholeB = b.normalizedForMatching
+        guard !wholeA.isEmpty, !wholeB.isEmpty else { return .none }
+        if wholeA == wholeB { return .equal }
+        let namesA = artistNames(a), namesB = artistNames(b)
+        if !namesA.isEmpty, namesA == namesB { return .equal }
+        if !namesA.isEmpty, !namesB.isEmpty, namesA.isSubset(of: namesB) || namesB.isSubset(of: namesA) { return .partial }
+        return wholeA.contains(wholeB) || wholeB.contains(wholeA) ? .loose : .none
+    }
+
+    /// The names in a credit: "David Guetta, Sia", "A & B", "A feat. B", "A x B".
+    private static func artistNames(_ credit: String) -> Set<String> {
+        let separators = #",|;|&|\+|/|\s+and\s+|\s+x\s+|\s+vs\.?\s+|\s+feat\.?\s+|\s+ft\.?\s+|\s+featuring\s+|\s+with\s+"#
+        let parts = credit.lowercased()
+            .replacingOccurrences(of: separators, with: "\u{1F}", options: .regularExpression)
+            .split(separator: "\u{1F}")
+        return Set(parts.map { part -> String in
+            let name = String(part).normalizedForMatching
+            return name.hasPrefix("the ") ? String(name.dropFirst(4)) : name
+        }.filter { !$0.isEmpty })
     }
 
     private static func realISRC(_ isrc: String?) -> String? {

@@ -52,6 +52,18 @@ extension LibraryService {
     func displayNames(for userIds: Set<String>) async -> [String: String] { [:] }
 }
 
+extension LibraryPlaylist {
+    /// Why Antiphon can't use a Spotify playlist, if it can't. Since
+    /// February 2026 Spotify only gives apps the tracks of playlists the
+    /// person owns or collaborates on; a playlist they follow lists, but
+    /// reading it is refused (403).
+    static func spotifyBlockedReason(ownerId: String, isEditable: Bool) -> String? {
+        if ownerId == "spotify" { return "Made by Spotify. Spotify doesn't let apps read these." }
+        if !isEditable { return "You follow this one. Spotify only lets apps read playlists you made or collaborate on." }
+        return nil
+    }
+}
+
 /// `LibraryService` over the existing clients.
 struct LiveLibraryService: LibraryService {
     let spotifyClient: SpotifyAPIClient
@@ -65,8 +77,8 @@ struct LiveLibraryService: LibraryService {
                 let isMine = playlist.owner.id == me.id
                 // Spotify blocks apps created after Nov 2024 from its own
                 // editorial and algorithmic playlists.
-                let blocked = playlist.owner.id == "spotify"
-                    ? "Made by Spotify. Spotify doesn't let apps read these." : nil
+                let blocked = LibraryPlaylist.spotifyBlockedReason(
+                    ownerId: playlist.owner.id, isEditable: playlist.isEditable(byUserId: me.id))
                 var parts = ["\(playlist.tracks.total) tracks"]
                 if playlist.collaborative { parts.append("collaborative") }
                 else if isMine { parts.append("yours") }

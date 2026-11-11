@@ -23,7 +23,9 @@ extension SeamCounts {
     /// Counts what the seam is responsible for. Removals are review only when
     /// the seam asks about them (`PlanBuilder.asks`); differences the person
     /// chose to keep, tracks that only live on a one-way seam's target, and
-    /// removals the seam's policy settles without asking are left out.
+    /// removals the seam's policy settles without asking are left out. So are
+    /// close matches the person skipped: they aren't on the other side, so
+    /// they aren't "in sync", and they aren't waiting for anything either.
     init(tracks: [CachedTrack], direction: SyncDirection, policy: RemovalPolicy) {
         self = .empty
 
@@ -34,6 +36,7 @@ extension SeamCounts {
                 total += 1
                 continue
             }
+            if track.isSkippedMatch { continue }
             total += 1
             switch track.effectiveSyncState {
             case .synced, .skipped:
@@ -63,6 +66,16 @@ enum TrackRowState: Hashable, Sendable {
     case missing(String)
     /// Something broke; Antiphon will retry.
     case failed(String)
+    /// A close match the person turned down: not on the other side, and
+    /// Antiphon won't offer it again. Choosing a version brings it back.
+    case skipped
+}
+
+extension CachedTrack {
+    /// Skipped in Review and still only on the side it came from.
+    var isSkippedMatch: Bool {
+        effectiveSyncState == .skipped && source != .both
+    }
 }
 
 extension TrackRowState {
@@ -85,6 +98,8 @@ extension TrackRowState {
         }
 
         switch track.effectiveSyncState {
+        case .skipped where track.isSkippedMatch:
+            self = .skipped
         case .synced, .skipped:
             self = .synced
         case .syncing:

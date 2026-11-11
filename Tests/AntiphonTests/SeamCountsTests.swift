@@ -39,6 +39,22 @@ struct SeamCountsTests {
         #expect(counts.synced == 1)
     }
 
+    @Test("A close match the person skipped isn't in sync: it's left out of the counts and shown as skipped")
+    func skippedIsNotSynced() {
+        let skipped = row(.skipped)
+        let counts = SeamCounts(tracks: [row(.synced), skipped], direction: .spotifyToApple, policy: .keep)
+        #expect(counts == SeamCounts(synced: 1, review: 0, missing: 0, total: 1))
+        #expect(TrackRowState(skipped) == .skipped)
+    }
+
+    @Test("A skipped row that is on both sides after all counts as in sync")
+    func skippedButOnBothSides() {
+        let both = row(.skipped)
+        both.source = .both
+        #expect(SeamCounts(tracks: [both], direction: .spotifyToApple, policy: .keep).synced == 1)
+        #expect(TrackRowState(both) == .synced)
+    }
+
     @Test("Kept differences and target-only tracks are left out entirely")
     func ignoredRowsExcluded() {
         let tracks = [

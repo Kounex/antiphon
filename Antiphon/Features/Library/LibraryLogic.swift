@@ -57,26 +57,36 @@ enum LibraryGrid {
 
     static func matches(_ item: LibraryItem, _ filter: LibraryFilter) -> Bool {
         switch filter {
-        case .noTwin: item.seam == nil
+        case .noTwin: item.seam == nil && item.playlist.blockedReason == nil
         case .inSeam: item.seam != nil
         case .madeByMe: item.playlist.isOwn && item.playlist.blockedReason == nil
         }
     }
 
     static func visible(_ items: [LibraryItem], scope: LibraryScope, filter: LibraryFilter, sort: LibrarySort) -> [LibraryItem] {
-        let shown = items.filter { scope.includes($0.playlist.platform) && matches($0, filter) }
+        let shown = items.filter { scope.includes($0.playlist.platform) && (matches($0, filter) || isBlockedWithoutTwin($0, filter)) }
+        let sorted: [LibraryItem]
         switch sort {
         case .library:
-            return shown
+            sorted = shown
         case .name:
-            return shown.sorted { $0.playlist.name.localizedStandardCompare($1.playlist.name) == .orderedAscending }
+            sorted = shown.sorted { $0.playlist.name.localizedStandardCompare($1.playlist.name) == .orderedAscending }
         case .size:
             // Stable: equal sizes keep library order; unknown sizes go last.
-            return shown.enumerated().sorted { a, b in
+            sorted = shown.enumerated().sorted { a, b in
                 let x = a.element.playlist.trackCount ?? -1, y = b.element.playlist.trackCount ?? -1
                 return x != y ? x > y : a.offset < b.offset
             }.map(\.element)
         }
+        // Playlists Antiphon can't read (made by Spotify, or only followed)
+        // stay visible with their reason, after everything that can be stitched.
+        return sorted.filter { $0.playlist.blockedReason == nil } + sorted.filter { $0.playlist.blockedReason != nil }
+    }
+
+    /// Blocked playlists show under "No twin yet" (dimmed, last) but aren't
+    /// counted there: the count is what can be stitched.
+    private static func isBlockedWithoutTwin(_ item: LibraryItem, _ filter: LibraryFilter) -> Bool {
+        filter == .noTwin && item.seam == nil && item.playlist.blockedReason != nil
     }
 
     static func counts(_ items: [LibraryItem], scope: LibraryScope) -> [LibraryFilter: Int] {

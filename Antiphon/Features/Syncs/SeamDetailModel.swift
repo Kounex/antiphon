@@ -6,7 +6,7 @@ import Observation
 @MainActor
 @Observable
 final class SeamDetailModel {
-    enum Filter: Hashable { case all, toReview, new, missing }
+    enum Filter: Hashable { case all, toReview, new, missing, skipped }
 
     struct Tiles: Equatable {
         let inSync: Int
@@ -41,12 +41,16 @@ final class SeamDetailModel {
 
     var chips: [ChipBar<Filter>.Chip] {
         let tracks = detail?.tracks ?? []
-        return [
+        var chips: [ChipBar<Filter>.Chip] = [
             .init(.all, "All", count: tracks.count),
             .init(.toReview, "To review", count: tracks.filter(Self.needsReview).count),
             .init(.new, "New", count: tracks.filter(\.isNew).count),
             .init(.missing, "Missing", count: tracks.filter(Self.isMissing).count)
         ]
+        // Only when there are any: most seams never have a skipped track.
+        let skipped = tracks.filter(Self.isSkipped).count
+        if skipped > 0 { chips.append(.init(.skipped, "Skipped", count: skipped)) }
+        return chips
     }
 
     var visibleTracks: [SeamTrack] {
@@ -56,6 +60,7 @@ final class SeamDetailModel {
         case .toReview: tracks.filter(Self.needsReview)
         case .new: tracks.filter(\.isNew)
         case .missing: tracks.filter(Self.isMissing)
+        case .skipped: tracks.filter(Self.isSkipped)
         }
     }
 
@@ -78,6 +83,8 @@ final class SeamDetailModel {
         default: false
         }
     }
+
+    private static func isSkipped(_ track: SeamTrack) -> Bool { track.state == .skipped }
 
     private static func isMissing(_ track: SeamTrack) -> Bool {
         if case .missing = track.state { return true }

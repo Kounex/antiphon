@@ -134,7 +134,11 @@ final class NewSeamModel {
         guard let source else { return }
         isRankingTwins = true
         defer { isRankingTwins = false }
-        let others = (try? await library.playlists(on: source.platform.other))?.filter { $0.isEditable && $0.blockedReason == nil } ?? []
+        await refreshLinked()
+        // A playlist already in a seam can't be another one's twin: two seams
+        // would write into it.
+        let others = (try? await library.playlists(on: source.platform.other))?
+            .filter { $0.isEditable && $0.blockedReason == nil && !linkedPlaylistIds.contains($0.id) } ?? []
         // Fetch tracks only for the closest names, to keep requests bounded.
         let closest = others.sorted { TwinRanker.nameSimilarity(source.name, $0.name) > TwinRanker.nameSimilarity(source.name, $1.name) }.prefix(6)
         let sourceTracks = await tracks(of: source)

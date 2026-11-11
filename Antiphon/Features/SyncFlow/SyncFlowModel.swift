@@ -162,6 +162,14 @@ final class SyncFlowModel {
         return order.map(plan.side).filter { $0.missingCount > 0 || !$0.removals.isEmpty }
     }
 
+    /// "Put new tracks": where this sync's additions land, by the seam's
+    /// order rule and what each platform allows.
+    var placementValue: String? {
+        guard let plan = planned?.plan, let seam else { return nil }
+        let receiving = [seam.source.other, seam.source].filter { !plan.side($0).automaticAdds.isEmpty }
+        return RulesCopy.placementValue(seam.placement, receiving: receiving, appleMusicCanReorder: seam.appleMusicCanReorder)
+    }
+
     var writeCount: Int {
         guard let plan = planned?.plan else { return 0 }
         return plan.automaticAddCount + plan.removalCount

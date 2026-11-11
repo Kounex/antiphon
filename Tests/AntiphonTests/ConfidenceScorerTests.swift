@@ -23,6 +23,38 @@ struct ConfidenceScorerTests {
         durationMs: 243_000, isrc: "FR6V81100040", isExplicit: false
     )
 
+    private func pair(_ titleA: String, _ artistA: String, _ titleB: String, _ artistB: String) -> MatchScore {
+        ConfidenceScorer.score(source: track(titleA, artist: artistA, platform: .spotify), candidate: track(titleB, artist: artistB))
+    }
+
+    @Test("Spelling the catalogs disagree on isn't a difference: accents, & / and / +, Pt. / Part")
+    func spellingVariants() {
+        #expect(pair("Halo", "Beyoncé", "Halo", "Beyonce") == MatchScore(confidence: 99, reason: .titleArtistDuration))
+        #expect(pair("Hoppípolla", "Sigur Rós", "Hoppipolla", "Sigur Ros").confidence == 99)
+        #expect(pair("The Boxer", "Simon & Garfunkel", "The Boxer", "Simon and Garfunkel").confidence == 99)
+        #expect(pair("Dog Days Are Over", "Florence + The Machine", "Dog Days Are Over", "Florence and the Machine").confidence == 99)
+        #expect(pair("Another Brick in the Wall, Pt. 2", "Pink Floyd", "Another Brick in the Wall (Part 2)", "Pink Floyd").confidence == 99)
+        #expect(pair("Help!", "The Beatles", "Help!", "Beatles").confidence == 99)
+    }
+
+    @Test("One side crediting more artists than the other is still a strong match")
+    func creditedArtists() {
+        #expect(pair("One Kiss", "Calvin Harris", "One Kiss", "Calvin Harris & Dua Lipa").confidence == 90)
+        #expect(pair("Titanium", "David Guetta", "Titanium", "David Guetta, Sia").confidence == 90)
+        #expect(pair("Refugee", "Tom Petty", "Refugee", "Tom Petty and the Heartbreakers").confidence == 90)
+    }
+
+    @Test("An artist name that only contains the other is asked about, never added on its own")
+    func tributeActsAreAsked() {
+        // The original isn't in the catalog; the search finds a tribute act.
+        let tribute = pair("Halo", "Beyoncé", "Halo", "Beyoncé Tribute Band")
+        #expect(tribute.confidence < ConfidencePolicy.defaultAutoAddThreshold)
+        #expect(tribute.confidence >= ConfidencePolicy.reviewFloor)
+        // Same band, credited differently: also a question, not a miss.
+        let hendrix = pair("Purple Haze", "Jimi Hendrix", "Purple Haze", "The Jimi Hendrix Experience")
+        #expect(hendrix.confidence >= ConfidencePolicy.reviewFloor && hendrix.confidence < 90)
+    }
+
     @Test("Same ISRC is a certain match")
     func isrcMatch() {
         let result = ConfidenceScorer.score(source: source, candidate: track("Midnight City", isrc: "fr6v81100040"))

@@ -185,6 +185,31 @@ struct SyncsScreensTests {
         #expect(RulesCopy.direction(.bidirectional) == "Changes on either side are copied to the other. If a track is removed on one side, Antiphon asks before removing it on the other.")
     }
 
+    @Test("A one-way seam into the person's own Apple Music playlist has no order to choose")
+    func orderFixed() {
+        #expect(RulesCopy.orderIsFixed(direction: .spotifyToApple, appleMusicCanReorder: false))
+        #expect(!RulesCopy.orderIsFixed(direction: .spotifyToApple, appleMusicCanReorder: true))
+        #expect(!RulesCopy.orderIsFixed(direction: .appleToSpotify, appleMusicCanReorder: false))
+        // Two-way: the Spotify side can still be placed.
+        #expect(!RulesCopy.orderIsFixed(direction: .bidirectional, appleMusicCanReorder: false))
+    }
+
+    @Test("The preview says where new tracks really go")
+    func previewPlacement() {
+        #expect(RulesCopy.placementValue(.end, receiving: [.spotify], appleMusicCanReorder: true) == "At the end")
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [.spotify], appleMusicCanReorder: false) == "Same place as on Apple Music")
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [.appleMusic], appleMusicCanReorder: true) == "Same place as on Spotify")
+        #expect(RulesCopy.placementValue(.mirror, receiving: [.appleMusic], appleMusicCanReorder: true) == "In Spotify's order")
+        // Apple Music playlists the person made can only be appended to.
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [.appleMusic], appleMusicCanReorder: false) == "At the end")
+        #expect(RulesCopy.placementValue(.mirror, receiving: [.appleMusic], appleMusicCanReorder: false) == "At the end")
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [.appleMusic, .spotify], appleMusicCanReorder: false)
+                == "Same place on Spotify, at the end on Apple Music")
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [.appleMusic, .spotify], appleMusicCanReorder: true)
+                == "Same place as on the other side")
+        #expect(RulesCopy.placementValue(.sourceOrder, receiving: [], appleMusicCanReorder: true) == nil)
+    }
+
     @Test("Removal consequence names the platforms")
     func removalCopy() {
         #expect(RulesCopy.removal(.keep, direction: .spotifyToApple) == "Removing a track on Spotify won't touch Apple Music.")

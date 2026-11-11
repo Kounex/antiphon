@@ -40,7 +40,7 @@ enum SeamPresentation {
         case .pending: .pending
         case .review(let confidence, _): .review(confidence: confidence)
         case .removed: .removed
-        case .missing: .missing
+        case .missing, .skipped: .missing
         case .failed: .failed
         }
     }
@@ -55,6 +55,8 @@ enum SeamPresentation {
             return "Removed on \(platform.rawValue)"
         case .missing(let text), .failed(let text):
             return text
+        case .skipped:
+            return "\(track.artist) · skipped by you"
         default:
             if track.isPicked { return "\(track.artist) · your pick" }
             if track.isNew { return "\(track.artist) · added recently" }

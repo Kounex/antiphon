@@ -143,6 +143,11 @@ enum ReviewCopy {
         let source = VersionTag.parse(item.source.title).tags
         let candidate = VersionTag.parse(best.track.title).tags
 
+        // A different credit comes first: it may be a cover or a tribute act.
+        if ConfidenceScorer.artistRelation(item.source.artist, best.track.artist) == .loose {
+            return "Same title, but credited to \(best.track.artist)."
+        }
+
         for tag in candidate.subtracting(source).sorted(by: priority) {
             return "Same artist and title, but \(phrase(tag))."
         }

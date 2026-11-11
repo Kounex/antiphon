@@ -41,6 +41,27 @@ enum RulesCopy {
         return [samePlace, .init(.mirror, title: "Same order"), end]
     }
 
+    /// A one-way seam into an Apple Music playlist the person made can only
+    /// append: there is no order to choose, so the screen doesn't offer one.
+    static func orderIsFixed(direction: SyncDirection, appleMusicCanReorder: Bool) -> Bool {
+        direction == .spotifyToApple && !appleMusicCanReorder
+    }
+
+    static let orderFixedNote = "New tracks go at the end on Apple Music. Apple only lets apps reorder playlists they created; "
+        + "a playlist Antiphon creates for a seam can follow Spotify's order."
+
+    /// The preview's "Put new tracks" value: what happens on the sides that
+    /// receive tracks in this sync. `nil` when nothing is added.
+    static func placementValue(_ placement: TrackPlacement, receiving: [Platform], appleMusicCanReorder: Bool) -> String? {
+        guard !receiving.isEmpty else { return nil }
+        let placeable = receiving.filter { placement != .end && ($0 == .spotify || appleMusicCanReorder) }
+        if placeable.isEmpty { return "At the end" }
+        if placeable.count < receiving.count { return "Same place on Spotify, at the end on Apple Music" }
+        if receiving.count > 1 { return "Same place as on the other side" }
+        let other = receiving[0].other.rawValue
+        return placement == .mirror ? "In \(other)'s order" : "Same place as on \(other)"
+    }
+
     static func order(_ placement: TrackPlacement, direction: SyncDirection, appleMusicCanReorder: Bool) -> String {
         let appleLimit = "Apple only lets apps reorder playlists they created."
         switch placement {

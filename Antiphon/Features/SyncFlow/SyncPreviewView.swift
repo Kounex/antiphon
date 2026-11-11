@@ -74,12 +74,20 @@ struct SyncPreviewView: View {
                 Button { showsEveryTrack = true } label: {
                     HStack { Text("See every track").foregroundStyle(Color.ink); Spacer(); Image(systemName: "chevron.right").foregroundStyle(Color.inkFaint) }
                 }
-                HStack {
-                    Text("Put new tracks").foregroundStyle(Color.ink)
-                    Spacer()
-                    Text("At the end").foregroundStyle(Color.inkMuted)
+                if let placement = model.placementValue {
+                    ViewThatFits(in: .horizontal) {
+                        HStack {
+                            Text("Put new tracks").foregroundStyle(Color.ink)
+                            Spacer()
+                            Text(placement).foregroundStyle(Color.inkMuted)
+                        }
+                        VStack(alignment: .leading, spacing: Space.s1) {
+                            Text("Put new tracks").foregroundStyle(Color.ink)
+                            Text(placement).font(.subheadline).foregroundStyle(Color.inkMuted)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
             }
             .listRowBackground(Color.canvasRaised)
         }

@@ -24,7 +24,8 @@ extension String {
     /// This is used as a fallback when ISRC matching fails and the sync engine
     /// needs to compare track metadata across platforms.
     var normalizedForMatching: String {
-        var result = self.lowercased()
+        // Catalogs disagree on accents ("Beyoncé" / "Beyonce") and on full-width forms.
+        var result = self.lowercased().folding(options: [.diacriticInsensitive, .widthInsensitive], locale: nil)
 
         // 1. Strip feature tags, remaster, deluxe, live, single, and junk video/audio tags
         for regex in Self.normalizationRegexes {
@@ -35,8 +36,11 @@ extension String {
             )
         }
 
-        // 2. Replace hyphens, slashes, and backslashes with spaces
+        // 2. "&" and "+" are "and" ("Simon & Garfunkel", "Florence + The Machine");
+        //    hyphens, slashes, and backslashes become spaces
         result = result
+            .replacingOccurrences(of: "&", with: " and ")
+            .replacingOccurrences(of: "+", with: " and ")
             .replacingOccurrences(of: "-", with: " ")
             .replacingOccurrences(of: "/", with: " ")
             .replacingOccurrences(of: "\\", with: " ")
@@ -45,7 +49,10 @@ extension String {
         let charsToRemove: Set<Character> = ["(", ")", "[", "]", "{", "}", ",", ".", "'", "\"", "’", "`"]
         result = String(result.filter { !charsToRemove.contains($0) })
 
-        // 4. Collapse multiple spaces and trim
+        // 4. "Pt. 2" is "Part 2"
+        result = result.replacingOccurrences(of: "\\bpt\\b", with: "part", options: .regularExpression)
+
+        // 5. Collapse multiple spaces and trim
         result = result.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -31,6 +31,10 @@ enum MatchFinder {
     static let searchLimit = 5
     /// Same title, artist and length (or same ISRC): interchangeable recordings.
     static let strongMatch = 90
+    /// A title-only score below this means the titles don't relate at all: a
+    /// different song (`ConfidenceScorer`: 0, or 20 for the same artist). A
+    /// live take or remix of the song can score lower and still be a version.
+    static let relatedFloor = 30
 
     static func find(
         _ source: CatalogTrack,
@@ -99,6 +103,10 @@ enum MatchFinder {
 
         var seen = Set<String>()
         let ranked = scored
+            // A search returns something for anything. What shares neither
+            // the title nor the artist isn't a version of this song, and
+            // offering it as one ("other versions") would be noise.
+            .filter { !($0.reason == .titleOnly && $0.confidence < relatedFloor) }
             .sorted { a, b in
                 // Every solid match is the same recording for practical
                 // purposes, so among those the release decides (original
