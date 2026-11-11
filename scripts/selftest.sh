@@ -1,6 +1,7 @@
 #!/bin/zsh
 # On-device self-test against the real Spotify and Apple Music accounts.
-# Builds the dev app, waits for an unlocked phone, installs, runs, and prints
+# Builds the app (installed over the normal one, com.kounex.antiphon), waits
+# for an unlocked phone, installs, runs, and prints
 # the [SELFTEST] lines. Full device log: build/logs/selftest.log.
 # usage: scripts/selftest.sh [scenario]   (no scenario = album and library, both read only)
 # Read only:  album library matchprobe (and realpreview icon live, by name).
@@ -11,11 +12,11 @@
 # See SelfTestRunner.swift.
 cd "$(dirname "$0")/.."
 DEV=${DEVICE_ID:-E027CD50-71A3-550D-B5FA-24BA79C6EA30}
-APP=build/dev/Build/Products/Debug-iphoneos/Antiphon.app
+APP=build/device/Build/Products/Debug-iphoneos/Antiphon.app
 LOG=build/logs/selftest.log
 mkdir -p build/logs
 if [[ "$SKIP_BUILD" != 1 ]]; then
-  scripts/build-dev.sh || { echo "Build failed; not running the self-test." >&2; exit 1; }
+  scripts/build-device.sh || { echo "Build failed; not running the self-test." >&2; exit 1; }
 fi
 installed=0
 for i in {1..120}; do
@@ -30,7 +31,7 @@ extra=()
 [[ "$WRITES" == 1 ]] && extra+=(-AntiphonSelfTestWrites YES)
 # A locked phone refuses the launch: wait for it to be unlocked.
 for i in {1..60}; do
-  xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon.dev -- \
+  xcrun devicectl device process launch --device $DEV --terminate-existing --console com.kounex.antiphon -- \
     -AntiphonScreen $ROUTE -AntiphonSelfTestExit YES "${extra[@]}" > $LOG 2>&1
   grep -q "could not be, unlocked" $LOG || break
   (( i == 1 )) && echo "The phone is locked; unlock it to start the self-test." >&2

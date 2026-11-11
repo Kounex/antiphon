@@ -827,3 +827,10 @@ An audit of the whole app (docs, about a third of the code closely, 41 simulator
 - **Measured on the phone** (`spotifyaccess`, read only, one track per playlist): of 31 playlists owned by someone else, Spotify handed over 8 and refused 23. Of the 8, only 4 carry the `collaborative` flag; **4 are readable without it**. No flagged playlist was refused. So the flag misses half of what the person collaborates on, and the audit pass's rule had wrongly disabled those four.
 - **Still open:** such a playlist isn't offered as a twin when a seam is started from the Apple Music side (`isEditable` still follows the flag); start from the Spotify playlist. Whether Spotify lets Antiphon add tracks to one isn't tested (tests don't write any more).
 - **Verified:** 496 unit tests (new: what is blocked up front, a readable and a refused friend's playlist in New seam), and the probe above.
+
+### Device builds go over the normal app (2026-11-11)
+
+- **Decision (the person):** "always build over the normal and don't build the dev app, I always delete it". A freshly installed dev app also had no Spotify sign-in and no Apple Music permission, which is what stopped two self-test runs today.
+- `scripts/build-dev.sh` is now `scripts/build-device.sh`: the Debug build keeps the normal bundle ID and installs over Antiphon on the phone. `scripts/selftest.sh` launches `com.kounex.antiphon`.
+- A debug route no longer resets the stored theme on a phone (simulator only): there it runs inside the person's own app.
+- **Verified on the phone, inside the normal app:** the read-only self-test, 18 of 18 (`album` 12 of 12 after today's matching changes; `library` 6 of 6 without any test playlist).

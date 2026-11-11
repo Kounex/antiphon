@@ -31,7 +31,9 @@ struct AntiphonApp: App {
     #endif
 
     init() {
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
+        // Screenshots only. On a phone a debug route (the self-test) runs
+        // inside the person's own app and must leave their settings alone.
         if Self.isDebugRoute { DebugRoute.resetLaunchState() }
         #endif
         if Self.isHostingTests, let inMemory = try? SharedModelContainer.make(inMemory: true) {

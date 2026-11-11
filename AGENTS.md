@@ -22,13 +22,14 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 | Unit tests (Swift Testing, ~490) | `scripts/test.sh` or `scripts/test.sh -only-testing:AntiphonTests/<Suite>` |
 | Simulator build and install | `scripts/screenshot.sh --install` |
 | Screenshot a debug route | `scripts/screenshot.sh shell/library light library` (`WAIT=6` for slow screens) |
-| Dev build for the phone | `scripts/build-dev.sh` (bundle `com.kounex.antiphon.dev`, installed next to the real app) |
+| Debug build for the phone | `scripts/build-device.sh`, then `xcrun devicectl device install app --device $DEVICE_ID build/device/Build/Products/Debug-iphoneos/Antiphon.app` (installs **over the normal app**, `com.kounex.antiphon`, keeping its data) |
 | On-device self-test, real accounts, read only | `scripts/selftest.sh [album\|library\|matchprobe]` |
 | App Store screenshot captures (preview data, both Store simulators) | `scripts/store_screenshots.sh [phone\|tablet\|all] [slot …]` → `build/store_screenshots/` |
 
 - The scheme is **"Antiphon (Debug)"**, not "Antiphon".
 - The simulator is the iPhone 17 Pro, `SIM_ID` D6F98034-F7A7-4574-967C-A9E182A7ED3A. The user's phone is `DEVICE_ID` E027CD50-71A3-550D-B5FA-24BA79C6EA30. Both can be overridden with environment variables.
-- For the device build, override `ANTIPHON_BUNDLE_ID`, never `PRODUCT_BUNDLE_IDENTIFIER`. The latter renames the design package's resource bundle and its colors stop resolving.
+- **Device builds go over the normal app; there is no dev app** (the user, 2026-11-11: "always build over the normal and don't build the dev app, I always delete it"). Never build or install `com.kounex.antiphon.dev`. The phone's store is the person's real data: a Debug build migrates it forward, so don't put schema experiments on the phone, and remember a later TestFlight build must be at least as new.
+- If a different bundle ID is ever needed, override `ANTIPHON_BUNDLE_ID`, never `PRODUCT_BUNDLE_IDENTIFIER`. The latter renames the design package's resource bundle and its colors stop resolving.
 
 ### Debug routes (`-AntiphonScreen <route>`, DEBUG only, `Antiphon/Debug/DebugRouter.swift`)
 
@@ -52,9 +53,9 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
   - `scripts/selftest.sh` with no scenario runs `album` (what the matcher picks on the real catalogs) and `library` (both libraries, blocked playlists, availability of the person's smallest own Spotify playlist, the onboarding twin scan, the search index).
   - By name: `matchprobe` (every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`), `realpreview` (dry run of a seam named "Antiphon Test", if the person has one), `icon` (switches the Home Screen icon), `live` (shows a Live Activity).
 - **Retired, refused by the app:** `twoway`, `sameorder`, `undo`, `recheck`, `monitor`, `opencheck`, `pick`, `ownam`, `recreate`, `ask`. They create, fill, empty and reorder playlists. The code stays as a record of what was verified; it only runs with `WRITES=1 scripts/selftest.sh <scenario>`, and only when the user asks for that themselves.
-- The dev app has its own sign-ins. `Stopped: notAuthenticated` means Spotify isn't connected in the dev app; `Stopped: notAuthorized` means Apple Music access is off for it (iOS Settings › Apps › the dev Antiphon › Media & Apple Music).
+- The self-test runs inside the normal app (its own throwaway store for anything it keeps; `library` reads the real seams, read only). `Stopped: notAuthenticated` means Spotify isn't connected; `Stopped: notAuthorized` means Apple Music access is off (iOS Settings › Apps › Antiphon › Media & Apple Music).
 - Last full run with the writing scenarios: **145 passed, 7 failed** (2026-11-11). Three failures were a real bug in version picks, fixed and rerun (`pick` 12 of 12); two were Apple Music not listing an add within 3 minutes; two were missing test playlists. Before that: 135 of 135 (2026-10-14).
-- The phone must be unlocked and the dev app on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
+- The phone must be unlocked and Antiphon on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
 
 ## How the user wants work done
 
