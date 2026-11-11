@@ -409,6 +409,22 @@ struct LibraryAnchorTests {
         #expect(ids == ["1831584253": "i.word", "590423286": "i.faint"])
     }
 
+    @Test("An entry that was in the playlist before the add is never the added song")
+    func ignoresEntriesFromBefore() {
+        // A version pick, seen on the phone: the old version is still listed
+        // and the new one not yet. Same title, artist and length.
+        let old = entry("i.old", "193613943", "Word Up!")
+        let pick = [added("1145536681", "Word Up!")]
+        #expect(LibraryAnchor.libraryIDs(for: pick, in: [old], before: ["i.old": 1]).isEmpty)
+        // Listed a moment later as its own entry.
+        #expect(LibraryAnchor.libraryIDs(for: pick, in: [old, entry("i.new", "1145536681", "Word Up!")], before: ["i.old": 1])
+                == ["1145536681": "i.new"])
+        // Or as a second entry of the same library song.
+        #expect(LibraryAnchor.libraryIDs(for: pick, in: [old, old], before: ["i.old": 1]) == ["1145536681": "i.old"])
+        // Without a "before", every entry counts, as it always did.
+        #expect(LibraryAnchor.libraryIDs(for: pick, in: [old]) == ["1145536681": "i.old"])
+    }
+
     @Test("The fallback never takes an entry another added song owns, or a different length")
     func fallbackIsCareful() {
         let entries = [entry("i.word", "1831584253", "Word Up!"), entry("i.live", "555", "Word Up!", seconds: 240)]

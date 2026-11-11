@@ -81,6 +81,20 @@ struct ChooseVersionTests {
         #expect(run.changes.first { $0.kind == .add }?.album == "Word Up!: The Remixes - EP")
     }
 
+    @Test("Apple Music hasn't listed the pick yet: the old version stays until it does")
+    func swapWaitsForTheNewVersion() async throws {
+        let f = try makeFixture()
+        // Apple Music confirms the add but the playlist doesn't show it yet.
+        let editor = FakeEditor(live: live(["i.hits"]), unlisted: true)
+
+        let outcome = try await runner(f, editor).choose(ep, for: f.key, pairId: f.pairId)
+
+        #expect(editor.edits.filter { $0.kind == "remove" }.isEmpty, "removing the old one first could leave the song out of the playlist")
+        #expect(outcome.guided.map(\.track.id) == ["i.hits"], "the person is told the old version is still there")
+        #expect(try row(f).appleMusicTrackId == "ep")
+        #expect(try pins(f) == [f.key: ep.track])
+    }
+
     @Test("The person's own Apple Music playlist: the pick goes in, removing the old one is up to them")
     func swapGuided() async throws {
         let f = try makeFixture()

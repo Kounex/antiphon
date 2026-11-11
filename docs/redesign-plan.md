@@ -1,6 +1,6 @@
 # Antiphon redesign plan (Phase 0)
 
-> **Status (2026-10-14):** M0–M8 and the review fixes are merged into `main`; `redesign/ios26` is gone and work continues on `main`. Each milestone's record is at the end of this file. 1.4.0 shipped to TestFlight 2026-10-14 (sync sheet state/multi-sync, an iPad pass — see the last entry). Next: M9 step 4, the share extension (9.03). Agent notes and commands: [`AGENTS.md`](../AGENTS.md).
+> **Status (2026-10-14):** M0–M8 and the review fixes are merged into `main`; `redesign/ios26` is gone and work continues on `main`. Each milestone's record is at the end of this file. 1.4.0 shipped to TestFlight 2026-10-14 (sync sheet state/multi-sync, an iPad pass — see the last entry). Next: M9 step 4, the share extension (9.03). An audit on 2026-11-11 and the fixes that came of it are the last entry. Agent notes and commands: [`AGENTS.md`](../AGENTS.md).
 
 
 Status: **approved 2026-10-10 — all recommendations (D1–D7) accepted.** Work happens on `redesign/ios26`. This document is the audit and plan for the iOS 26 / Liquid Glass rebuild against the Antiphon design system (`TXKAkq1pkYhFFF593kxH63`) and the storyboard (`BF77MNwKAG2ZbZNv6mL15Q`).
@@ -741,3 +741,72 @@ Not done (deliberately): "Mirror order" (copy the source's reordering to the tar
 - **DEBUG log of Spotify failures** (`SpotifyDebugLog` → `Documents/sync-diagnostics.log`): sign-in steps, granted scopes, every failed call's path, status and body, unreadable replies, refresh failures. No tokens; the client ID only as its last 4 characters. Pull with `xcrun devicectl device copy from … --domain-type appDataContainer --domain-identifier com.kounex.antiphon.dev --source Documents`.
 - **What the phone showed** (friend's client ID, after the friend added the user): sign-in and token exchange fine, then `GET /v1/me → 403 The user is not registered for this application.` Spotify sends that as plain text, not JSON, so `spotifyMessage` now also quotes short plain-text bodies.
 - **Verified:** 466 unit tests (new: `SpotifyAccessCopyTests`, `NewSeamLoadErrorTests`), simulator screenshot of `shell/settings/spotify`, and the dev build on the phone against the friend's app (refusal shown and logged, sign-in not kept).
+
+### Audit and what came of it (2026-11-11)
+
+An audit of the whole app (docs, about a third of the code closely, 41 simulator screenshots, the real `ConfidenceScorer` compiled against 20 tricky pairs, Spotify's current developer docs), then read-only checks on the phone, then the fixes. Each item was verified in code, by running it, or on the phone before it was changed.
+
+**What the phone showed first (read only).**
+- `GET /v1/users/{id}` now answers 403 for development-mode apps: collaborator names can't be looked up any more (0 of 1 found; it passed on 2026-10-11). Spotify's February 2026 migration guide lists the endpoint as removed.
+- 26 of the account's 108 Spotify playlists are only followed. Antiphon offered them for stitching, and reading one answered 403 "Forbidden". The guide: playlist items are "only available for playlists the user owns or collaborates on".
+- A song missing from Spotify (King Gizzard's "Rattlesnake") was correctly not found, but five unrelated search results at 0% were stored as its "other versions".
+- ISRC covered the mainstream cases (Beyoncé, Simon & Garfunkel at 100%), so the spelling gaps below only matter for tracks without an ISRC match. The tribute-act case was not reproduced on the real catalogs; it is hardening.
+
+**Truth fixes.**
+- **Skipped isn't synced.** A close match the person skipped showed a ✓ and counted in "tracks in sync". It is left out of the counts (like a kept difference), reads "skipped by you", and a Skipped chip appears on the seam when there are any. Tapping the row still opens the version picker, which brings it back.
+- **Followed playlists** are disabled with the reason, come last in Library and aren't counted under "No twin yet". Only playlists owned by "spotify" were disabled before.
+- **New seam** no longer offers a playlist that is already in a seam as another one's twin (onboarding's twin scan already excluded them).
+- **Collaborator names:** once a lookup finds no name at all, the switch goes away with one line why, and the choice is dropped so it isn't tried on every playlist.
+- **Rules › Track order:** a one-way seam into the person's own Apple Music playlist can only append, so the three-way picker (whose every choice did the same) is replaced by a sentence. The preview's "Put new tracks" was hardcoded to "At the end"; it now says where they really go (`RulesCopy.placementValue`). A one-way seam's result no longer says Antiphon "watches both playlists".
+- **A refused playlist isn't a sign-out.** A 403 "Forbidden" on one playlist was recorded as "Spotify signed you out" for every seam. It is that seam's problem now (`ProblemKind.writeRefused`).
+- **Self-test:** a run that stops before its checks counts as failed (it used to print `passed=0 failed=0` and exit 0).
+
+**Matching.**
+- Accents, "&" / "and" / "+" and "Pt." / "Part" no longer make a difference (`normalizedForMatching`). Before: Beyoncé / Beyonce 45%, "Another Brick in the Wall, Pt. 2" / "(Part 2)" 20%, both "not found".
+- Artist credits are compared as names (`ConfidenceScorer.artistRelation`): one side crediting more people stays a strong match (90%); a name that only contains the other ("Beyoncé Tribute Band", but also "The Jimi Hendrix Experience") costs 25 and is always asked about. Before, any substring counted as a partial match at 90%, exactly the auto-add bar. Review explains it: "Same title, but credited to …".
+- Search results whose title doesn't relate to the song are no longer kept as candidates. Low-scoring versions of the song (a live take, a remix) stay.
+
+**Review, heroes, seam menu.**
+- Review's three round buttons are labelled (Skip, Other versions, Same track; captions capped at xxxLarge), each card shows the album, and there is one way out instead of a ✕ and a "Later" that did the same. Decisions and a finished sync give haptic feedback.
+- The ground behind the seam, playlist, review and result heroes is the cover itself, blurred (`CoverWash`); it was a gradient picked from the name. Apple Music library art (`musicKit://`) can't be loaded and keeps the gradient.
+- A seam's menu opens its playlists in Spotify and Apple Music (`SeamLinks`).
+
+**Onboarding.**
+- The welcome screen says what it takes (Spotify Premium, an Apple Music subscription, two minutes for a Spotify key). Connect shows Apple Music first.
+- The client ID guide needs one trip out and one back: "Open the dashboard" copies the redirect address, and name and description can be anything, so only that one value is copied.
+- **Invite link** (`SpotifyInvite`): Settings › Spotify › "Share this client ID" sends `antiphon://connect?client_id=…`. Opening it fills in the field for someone not connected yet; someone connected keeps their own. Spotify allows five accounts per development-mode app, each added under Users Management by the owner. Whether those accounts need Premium isn't stated by Spotify and isn't tested.
+
+**Monitoring.**
+- New-track notifications name the tracks: "Nightcall, A Real Hero and 2 more are new in Late Night Drive."
+- Settings › Monitoring shows what iOS really granted ("iOS ran Antiphon in the background 3 times in the last 24 hours, last 2 h ago", from `AppPreferences.backgroundRuns`, recorded when a background refresh starts), and explains the Shortcuts automation (App › Is Closed → Sync Playlists).
+- A wake-up that would fall in quiet hours is asked for when they end (`MonitorSchedule.nextBegin`).
+- **Unchanged check** (`UnchangedCheck`, `SyncPair.unchangedToken`, an additive optional field). A run that ends with nothing written leaves a token: Spotify's snapshot ID, a hash of the Apple Music track IDs in order, and the rules it ran under. A scheduled background run first takes one look (one small Spotify request, the Apple Music IDs from the library on the phone); same token, nothing waiting in the store, and every stored Apple Music ID listed means the full read is skipped. It is still logged as a check. Any doubt means a full check.
+  - **Measured on the phone:** Spotify's snapshot ID changed **59.5 s** after a track was added, while the track list showed it at once. So only scheduled background runs take the cheap look; opening the app, Sync all, pull to refresh and Shortcuts always read everything. A scheduled run inside that minute is delayed to the next one.
+  - The first version skipped on every unattended run and missed a track added a moment before; the self-test caught it.
+
+**Problems and home.**
+- A deleted playlist can be made again from the other side ("Recreate on …"), when tracks flow toward the deleted side. The seam ends up exactly as New seam leaves one whose twin is still to be created (that side waits for creation, no stored tracks, a first sync to preview); rules, history and picks stay. "Fix", which only opened the seam, is gone.
+- Home: when something needs the person, or at accessibility sizes, the big number steps back into one line. With both banners the first seam used to start 62% down the screen; now 56%, with the second card in view.
+
+**Found by the full self-test, and fixed: a version pick could take the song out of the playlist.**
+- When Apple Music hadn't listed the picked version yet, anchoring's title/artist/length fallback matched the *old* version's entry (same title, artist and length), and the swap then removed it: the playlist was left with neither. It passed on 2026-10-14 because Apple Music listed the new version in time.
+- `LibraryAnchor.libraryIDs(for:in:before:)` now ignores entries that were in the playlist before the add (counted, so a second entry of the same library song still anchors). Both add paths pass what the playlist held before (`AppleMusicManager.entryCounts`, the run's own read in `SyncEngine`).
+- `OperationRunner.choose` removes the old version only once the new one is listed (`PlaylistEditor.isListed`); otherwise the old one stays and the person is told it's still there.
+- On the phone after the fix: `pick` 12 of 12, and the log shows attempt 1 no longer anchoring to the old entry.
+
+**Verified.**
+- 494 unit tests (466 before).
+- The full self-test on the phone: 145 passed, 7 failed. Three were the pick race above (fixed, `pick` rerun 12 of 12). Two were Apple Music confirming an add ("Faint") and not listing it within 3 minutes, after the playlist had been emptied and refilled several times in an hour. Two were missing test playlists; on a rerun of `library` one is left: the person's own "Antiphon Test" playlist isn't in Apple Music any more, so `library` and `ownam` need it recreated or the check dropped.
+- Simulator screenshots of every changed screen, dark; Review also at AX5; the seam hero with a real image.
+- On the phone: `monitor` 33 of 33 (named notification, the unchanged check and its limits, the snapshot lag); the new `recreate` scenario 8 of 8 (by name: it leaves an "Antiphon Self-Test (restored)" playlist in Apple Music each run, because apps can't delete playlists); `album` 12 of 12 before the matching change.
+- Apple Music confirming an add and not listing it for minutes was seen three times today ("Midnight City" once, "Faint" once, the pick above). The engine's read grace and requeue cover the plain case.
+
+**Not verified.**
+- The invite link and the "Open in Apple Music" link on a phone (parsing and URLs are unit-tested).
+- The Shortcuts automation itself.
+- What the unchanged check saves on a large playlist (0.26 s against 0.72 s on four tracks).
+- Real background cadence: nothing was recorded before today.
+
+**Proposed and not built.**
+- Liked Songs as a one-way source. `GET /me/tracks` is still available and the scope is granted, but it changes the seam model, and a real test would copy the whole Liked Songs list into Apple Music.
+- Store screenshots with real-looking covers, localization, a Control Center control.

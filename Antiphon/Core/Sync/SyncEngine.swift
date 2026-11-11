@@ -849,7 +849,9 @@ actor SyncEngine {
                     )
                     // Recorded under the ID the row keeps (the library ID once
                     // anchored), so seam detail can tell which rows are new.
-                    let anchors = await appleMusicManager.libraryIDs(for: appleMusicSongsToAdd, in: amPlaylist)
+                    // What the playlist held when this run read it: never the songs just added.
+                    let before = appleMusicTracks.reduce(into: [String: Int]()) { $0[$1.id, default: 0] += 1 }
+                    let anchors = await appleMusicManager.libraryIDs(for: appleMusicSongsToAdd, in: amPlaylist, before: before)
                     for write in queuedAppleMusicWrites {
                         let id = anchors[write.songId] ?? write.songId
                         markWritten(write.track, appleMusicID: id)

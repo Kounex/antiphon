@@ -1025,7 +1025,9 @@ final class SelfTestRunner {
             let ids = Set(entries.filter { $0.addedBy == .collaborator }.compactMap(\.addedByUserId))
             let names = await library.displayNames(for: ids)
             log("collaborative playlist: \(entries.count) tracks, \(entries.filter { $0.addedBy == .you }.count) by you, \(ids.count) collaborators, \(names.count) names found")
-            expect(ids.isEmpty || !names.isEmpty, "collaborators' names can be looked up")
+            // Spotify removed `GET /users/{id}` for development-mode apps (403 on
+            // the phone, 2026-11-11), so no names is the expected answer now.
+            log("collaborator names: \(names.count) of \(ids.count) (Spotify refuses this lookup for development-mode apps)")
         } else {
             log("no collaborative Spotify playlist to check names on")
         }

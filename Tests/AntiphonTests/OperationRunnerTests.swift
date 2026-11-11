@@ -19,12 +19,17 @@ final class FakeEditor: PlaylistEditor, Sendable {
     private let failing: Bool
     /// Apple Music answers with catalog IDs, not the IDs Antiphon asked with.
     private let renameLanded: Bool
+    /// Apple Music confirmed an add that the playlist doesn't list yet.
+    private let unlisted: Bool
 
-    init(live: [Platform: [CatalogTrack]] = [:], failing: Bool = false, renameLanded: Bool = false) {
+    init(live: [Platform: [CatalogTrack]] = [:], failing: Bool = false, renameLanded: Bool = false, unlisted: Bool = false) {
         self.live = Mutex(live)
         self.failing = failing
         self.renameLanded = renameLanded
+        self.unlisted = unlisted
     }
+
+    func isListed(_ track: CatalogTrack) -> Bool { !unlisted }
 
     var edits: [Edit] { log.withLock { $0 } }
 

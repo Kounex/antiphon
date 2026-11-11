@@ -6,6 +6,12 @@ struct LivePlaylistEditor: PlaylistEditor {
     let spotifyClient: SpotifyAPIClient
     let appleMusicManager: AppleMusicManager
 
+    /// Spotify lists an add at once. Apple Music lists it some seconds
+    /// later, sometimes much later: it's there once it has a library ID.
+    func isListed(_ track: CatalogTrack) -> Bool {
+        track.platform == .spotify || track.id.hasPrefix("i.")
+    }
+
     func add(_ tracks: [CatalogTrack], to playlistId: String, on platform: Platform) async throws -> [CatalogTrack] {
         switch platform {
         case .spotify:
@@ -20,6 +26,7 @@ struct LivePlaylistEditor: PlaylistEditor {
         case .appleMusic:
             let playlist = try await appleMusicPlaylist(playlistId)
             let songs = try await resolveSongs(tracks)
+            let before = await appleMusicManager.entryCounts(of: playlist)
             do {
                 try await appleMusicManager.addTracks(songs, to: playlist)
             } catch AppleMusicError.partialAdd(let addedIds, let underlying) {
@@ -28,7 +35,7 @@ struct LivePlaylistEditor: PlaylistEditor {
                     underlying: underlying
                 )
             }
-            let anchors = await appleMusicManager.libraryIDs(for: songs, in: playlist)
+            let anchors = await appleMusicManager.libraryIDs(for: songs, in: playlist, before: before)
             let landed = songs.map { song in
                 var track = CatalogTrack(song)
                 if let libraryID = anchors[track.id] { track.id = libraryID }

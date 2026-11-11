@@ -9,6 +9,7 @@ Read this first, then `docs/redesign-plan.md` (decisions D1–D7, the screen map
 - **Work happens on `main`.** The iOS 26 redesign (M0–M8 plus the review fixes) was merged on 2026-10-11 and `redesign/ios26` is deleted. Commit and push to `main` after each unit of work. TestFlight builds are cut from `main`, but only when the user asks.
 - **M9 in progress.** Steps 1–3 are done: App Group and snapshot, answering questions from the notification, widgets with "Sync all", Live Activity, and syncs that keep running in the background. Step 4, the share extension (9.03), is next. Opening the app checks every seam (`SeamChecks`).
 - **1.4.0 shipped to TestFlight 2026-10-14** (unattended overnight session): the sync sheet now caches its `SyncFlowModel` per seam so hiding and reopening it — from anywhere — shows the same content instead of restarting; several running syncs browse in one sheet via a cover strip; an iPad pass fixed Library's column count and three screens (Onboarding, Review's match card, MatchDetailView) that stretched edge to edge with no system sheet to size them. Track matching was investigated against a tester's "wrong album" report and found solid (see `docs/redesign-plan.md`'s last entry) — no code change there. Not verified on a real device tonight; re-check the sync-sheet hide/reopen behavior on your phone.
+- **Audit pass 2026-11-11** (after 1.4.5): truth fixes, matching, Review, onboarding with an invite link, monitoring (named tracks, measured cadence, `UnchangedCheck`), Problems › Recreate, a calmer home. What was found, changed, measured and left open is the last entry of `docs/redesign-plan.md`. Not in a TestFlight build yet.
 - **Design sources:** the design system artifact `TXKAkq1pkYhFFF593kxH63` and the storyboard `BF77MNwKAG2ZbZNv6mL15Q` (boards 1–9). Read them with the Artifact tool if needed.
 
 ## Commands
@@ -18,7 +19,7 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 | What | Command |
 |---|---|
 | Regenerate the project (after adding or removing files) | `xcodegen generate` |
-| Unit tests (Swift Testing, ~300) | `scripts/test.sh` or `scripts/test.sh -only-testing:AntiphonTests/<Suite>` |
+| Unit tests (Swift Testing, ~490) | `scripts/test.sh` or `scripts/test.sh -only-testing:AntiphonTests/<Suite>` |
 | Simulator build and install | `scripts/screenshot.sh --install` |
 | Screenshot a debug route | `scripts/screenshot.sh shell/library light library` (`WAIT=6` for slow screens) |
 | Dev build for the phone | `scripts/build-dev.sh` (bundle `com.kounex.antiphon.dev`, installed next to the real app) |
@@ -48,8 +49,9 @@ All scripts live in `scripts/`. Logs go to `build/logs/`, screenshots to `build/
 
 - **Scenarios:**
   - `twoway`, `sameorder`, `album` (read only), `library` (read only, includes the onboarding twin scan), `undo`, `recheck`, `monitor` (the background run, called directly), `opencheck` (what opening the app checks), `pick` (swap a synced song for another version, keep it through a sync, undo it).
-  - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app), `matchprobe` (read only: every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`).
-- Last full run: **135 of 135** (2026-10-14, the open check rerun on its own after the phone locked mid-run).
+  - Only when named: `ownam` (writes to the user's own Apple Music "Antiphon Test"), `realpreview` (dry run of the user's real seam), `icon` (switches the Home Screen icon), `ask` (posts a question notification; the person taps its button from Notification Centre, then reopens the app), `matchprobe` (read only: every candidate the matcher sees for one song, both ways, under each album setting; `PROBE="Title|Artist" scripts/selftest.sh matchprobe`), `recreate` (a seam whose Apple Music playlist is gone gets a new one; leaves an "Antiphon Self-Test (restored)" playlist behind each run).
+  - The dev app has its own Spotify sign-in. If a run prints `Stopped: notAuthenticated`, connect Spotify in the dev app's Settings first.
+- Last full run: **145 passed, 7 failed** (2026-11-11). Three failures were a real bug in version picks, fixed and rerun (`pick` 12 of 12); two were Apple Music not listing an add within 3 minutes; two were missing test playlists. Still failing in `library`: the person's own "Antiphon Test" playlist is gone from Apple Music. Before that: 135 of 135 (2026-10-14).
 - **Rules from the user:**
   - Only touch playlists whose names start with "Antiphon". "Antiphon Test" (made by the user, used by their real two-way seam) and "Antiphon Test 2" (Antiphon-made) may be used.
   - The phone must be unlocked and the dev app on screen (a suspended app stalls mid-run); auto-lock is at most 5 minutes. If the device connection drops ("CoreDeviceError … invalidated"), just rerun.
@@ -102,11 +104,15 @@ Tests/AntiphonTests      Swift Testing suites per area; in-memory SwiftData via 
 
 - **Apple Music IDs and timing:**
   - Playlist reads return library IDs (`i.…`), but adds take catalog IDs. An added song is listed about 3 s later, sometimes under an equivalent catalog ID. `LibraryAnchor` maps adds to library IDs (by ID, then title/artist/length), and `DeltaEngine` gives catalog-ID rows a 15-minute read grace.
+  - Now and then Apple Music confirms an add and doesn't list the song for minutes (seen several times, more often when a playlist is emptied and refilled repeatedly). Never treat an entry that was in the playlist before an add as the added song (`LibraryAnchor`'s `before`), and never remove an old version before the new one is listed (`PlaylistEditor.isListed`). The read grace and `requeueNeverArrived` cover it; a self-test that waits for the song can fail on it, so rerun.
   - Apps can only remove or reorder tracks in Apple Music playlists **they created** (D1). In the person's own playlists Antiphon can only append, and removals are "guided" (the person does them in the Music app).
 - **Spotify:**
   - Since February 2026 the API uses `/items` (it accepts both `item` and `track` keys).
   - Development-mode apps get at most 10 search results and can't read Spotify-made playlists.
   - Local files have `album.id == null`.
+  - Playlist items are only given for playlists the person owns or collaborates on. A followed playlist lists, but reading it answers 403 "Forbidden" (`LibraryPlaylist.spotifyBlockedReason`, `ProblemKind.writeRefused`).
+  - `GET /users/{id}` is gone for development-mode apps (403), so collaborators can't be named.
+  - The snapshot ID (`GET /playlists/{id}?fields=snapshot_id`) lags a change by about a minute (59.5 s measured), while `/items` shows it at once. Only scheduled background runs rely on it (`UnchangedCheck`).
 - **Background execution** (what works, verified on device 2026-10-12: two syncs of 19 and 25 tracks at once finished while the person used other apps and with the phone locked):
   - A sync the person starts asks for a `BGContinuedProcessingTask` (iOS 26) at once, while the app is still on screen (`ContinuedSync.start`). Each run uses its own identifier `<bundle id>.sync.<uuid>`, covered by the wildcard `$(PRODUCT_BUNDLE_IDENTIFIER).sync.*` in `BGTaskSchedulerPermittedIdentifiers`. `strategy = .fail`: run now or not at all.
   - Register the handler with `using: .main` and treat the closure as main-actor code (`MainActor.assumeIsolated`). If it's delivered on another queue, Swift's isolation check crashes the app.

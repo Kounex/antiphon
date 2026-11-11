@@ -11,6 +11,13 @@ protocol PlaylistEditor: Sendable {
     func tracks(in playlistId: String, on platform: Platform) async throws -> [CatalogTrack]
     /// Puts the playlist in `order` (the IDs `tracks(in:on:)` reports).
     func reorder(_ playlistId: String, on platform: Platform, to order: [String]) async throws
+    /// Whether a track `add` returned is in the playlist for a reader to
+    /// see. Apple Music confirms an add before it lists it.
+    func isListed(_ track: CatalogTrack) -> Bool
+}
+
+extension PlaylistEditor {
+    func isListed(_ track: CatalogTrack) -> Bool { true }
 }
 
 enum PlaylistEditError: Error {
@@ -206,7 +213,17 @@ actor OperationRunner {
                 outcome.guided = [SyncOperation(kind: .remove, platform: target, track: old, isGuided: true)]
             }
         }
-        outcome.landed = try await execute(operations, pair: pair, context: context, trigger: .pick, undoOf: nil, outcome: &outcome)
+        // The old version only goes once the playlist shows the new one.
+        // Apple Music can confirm an add and list it minutes later, or
+        // never; removing first could leave the song out of the playlist.
+        // Then the old one stays, and the person is told it's still there.
+        let editor = self.editor
+        let removal = operations.first { $0.kind == .remove }
+        outcome.landed = try await execute(operations, pair: pair, context: context, trigger: .pick, undoOf: nil, outcome: &outcome,
+                                           stopIf: { landed in landed.contains { $0.kind == .add && !editor.isListed($0.track) } })
+        if let removal, !outcome.landed.contains(where: { $0.kind == .remove }) {
+            outcome.guided.append(SyncOperation(kind: .remove, platform: removal.platform, track: removal.track, isGuided: true))
+        }
 
         let added = outcome.landed.first { $0.kind == .add }?.track
         if let added {
@@ -310,12 +327,15 @@ actor OperationRunner {
         context: ModelContext,
         trigger: SyncTrigger,
         undoOf: UUID?,
-        outcome: inout Outcome
+        outcome: inout Outcome,
+        stopIf: (([SyncOperation]) -> Bool)? = nil
     ) async throws -> [SyncOperation] {
         var landed: [SyncOperation] = []
         do {
             for group in grouped(operations) {
                 landed += try await write(group, pair: pair)
+                // What landed so far says the rest shouldn't be written.
+                if let stopIf, stopIf(landed) { break }
             }
         } catch PlaylistEditError.partial(let tracks, let underlying) {
             landed += operationsFor(tracks, like: operations)

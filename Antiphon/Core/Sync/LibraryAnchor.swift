@@ -28,7 +28,19 @@ enum LibraryAnchor {
     /// listed under that entry's catalog ID, which can be an equivalent one
     /// (seen: added 1831584253, listed as 193613943), so the rest match by
     /// title, artist and length against entries no other song claimed.
-    static func libraryIDs(for added: [Added], in entries: [Entry]) -> [String: String] {
+    ///
+    /// `before`: how often each library ID was in the playlist before the
+    /// add. Those entries are never the added song. Without it, the fallback
+    /// took the old version for the new one when a version pick's add
+    /// wasn't listed yet (same title, artist and length), and the swap then
+    /// removed the only copy (seen on the phone, 2026-11-11).
+    static func libraryIDs(for added: [Added], in entries: [Entry], before: [String: Int] = [:]) -> [String: String] {
+        var remaining = before
+        let entries = entries.filter { entry in
+            guard let count = remaining[entry.libraryID], count > 0 else { return true }
+            remaining[entry.libraryID] = count - 1
+            return false
+        }
         var result: [String: String] = [:]
         var claimed = Set<String>()
         for song in added {
@@ -66,11 +78,18 @@ enum LibraryAnchor {
 }
 
 extension AppleMusicManager {
+    /// How often each library ID is in `playlist` now: read before an add,
+    /// so anchoring can tell the new entries from the ones already there.
+    func entryCounts(of playlist: Playlist) async -> [String: Int] {
+        guard let tracks = try? await allTracks(of: playlist) else { return [:] }
+        return tracks.reduce(into: [:]) { $0[$1.id.rawValue, default: 0] += 1 }
+    }
+
     /// Reads `playlist` until it lists every added song (or the attempts run
     /// out) and returns catalog ID → library ID for those found. Never
     /// throws: anything not found keeps its catalog ID, and the next sync
     /// waits `DeltaEngine.appleMusicReadGrace` for it.
-    func libraryIDs(for songs: [Song], in playlist: Playlist,
+    func libraryIDs(for songs: [Song], in playlist: Playlist, before: [String: Int] = [:],
                     attempts: Int = 5, delay: Duration = .seconds(2)) async -> [String: String] {
         let added = songs.filter { !$0.id.rawValue.hasPrefix("i.") }.map {
             LibraryAnchor.Added(catalogID: $0.id.rawValue, title: $0.title, artist: $0.artistName,
@@ -88,7 +107,7 @@ extension AppleMusicManager {
                     LibraryAnchor.Entry(libraryID: $0.id.rawValue, catalogID: Self.catalogID(for: $0), title: $0.title,
                                         artist: $0.artistName, durationMs: $0.duration.map { Int($0 * 1000) })
                 }
-                found = LibraryAnchor.libraryIDs(for: added, in: lastEntries)
+                found = LibraryAnchor.libraryIDs(for: added, in: lastEntries, before: before)
             }
             if LibraryAnchor.missing(added, from: found).isEmpty { break }
             if attempt < attempts { try? await Task.sleep(for: delay) }
