@@ -53,7 +53,8 @@ struct SyncsRoot: View {
                         .id(id)
                 case .problems:
                     ProblemsView(model: shell.makeProblems(), onSignIn: { shell.showsSettings = true },
-                                 onOpenSeam: { shell.syncsPath.append(.seam($0)) })
+                                 onOpenSeam: { shell.syncsPath.append(.seam($0)) },
+                                 onPreview: { shell.openSyncFlow(seamId: $0) })
                 }
             }
         }

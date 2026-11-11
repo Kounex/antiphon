@@ -21,6 +21,11 @@ enum ProblemClassifier {
             return nil
         case SpotifyAuthError.notAuthenticated, SpotifyAuthError.tokenRefreshFailed, SpotifyAuthError.noClientId:
             return Problem(kind: .signedOut, platform: .spotify, message: "Spotify signed you out", retryAt: nil)
+        // Spotify refuses this one playlist, not the account: since February
+        // 2026 apps only get playlists the person owns or collaborates on.
+        // (An account that isn't allowed answers in other words, see below.)
+        case SpotifyAPIError.httpError(403, let body) where SpotifyAccessCopy.spotifyMessage(fromBody: body) == "Forbidden":
+            return Problem(kind: .writeRefused, platform: .spotify, message: "Spotify won't let apps use \(seamName)", retryAt: nil)
         case SpotifyAPIError.httpError(let code, _) where code == 401 || code == 403:
             return Problem(kind: .signedOut, platform: .spotify, message: "Spotify signed you out", retryAt: nil)
         case AppleMusicError.notAuthorized:
@@ -63,6 +68,21 @@ enum ProblemStore {
         let open = (try? context.fetch(FetchDescriptor<SyncProblem>(predicate: #Predicate { $0.resolvedAt == nil }))) ?? []
         for problem in open where problem.pair == nil || problem.pair?.id == pair.id {
             problem.resolvedAt = now
+        }
+    }
+}
+
+/// Making a deleted playlist again from the one that's left.
+enum SeamRecreation {
+    enum Failure: Error { case notRecreatable }
+
+    /// Only when tracks flow toward the deleted side. A one-way seam whose
+    /// source is gone has nothing its rules would copy.
+    static func canRecreate(direction: SyncDirection, deleted: Platform) -> Bool {
+        switch direction {
+        case .bidirectional: true
+        case .spotifyToApple: deleted == .appleMusic
+        case .appleToSpotify: deleted == .spotify
         }
     }
 }

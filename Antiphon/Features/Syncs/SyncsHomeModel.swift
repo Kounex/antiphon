@@ -61,6 +61,18 @@ final class SyncsHomeModel {
         return parts.joined(separator: " · ")
     }
 
+    /// The big number is for a quiet day. When something needs the person
+    /// (a problem, tracks to review), or at accessibility text sizes, it
+    /// would push the seams off the first screen.
+    static func showsLargeHero(needsAttention: Bool, isAccessibilitySize: Bool) -> Bool {
+        !needsAttention && !isAccessibilitySize
+    }
+
+    /// "276 tracks in sync across 4 seams · checked 1 min ago"
+    var compactHero: String {
+        "\(PlanCopy.count(tracksInSync, "track")) in sync \(heroDetail)"
+    }
+
     // MARK: - Filters
 
     var chips: [ChipBar<Filter>.Chip] {

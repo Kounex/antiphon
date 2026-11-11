@@ -6,6 +6,8 @@ struct ProblemsView: View {
     @State var model: ProblemsModel
     let onSignIn: () -> Void
     let onOpenSeam: (UUID) -> Void
+    /// After "Recreate": the seam's first sync, as a preview.
+    var onPreview: (UUID) -> Void = { _ in }
     @State private var showsAllPaused = false
 
     var body: some View {
@@ -47,18 +49,30 @@ struct ProblemsView: View {
             if !model.others.isEmpty {
                 Section(model.signedOut == nil ? "" : "Other") {
                     ForEach(model.others) { row in
-                        HStack(spacing: Space.s3) {
-                            Image(systemName: symbol(row.kind)).foregroundStyle(row.kind == .rateLimited ? Color.inkMuted : Color.statusFailed)
-                                .frame(width: 28).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.title).font(.body).foregroundStyle(Color.ink)
-                                Text(row.detail).font(.footnote).foregroundStyle(Color.inkMuted)
+                        // The action sits under the words: beside them, a
+                        // button that says what it does leaves no room for either.
+                        VStack(alignment: .leading, spacing: Space.s3) {
+                            HStack(alignment: .top, spacing: Space.s3) {
+                                Image(systemName: symbol(row.kind)).foregroundStyle(row.kind == .rateLimited ? Color.inkMuted : Color.statusFailed)
+                                    .frame(width: 28).accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).font(.body).foregroundStyle(Color.ink)
+                                    Text(row.detail).font(.footnote).foregroundStyle(Color.inkMuted)
+                                }
                             }
-                            Spacer()
-                            if let seamId = row.seamId, row.kind != .rateLimited {
-                                Button("Fix") { onOpenSeam(seamId) }.glassButton(.secondary).controlSize(.small)
+                            if let seamId = row.seamId, let action = ProblemsModel.action(for: row) {
+                                Button(action) {
+                                    if row.recreateOn != nil {
+                                        Task { if let seam = await model.recreate(row) { onPreview(seam) } }
+                                    } else {
+                                        onOpenSeam(seamId)
+                                    }
+                                }
+                                .buttonSizing(.flexible)
+                                .glassButton(.secondary).controlSize(.small)
                             }
                         }
+                        .padding(.vertical, Space.s1)
                     }
                 }
                 .listRowBackground(Color.canvasRaised)

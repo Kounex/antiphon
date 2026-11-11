@@ -24,6 +24,69 @@ struct ProblemsTests {
                 == .init(kind: .rateLimited, platform: .spotify, message: "Spotify is busy", retryAt: now.addingTimeInterval(15 * 60)))
     }
 
+    @Test("Spotify refusing one playlist isn't a sign-out: it's that seam's problem")
+    func refusedPlaylist() {
+        // What the phone logged for a playlist the person only follows.
+        let forbidden = SpotifyAPIError.httpError(statusCode: 403, body: #"{"error": {"status": 403, "message": "Forbidden" } }"#)
+        #expect(ProblemClassifier.problem(for: forbidden, seamName: "Road Trip", now: now)
+                == .init(kind: .writeRefused, platform: .spotify, message: "Spotify won't let apps use Road Trip", retryAt: nil))
+        // The account itself refused (not on the app's allowlist) stays global.
+        let notRegistered = SpotifyAPIError.httpError(statusCode: 403, body: "The user is not registered for this application.")
+        #expect(ProblemClassifier.problem(for: notRegistered, seamName: "Road Trip", now: now)?.kind == .signedOut)
+    }
+
+    @Test("A deleted playlist can be made again from the other side when tracks flow toward it")
+    func canRecreate() {
+        #expect(SeamRecreation.canRecreate(direction: .spotifyToApple, deleted: .appleMusic))
+        #expect(!SeamRecreation.canRecreate(direction: .spotifyToApple, deleted: .spotify), "the source is gone: nothing to copy from the rules' point of view")
+        #expect(SeamRecreation.canRecreate(direction: .appleToSpotify, deleted: .spotify))
+        #expect(SeamRecreation.canRecreate(direction: .bidirectional, deleted: .spotify))
+        #expect(SeamRecreation.canRecreate(direction: .bidirectional, deleted: .appleMusic))
+    }
+
+    @Test("Recreating leaves the seam as if new on that side: a playlist to create, no stored tracks, a first sync to preview")
+    func recreate() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let (context, pair) = try makePair(container)
+        pair.lastSyncedAt = now
+        pair.unchangedToken = "v1|x"
+        pair.appleMusicImageURL = "https://example.com/a.jpg"
+        let row = CachedTrack(isrc: "I1", title: "T", artist: "A", source: .both, syncState: .synced)
+        row.syncPair = pair
+        context.insert(row)
+        let deleted = ProblemClassifier.Problem(kind: .playlistDeleted, platform: .appleMusic, message: "Vinyl Rips was deleted", retryAt: nil)
+        ProblemStore.record(deleted, for: pair, in: context, now: now)
+        try context.save()
+        let repository = SwiftDataSeamRepository(modelContainer: container)
+        let problem = try #require(try await repository.problems().first)
+
+        let seamId = try await repository.recreatePlaylist(for: problem.id)
+
+        #expect(seamId == pair.id)
+        let fresh = ModelContext(container)
+        let after = try #require(try fresh.fetch(FetchDescriptor<SyncPair>()).first)
+        #expect(after.appleMusicPlaylistId.hasPrefix("pending-creation-"))
+        #expect(after.spotifyPlaylistId == "sp", "the playlist that's left is untouched")
+        #expect(after.cachedTracks.isEmpty)
+        #expect(after.lastSyncedAt == nil, "so its first sync is previewed, never run in the background")
+        #expect(after.unchangedToken == nil && after.appleMusicImageURL == nil)
+        #expect(after.isMonitored, "rules stay")
+        #expect(try await repository.problems().isEmpty)
+    }
+
+    @Test("A one-way seam whose source was deleted can't be recreated")
+    func recreateRefused() async throws {
+        let container = try SharedModelContainer.make(inMemory: true)
+        let (context, pair) = try makePair(container)
+        ProblemStore.record(.init(kind: .playlistDeleted, platform: .spotify, message: "Vinyl Rips was deleted", retryAt: nil),
+                            for: pair, in: context, now: now)
+        try context.save()
+        let repository = SwiftDataSeamRepository(modelContainer: container)
+        let problem = try #require(try await repository.problems().first)
+        await #expect(throws: SeamRecreation.Failure.self) { _ = try await repository.recreatePlaylist(for: problem.id) }
+        #expect(try await repository.problems().count == 1)
+    }
+
     @Test("Only a rejected refresh token means signed out; a busy or down Spotify doesn't")
     func refreshTrouble() {
         #expect(SpotifyAuthError.refreshFailure(status: 400) == .tokenRefreshFailed)
@@ -114,4 +177,5 @@ struct ProblemsTests {
 struct FixedProblems: ProblemsRepository {
     var items: [ProblemRecord] = []
     func problems() async throws -> [ProblemRecord] { items }
+    func recreatePlaylist(for problemId: UUID) async throws -> UUID { UUID() }
 }

@@ -34,7 +34,9 @@ public struct Banner<Action: View>: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Space.s1) {
                     Text(title).font(.headline).foregroundStyle(Color.ink)
-                    Text(message).font(.footnote).foregroundStyle(Color.inkMuted)
+                    if !message.isEmpty {
+                        Text(message).font(.footnote).foregroundStyle(Color.inkMuted)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

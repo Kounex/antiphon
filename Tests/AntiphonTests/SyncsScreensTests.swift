@@ -58,6 +58,12 @@ struct SyncsScreensTests {
         #expect(model.tracksInSync == 245)
         #expect(model.watchingCount == 2)
         #expect(model.heroDetail == "across 3 seams · checked 2 min ago")
+        // When something needs the person, or the text is very large, the
+        // number steps back into one line so the seams stay on screen.
+        #expect(model.compactHero == "\(model.tracksInSync) tracks in sync across 3 seams · checked 2 min ago")
+        #expect(SyncsHomeModel.showsLargeHero(needsAttention: false, isAccessibilitySize: false))
+        #expect(!SyncsHomeModel.showsLargeHero(needsAttention: true, isAccessibilitySize: false))
+        #expect(!SyncsHomeModel.showsLargeHero(needsAttention: false, isAccessibilitySize: true))
     }
 
     @Test("Filter chips count and filter seams")

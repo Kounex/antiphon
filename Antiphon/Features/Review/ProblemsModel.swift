@@ -17,6 +17,8 @@ final class ProblemsModel {
         let title: String
         let detail: String
         let seamId: UUID?
+        /// The side a playlist is missing on, when the other side can fill a new one.
+        var recreateOn: Platform?
     }
 
     private(set) var signedOut: Card?
@@ -58,8 +60,24 @@ final class ProblemsModel {
         others = records
             .filter { !($0.kind == .signedOut && $0.platform == .spotify) }
             .map { record in
-                Row(id: record.id, kind: record.kind, title: record.message, detail: detail(for: record), seamId: record.seamId)
+                Row(id: record.id, kind: record.kind, title: record.message, detail: detail(for: record), seamId: record.seamId,
+                    recreateOn: record.canRecreate ? record.platform : nil)
             }
+    }
+
+    /// What the row's button really does. "Fix" promised more than opening the seam.
+    static func action(for row: Row) -> String? {
+        guard row.seamId != nil, row.kind != .rateLimited else { return nil }
+        if let platform = row.recreateOn { return "Recreate on \(platform.rawValue)" }
+        return "Open seam"
+    }
+
+    /// A deleted playlist's seam gets a new playlist to create; its first
+    /// sync (previewed) fills it from the other side. Returns the seam to preview.
+    func recreate(_ row: Row) async -> UUID? {
+        guard row.recreateOn != nil, let seamId = try? await problems.recreatePlaylist(for: row.id) else { return nil }
+        await load()
+        return seamId
     }
 
     /// "all 3 watched seams", "your watched seam", "your seams".
@@ -75,7 +93,14 @@ final class ProblemsModel {
         if let retry = record.retryAt {
             return "Antiphon will retry at \(retry.formatted(date: .omitted, time: .shortened))"
         }
+        if record.kind == .writeRefused {
+            return "Spotify only lets apps use playlists you made or collaborate on. Unlink the seam in its Rules."
+        }
         let platform = record.platform.map { "On \($0.rawValue), " } ?? ""
-        return platform + RelativeTime.text(since: record.firstSeenAt, now: now())
+        let when = platform + RelativeTime.text(since: record.firstSeenAt, now: now())
+        if record.canRecreate, let side = record.platform {
+            return "\(when). Antiphon can make it again from the \(side.other.rawValue) playlist; you preview it first."
+        }
+        return when
     }
 }

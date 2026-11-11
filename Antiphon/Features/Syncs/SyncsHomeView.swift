@@ -28,7 +28,8 @@ struct SyncsHomeView: View {
                 if problemCount > 0 {
                     Banner(tone: .failed, symbol: "exclamationmark.triangle.fill",
                            title: problemCount == 1 ? "Something needs fixing" : "\(problemCount) things need fixing",
-                           message: "See what broke and what it affects.") {
+                           // With a second banner below, the title and button say enough.
+                           message: model.reviewBanner == nil ? "See what broke and what it affects." : "") {
                         Button("Open") { path.append(.problems) }
                             .buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
                             .tint(.statusFailed).foregroundStyle(Color.canvas)
@@ -72,7 +73,23 @@ struct SyncsHomeView: View {
 
     // MARK: - Sections
 
-    private var hero: some View {
+    @ViewBuilder private var hero: some View {
+        let needsAttention = problemCount > 0 || model.reviewBanner != nil
+        if SyncsHomeModel.showsLargeHero(needsAttention: needsAttention, isAccessibilitySize: dynamicTypeSize.isAccessibilitySize) {
+            largeHero
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Space.s1 + 2) { heroPill; compactHero }
+                VStack(alignment: .leading, spacing: Space.s1) { heroPill; compactHero }
+            }
+        }
+    }
+
+    private var compactHero: some View {
+        Text(model.compactHero).font(.footnote).foregroundStyle(Color.inkMuted)
+    }
+
+    private var largeHero: some View {
         VStack(alignment: .leading, spacing: Space.s1) {
             let heroLayout = dynamicTypeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))

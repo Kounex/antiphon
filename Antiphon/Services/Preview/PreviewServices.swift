@@ -139,10 +139,12 @@ extension PreviewSeamRepository: ReviewRepository, ProblemsRepository {
     func problems() async throws -> [ProblemRecord] {
         guard showsProblems else { return [] }
         return [ProblemRecord(id: UUID(), kind: .playlistDeleted, platform: .appleMusic, seamId: PreviewFixtures.vinylRips.id,
-                       message: "Vinyl Rips was deleted", firstSeenAt: Date().addingTimeInterval(-2 * 86_400), retryAt: nil),
+                       message: "Vinyl Rips was deleted", firstSeenAt: Date().addingTimeInterval(-2 * 86_400), retryAt: nil,
+                       canRecreate: true),
          ProblemRecord(id: UUID(), kind: .rateLimited, platform: .appleMusic, seamId: nil, message: "Apple Music is busy",
                        firstSeenAt: Date(), retryAt: Date().addingTimeInterval(20 * 60))]
     }
+    func recreatePlaylist(for problemId: UUID) async throws -> UUID { PreviewFixtures.vinylRips.id }
 }
 
 /// In-memory `SeamRepository` for previews.
